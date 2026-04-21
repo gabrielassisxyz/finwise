@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="finwise">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}FinWise{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/main.css">
+  <script src="/static/js/htmx.min.js"></script>
+  <script src="/static/js/theme.js"></script>
+</head>
+<body class="bg-neutral text-base-content min-h-screen">
+  <div class="drawer lg:drawer-open">
+    <input id="sidebar-drawer" type="checkbox" class="drawer-toggle" />
+    <div class="drawer-content flex flex-col min-h-screen">
+      <div class="navbar bg-base-100 lg:hidden shadow-sm">
+        <div class="flex-none">
+          <label for="sidebar-drawer" class="btn btn-square btn-ghost drawer-button">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-6 h-6 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+          </label>
+        </div>
+        <div class="flex-1">
+          <span class="text-xl font-bold">FinWise</span>
+        </div>
+      </div>
+
+      <main class="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+
+    <div class="drawer-side z-40">
+      <label for="sidebar-drawer" class="drawer-overlay"></label>
+      <aside class="bg-base-200 w-72 min-h-full flex flex-col p-4">
+        <div class="mb-6">
+          <h1 class="text-2xl font-bold">FinWise</h1>
+          <p class="text-sm opacity-70">AI Bookkeeper</p>
+        </div>
+
+        <nav class="flex-1 space-y-2">
+          <a href="/chat" class="btn btn-ghost justify-start w-full {% if request.url.path == '/chat' %}btn-active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+            Chat
+          </a>
+          <a href="/history" class="btn btn-ghost justify-start w-full {% if request.url.path == '/history' %}btn-active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            History
+          </a>
+          <a href="/settings" class="btn btn-ghost justify-start w-full {% if request.url.path == '/settings' %}btn-active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            Settings
+          </a>
+        </nav>
+
+        <div class="mt-auto pt-4 border-t border-base-300">
+          <button onclick="FinWiseTheme.cycle()" class="btn btn-ghost btn-sm w-full justify-start">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+            Toggle Theme
+          </button>
+        </div>
+      </aside>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Setup - FinWise{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto mt-12">
+  <div class="text-center mb-8">
+    <h1 class="text-4xl font-bold mb-2">Welcome to FinWise</h1>
+    <p class="text-lg opacity-70">Let's get your AI Bookkeeper configured</p>
+  </div>
+
+  {% if completed %}
+  <div class="alert alert-success mb-4">
+    <span>Setup complete! <a href="/chat" class="link">Go to Chat</a></span>
+  </div>
+  {% else %}
+  <form action="/setup/" method="post" class="space-y-4 bg-base-100 p-6 rounded-box shadow-sm">
+    <h2 class="text-xl font-semibold mb-4">LLM Configuration</h2>
+
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Provider</span>
+      </label>
+      <select name="llm_provider" class="select select-bordered w-full">
+        <option value="openai">OpenAI</option>
+        <option value="anthropic">Anthropic</option>
+        <option value="ollama">Ollama</option>
+      </select>
+    </div>
+
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">API Key</span>
+      </label>
+      <input type="password" name="llm_api_key" class="input input-bordered w-full" placeholder="sk-..." required />
+    </div>
+
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Model</span>
+      </label>
+      <input type="text" name="llm_model" value="gpt-4o" class="input input-bordered w-full" required />
+    </div>
+
+    <h2 class="text-xl font-semibold mb-4 mt-6">Actual Budget</h2>
+
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Server URL</span>
+      </label>
+      <input type="url" name="actual_budget_url" class="input input-bordered w-full" placeholder="http://localhost:5006" required />
+    </div>
+
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Password</span>
+      </label>
+      <input type="password" name="actual_budget_password" class="input input-bordered w-full" required />
+    </div>
+
+    <button type="submit" class="btn btn-primary w-full mt-4">Complete Setup</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,24 @@
+<div class="chat chat-start" id="job-{{ job_id }}">
+  <div class="chat-bubble chat-bubble-primary">
+    <p class="mb-2">{{ narration }}</p>
+    {% if transactions %}
+    <div class="space-y-2">
+      {% for tx in transactions %}
+      <div class="bg-base-200 p-3 rounded">
+        <div class="flex justify-between">
+          <span class="font-medium">{{ tx.payee }}</span>
+          <span class="font-mono">{{ "%.2f"|format(tx.amount) }}</span>
+        </div>
+        <div class="text-xs opacity-70">{{ tx.date }} · {{ tx.category or 'Uncategorized' }} · {{ "%.0f"|format(tx.confidence * 100) }}%</div>
+      </div>
+      {% endfor %}
+    </div>
+    <form action="/transactions/bulk-confirm" method="post" class="mt-3">
+      <input type="hidden" name="job_id" value="{{ job_id }}">
+      <button type="submit" class="btn btn-success btn-sm">Confirm All</button>
+    </form>
+    {% else %}
+    <p class="text-sm opacity-70">No transactions found.</p>
+    {% endif %}
+  </div>
+</div>

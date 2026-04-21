@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - FinWise{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-3xl font-bold mb-6">Settings</h1>
+
+  {% if saved %}
+  <div class="alert alert-success mb-4">
+    <span>Settings saved successfully!</span>
+  </div>
+  {% endif %}
+
+  <form action="/settings/" method="post" class="space-y-4 bg-base-100 p-6 rounded-box shadow-sm">
+    <h2 class="text-xl font-semibold mb-4">LLM Configuration</h2>
+
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Provider</span>
+      </label>
+      <select name="llm_provider" class="select select-bordered w-full">
+        <option value="openai" {% if settings.llm_provider == 'openai' %}selected{% endif %}>OpenAI</option>
+        <option value="anthropic" {% if settings.llm_provider == 'anthropic' %}selected{% endif %}>Anthropic</option>
+        <option value="ollama" {% if settings.llm_provider == 'ollama' %}selected{% endif %}>Ollama</option>
+      </select>
+    </div>
+
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">API Key</span>
+      </label>
+      <input type="password" name="llm_api_key" class="input input-bordered w-full" placeholder="sk-..." />
+    </div>
+
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Model</span>
+      </label>
+      <input type="text" name="llm_model" value="{{ settings.llm_model or 'gpt-4o' }}" class="input input-bordered w-full" />
+    </div>
+
+    <h2 class="text-xl font-semibold mb-4 mt-6">Actual Budget</h2>
+
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Server URL</span>
+      </label>
+      <input type="url" name="actual_budget_url" value="{{ settings.actual_budget_url or '' }}" class="input input-bordered w-full" placeholder="http://localhost:5006" />
+    </div>
+
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Password</span>
+      </label>
+      <input type="password" name="actual_budget_password" class="input input-bordered w-full" />
+    </div>
+
+    <h2 class="text-xl font-semibold mb-4 mt-6">Sync</h2>
+
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Auto-sync Threshold (0-1)</span>
+      </label>
+      <input type="number" name="auto_sync_threshold" value="{{ settings.auto_sync_threshold or 1.0 }}" min="0" max="1" step="0.1" class="input input-bordered w-full" />
+      <label class="label">
+        <span class="label-text-alt">1.0 = manual confirmation for all</span>
+      </label>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-full mt-4">Save Settings</button>
+  </form>
+</div>
+{% endblock %}

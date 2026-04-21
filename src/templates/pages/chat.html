@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Chat - FinWise{% endblock %}
+
+{% block content %}
+<div class="flex flex-col h-[calc(100vh-6rem)] max-w-4xl mx-auto">
+  <div id="chat-messages" class="flex-1 overflow-y-auto space-y-4 mb-4 p-4 bg-base-100 rounded-box shadow-sm">
+    <div class="chat chat-start">
+      <div class="chat-bubble chat-bubble-primary">
+        Hello! I'm your Bookkeeper. Upload a statement screenshot or type a transaction to get started.
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-4">
+    <form
+      hx-post="/chat/upload"
+      hx-target="#chat-messages"
+      hx-swap="beforeend"
+      enctype="multipart/form-data"
+      class="flex gap-2"
+    >
+      <input type="file" name="file" accept="image/*,.csv,.xlsx,.ofx,.txt" class="file-input file-input-bordered flex-1" required />
+      <button type="submit" class="btn btn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+        Upload
+      </button>
+    </form>
+  </div>
+
+  <div>
+    <form
+      hx-post="/chat/send?session_id=1"
+      hx-target="#chat-messages"
+      hx-swap="beforeend"
+      class="flex gap-2"
+    >
+      <input
+        type="text"
+        name="content"
+        placeholder="Type a message... (e.g., 'Lunch $12')"
+        class="input input-bordered flex-1"
+        required
+      />
+      <button type="submit" class="btn btn-primary">Send</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
