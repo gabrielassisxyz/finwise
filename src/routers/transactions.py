@@ -1,14 +1,13 @@
 from fastapi import APIRouter, Request, Depends, Form
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from decimal import Decimal
 
 from src.database import get_db
 from src.models.pending_transaction import PendingTransaction
 from src.services.learning import LearningService
+from src.templates import templates
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
-templates = Jinja2Templates(directory="src/templates")
 
 
 @router.post("/{tx_id}/edit")
@@ -37,8 +36,9 @@ async def edit_transaction(
         learning.learn(payee, category)
 
     return templates.TemplateResponse(
+        request,
         "partials/transaction_card.html",
-        {"request": request, "tx": tx},
+        {"tx": tx},
     )
 
 
@@ -56,8 +56,9 @@ async def confirm_transaction(
     db.commit()
 
     return templates.TemplateResponse(
+        request,
         "partials/transaction_card.html",
-        {"request": request, "tx": tx},
+        {"tx": tx},
     )
 
 
@@ -75,8 +76,9 @@ async def reject_transaction(
     db.commit()
 
     return templates.TemplateResponse(
+        request,
         "partials/transaction_card.html",
-        {"request": request, "tx": tx},
+        {"tx": tx},
     )
 
 
@@ -98,6 +100,7 @@ async def bulk_confirm(
     db.commit()
 
     return templates.TemplateResponse(
+        request,
         "partials/bulk_confirm_result.html",
-        {"request": request, "count": len(txs)},
+        {"count": len(txs)},
     )

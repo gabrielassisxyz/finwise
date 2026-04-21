@@ -9,7 +9,7 @@ from src.services.bookkeeper import BookkeeperService
 
 
 class UploadOrchestrator:
-    def __init__(, db: Session, bookkeeper: BookkeeperService):
+    def __init__(self, db: Session, bookkeeper: BookkeeperService):
         self.db = db
         self.bookkeeper = bookkeeper
 

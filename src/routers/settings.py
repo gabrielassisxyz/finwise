@@ -1,14 +1,13 @@
 from fastapi import APIRouter, Request, Form, Depends
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from src.database import get_db
 from src.models.settings import Settings as SettingsModel
 from src.services.encryption import EncryptionService
 from src.config import settings
+from src.templates import templates
 
 router = APIRouter(prefix="/settings", tags=["settings"])
-templates = Jinja2Templates(directory="src/templates")
 
 
 @router.get("/")
@@ -21,8 +20,9 @@ async def get_settings(request: Request, db: Session = Depends(get_db)):
         db.refresh(config)
 
     return templates.TemplateResponse(
+        request,
         "pages/settings.html",
-        {"request": request, "settings": config},
+        {"settings": config},
     )
 
 
@@ -55,6 +55,7 @@ async def save_settings(
     db.refresh(config)
 
     return templates.TemplateResponse(
+        request,
         "pages/settings.html",
-        {"request": request, "settings": config, "saved": True},
+        {"settings": config, "saved": True},
     )

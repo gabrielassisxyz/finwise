@@ -2,7 +2,6 @@ import asyncio
 import uuid
 
 from fastapi import APIRouter, Request, UploadFile, File, Depends, Form
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from src.database import get_db
@@ -13,9 +12,9 @@ from src.services.llm_client import LLMClient
 from src.services.upload_orchestrator import UploadOrchestrator
 from src.parsers.image import prepare_image_for_llm
 from src.config import settings
+from src.templates import templates
 
 router = APIRouter(prefix="/chat", tags=["upload"])
-templates = Jinja2Templates(directory="src/templates")
 
 
 @router.post("/upload")
@@ -72,9 +71,9 @@ async def upload_file(
         )
 
     return templates.TemplateResponse(
+        request,
         "partials/upload_result.html",
         {
-            "request": request,
             "job_id": job_id,
             "narration": narration,
             "transactions": transactions,

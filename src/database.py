@@ -16,6 +16,14 @@ class Base(DeclarativeBase):
     pass
 
 
+from src.models import settings as _settings
+from src.models import chat_session as _chat_session
+from src.models import message as _message
+from src.models import pending_transaction as _pending_transaction
+from src.models import payee_mapping as _payee_mapping
+from src.models import sync_log as _sync_log
+
+
 def get_db():
     db = SessionLocal()
     try:

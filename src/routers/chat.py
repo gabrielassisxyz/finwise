@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Request, Depends, Query
 from fastapi.responses import HTMLResponse, StreamingResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -8,9 +7,9 @@ from src.database import get_db
 from src.models.message import Message
 from src.models.chat_session import ChatSession
 from src.schemas.chat import ChatMessagesPaginated
+from src.templates import templates
 
 router = APIRouter(prefix="/chat", tags=["chat"])
-templates = Jinja2Templates(directory="src/templates")
 
 
 @router.get("/messages", response_model=ChatMessagesPaginated)
@@ -55,8 +54,9 @@ async def send_message(
     db.refresh(msg)
 
     return templates.TemplateResponse(
+        request,
         "partials/chat_message.html",
-        {"request": request, "message": msg},
+        {"message": msg},
     )
 
 

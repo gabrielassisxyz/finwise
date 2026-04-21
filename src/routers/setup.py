@@ -1,14 +1,13 @@
 from fastapi import APIRouter, Request, Form, Depends
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from src.database import get_db
 from src.models.settings import Settings as SettingsModel
 from src.services.encryption import EncryptionService
 from src.config import settings
+from src.templates import templates
 
 router = APIRouter(prefix="/setup", tags=["setup"])
-templates = Jinja2Templates(directory="src/templates")
 
 
 @router.get("/")
@@ -17,7 +16,7 @@ async def setup_page(request: Request, db: Session = Depends(get_db)):
     if config and config.llm_api_key_encrypted:
         return {"status": "already_configured"}
 
-    return templates.TemplateResponse("pages/setup.html", {"request": request})
+    return templates.TemplateResponse(request, "pages/setup.html")
 
 
 @router.post("/")
@@ -43,6 +42,7 @@ async def setup_save(
     db.commit()
 
     return templates.TemplateResponse(
+        request,
         "pages/setup.html",
-        {"request": request, "completed": True},
+        {"completed": True},
     )
