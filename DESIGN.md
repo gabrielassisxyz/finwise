@@ -713,6 +713,9 @@ DaisyUI v4 uses CSS-based configuration with the `@plugin` directive instead of 
 
 ```css
 @import "tailwindcss";
+@plugin "daisyui" {
+  themes: finwise, finwiseSoft, finwiseOled;
+}
 @plugin "daisyui/theme" {
   name: finwise;
   --color-primary: #2563EB;
@@ -972,13 +975,13 @@ The following items were identified during `/plan-eng-review` and must be applie
 | 1 | `DESIGN.md` | 11.1 | DaisyUI v4 config uses `tailwind.config.js` (v3 syntax) but stack is Tailwind v4 | Update to CSS-based DaisyUI v4 theme config: `@plugin "daisyui/theme"` | ✅ Applied |
 | 2 | `DESIGN.md` | 11.3 | Theme transition applies to ALL elements: `html, html * { transition: ... }` | Scope transition to `html` only | ✅ Applied |
 | 3 | `DESIGN.md` | 2.1/15.4 | Muted text `#A1A1AA` on `#FFFFFF` is 3.1:1 — fails WCAG AA | Change to `#71717A` (4.6:1) | ✅ Applied |
-| 4 | `ARCHITECTURE.md` | 8.1 | Chat pagination missing — loads ALL messages | Add `GET /chat/messages?limit=50&before_id={id}` endpoint | Pending |
-| 5 | `ARCHITECTURE.md` | 8.1 / 13.1 | `dedup_hash = SHA256(date+payee+amount)` collides for recurring purchases | Include `upload_id` or `source_filename` in hash input | Pending |
-| 6 | `ARCHITECTURE.md` | 10.1 | LLM client is custom wrapper over 3 provider SDKs | Adopt `litellm` library instead of custom wrapper | Pending |
-| 7 | `ARCHITECTURE.md` | 6.1 | Full Repository layer proposed for 4 tables | Drop Repository layer; Services query SQLAlchemy models directly | Pending |
-| 8 | `ARCHITECTURE.md` | 8.3 | SSE resume logic queries DB per event without index | Add composite index on `pending_transactions(job_id, created_at)` | Pending |
-| 9 | `ARCHITECTURE.md` | 13.1 | Active job per session tracked implicitly | Add `active_job_id` to `chat_sessions` or use DB query with `status='pending'` | Pending |
-| 10 | `ARCHITECTURE.md` | 7.3 | No index on `pending_transactions.confidence` | Add index on `(confidence, status, created_at)` for calibration queries | Pending |
+| 4 | `ARCHITECTURE.md` | 8.1 | Chat pagination missing — loads ALL messages | Add `GET /chat/messages?limit=50&before_id={id}` endpoint | Pending (Phase 2) |
+| 5 | `ARCHITECTURE.md` | 8.1 / 13.1 | `dedup_hash = SHA256(date+payee+amount)` collides for recurring purchases | Include `upload_id` or `source_filename` in hash input | ✅ Applied |
+| 6 | `ARCHITECTURE.md` | 10.1 | LLM client is custom wrapper over 3 provider SDKs | Adopt `litellm` library instead of custom wrapper | Pending (Phase 2) |
+| 7 | `ARCHITECTURE.md` | 6.1 | Full Repository layer proposed for 4 tables | Drop Repository layer; Services query SQLAlchemy models directly | ✅ Applied |
+| 8 | `ARCHITECTURE.md` | 8.3 | SSE resume logic queries DB per event without index | Add composite index on `pending_transactions(job_id, created_at)` | ✅ Applied |
+| 9 | `ARCHITECTURE.md` | 13.1 | Active job per session tracked implicitly | Add `active_job_id` to `chat_sessions` | ✅ Applied |
+| 10 | `ARCHITECTURE.md` | 7.3 | No index on `pending_transactions.confidence` | Add index on `(confidence, status, created_at)` for calibration queries | ✅ Applied |
 
 ---
 

@@ -274,6 +274,12 @@ erDiagram
 | **`payee_mappings.payee`** | Normalized (lowercase, stripped punctuation) to ensure stable matching. |
 | **Archiving strategy** | Transactions with `status='synced'` and `updated_at < NOW() - INTERVAL '90 days'` are soft-deleted or moved to an `archived_transactions` table on a nightly cron/job. |
 | **Cold start seeding** | On first run (or when `payee_mappings` is empty), the Learning Service queries AB's existing transaction history to seed the mapping table. |
+| **Top-N payee mappings** | **N = 10** — the 10 most frequently occurring payees are injected into the LLM system prompt as "User's known preferences." |
+| **Concurrent upload handling** | **Max 1 active job per user/session.** New uploads during an active job receive `409 Conflict` with a user-friendly message. Tracked via `chat_sessions.active_job_id`. |
+| **HTMX swap strategy** | Inline edits use `hx-target="#tx-{id}"` and `hx-swap="innerHTML"` for zero-page-reload updates. See Section 13.5 for full matrix. |
+| **Deduplication strategy** | Hash of `(date, payee, amount, upload_id)` computed before every insert. Prevents duplicates from re-uploaded statements or retries. |
+| **Archiving strategy (detailed)** | Nightly job soft-deletes or moves `synced` transactions older than 90 days to `archived_transactions` table. Uses `deleted_at` timestamp for audit trail. |
+| **Rate limiting for AB API** | **Max 10 sync calls per minute.** Token bucket algorithm with exponential backoff on `429`, max 3 retries before user notification. |
 
 ### 7.4 Database Indexes
 
@@ -308,7 +314,7 @@ erDiagram
 
 | Event Type | Payload (JSON) | Description |
 |------------|----------------|-------------|
-| `narration` | `{ "text": "Found 23 transactions..." }` | Bookkeeper narration text. Emitted as a separate SSE event by the server, derived from the `narration` field in the LLM JSON response. |
+| `narration` | `{ "text": "Found 23 transactions..." }` | Bookkeeper narration text. **Server emits this as a separate SSE event BEFORE transaction events.** The narration text comes from the `narration` field in the LLM JSON response, but is delivered as its own event on the wire. |
 | `transaction` | `{ "id": 123, "date": "2024-01-15", "payee": "Starbucks", "amount": -12.50, "category": "Food", "confidence": 0.95, "status": "pending" }` | Single extracted transaction. |
 | `sync_status` | `{ "synced_count": 5, "pending_review_count": 2, "error_count": 0 }` | Batch progress update after confirmations. |
 | `complete` | `{ "total": 23, "auto_synced": 18, "needs_review": 5 }` | Final summary when extraction is done. |
@@ -424,9 +430,10 @@ Return JSON matching this schema:
 ### 10.4 Narration Delivery Clarification
 
 - The LLM returns narration text in the `narration` field of the JSON response.
-- The **server** extracts this field and emits it as a separate SSE event of type `narration` before emitting the `transaction` events.
+- The **server** extracts this field and emits it as a separate SSE event of type `narration` **before** emitting the `transaction` events.
 - This decouples the LLM response structure from the wire protocol.
 - Client receives narration as a standalone event, not embedded in transaction payloads.
+- **Wire sequence:** `narration` event → `transaction` events (streamed one by one) → `complete` event.
 
 ---
 
@@ -501,6 +508,7 @@ else:
   - **Reject** with `409 Conflict` and message: "A job is already running. Please wait or cancel it."
 - Track active job via `chat_sessions.active_job_id` column (nullable FK to extraction job).
 - On job completion (success/error/cancel), clear `active_job_id` to allow new uploads.
+- **Explicit job tracking:** The `active_job_id` field in `chat_sessions` provides explicit tracking of the current extraction job, enabling proper concurrent upload rejection and SSE resume logic.
 
 ### 13.2 Deduplication
 
@@ -511,10 +519,14 @@ else:
 
 ### 13.3 Rate Limiting for Actual Budget API
 
-- **Max 10 sync calls per minute** to AB.
-- Exponential backoff with jitter on `429 Too Many Requests` or connection errors.
-- Sync Worker uses an async semaphore or token bucket.
-- Failed syncs populate `sync_error` and retry up to 3 times before surfacing to user.
+- **Max 10 sync calls per minute** to AB API.
+- **Implementation:** Token bucket algorithm with async semaphore.
+- **Backoff strategy:** Exponential backoff with jitter on `429 Too Many Requests` or connection errors.
+  - Initial delay: 1s
+  - Max delay: 30s
+  - Jitter: ±20% randomization
+- **Max retries:** 3 attempts before surfacing error to user.
+- **Failed sync handling:** Populate `sync_error` column, mark transaction as `needs_review`, allow manual retry.
 
 ### 13.4 Archiving Strategy
 
@@ -547,17 +559,6 @@ else:
 | File upload invalid | Immediate `400 Bad Request` with list of supported formats. | Show validation message. |
 | Transaction validation fails | Stream pauses. Offending transaction highlighted. | Inline edit via HTMX swap (`hx-target="#tx-{id}"`, `hx-swap="innerHTML"`). |
 | User rejects transaction | Mark `status = 'rejected'`. Do not sync to AB. | Remove from preview or grey out. |
-
-### 13.7 Rate Limiting for Actual Budget API
-
-- **Max 10 sync calls per minute** to AB API.
-- **Implementation:** Token bucket algorithm with async semaphore.
-- **Backoff strategy:** Exponential backoff with jitter on `429 Too Many Requests` or connection errors.
-  - Initial delay: 1s
-  - Max delay: 30s
-  - Jitter: ±20% randomization
-- **Max retries:** 3 attempts before surfacing error to user.
-- **Failed sync handling:** Populate `sync_error` column, mark transaction as `needs_review`, allow manual retry.
 
 ---
 
@@ -666,9 +667,9 @@ The following items were identified during `/plan-eng-review` and must be applie
 | 1 | `DESIGN.md` | 11.1 | DaisyUI v4 config uses `tailwind.config.js` (v3 syntax) but stack is Tailwind v4 | Update to CSS-based DaisyUI v4 theme config: `@plugin "daisyui/theme"` | ✅ Applied |
 | 2 | `DESIGN.md` | 11.3 | Theme transition applies to ALL elements: `html, html * { transition: ... }` | Scope transition to `html` only | ✅ Applied |
 | 3 | `DESIGN.md` | 2.1/15.4 | Muted text `#A1A1AA` on `#FFFFFF` is 3.1:1 — fails WCAG AA | Change to `#71717A` (4.6:1) | ✅ Applied |
-| 4 | `ARCHITECTURE.md` | 8.1 | Chat pagination missing — loads ALL messages | Add `GET /chat/messages?limit=50&before_id={id}` endpoint | Pending |
+| 4 | `ARCHITECTURE.md` | 8.1 | Chat pagination missing — loads ALL messages | Add `GET /chat/messages?limit=50&before_id={id}` endpoint | Pending (Phase 2) |
 | 5 | `ARCHITECTURE.md` | 8.1 / 13.1 | `dedup_hash = SHA256(date+payee+amount)` collides for recurring purchases | Include `upload_id` or `source_filename` in hash input | ✅ Applied |
-| 6 | `ARCHITECTURE.md` | 10.1 | LLM client is custom wrapper over 3 provider SDKs | Adopt `litellm` library instead of custom wrapper | Pending |
+| 6 | `ARCHITECTURE.md` | 10.1 | LLM client is custom wrapper over 3 provider SDKs | Adopt `litellm` library instead of custom wrapper | Pending (Phase 2) |
 | 7 | `ARCHITECTURE.md` | 6.1 | Full Repository layer proposed for 4 tables | Drop Repository layer; Services query SQLAlchemy models directly | ✅ Applied |
 | 8 | `ARCHITECTURE.md` | 8.3 | SSE resume logic queries DB per event without index | Add composite index on `pending_transactions(job_id, created_at)` | ✅ Applied |
 | 9 | `ARCHITECTURE.md` | 13.1 | Active job per session tracked implicitly | Add `active_job_id` to `chat_sessions` | ✅ Applied |
