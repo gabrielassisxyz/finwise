@@ -14,7 +14,8 @@ AI-native personal finance platform that extracts transactions from credit card 
 
 ## Prerequisites
 
-- Python 3.11+
+- Python 3.11+ (managed automatically via [uv](https://docs.astral.sh/uv/))
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) package manager
 - [Actual Budget](https://actualbudget.org/) instance running
 - LLM API key (OpenAI, Anthropic, or local Ollama)
 
@@ -29,24 +30,24 @@ cp .env.example .env
 # Edit .env with your credentials
 ```
 
-### 2. Create virtual environment and install
+### 2. Install dependencies
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
+uv sync --dev
 ```
+
+This creates a virtual environment (`.venv`), installs all runtime dependencies, and locks versions from `uv.lock`.
 
 ### 3. Run database migrations
 
 ```bash
-alembic upgrade head
+uv run alembic upgrade head
 ```
 
 ### 4. Start the server
 
 ```bash
-uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Visit http://localhost:8000/setup to configure your LLM and Actual Budget credentials.
@@ -80,19 +81,29 @@ docker compose up
 - **Frontend:** HTMX, Jinja2, DaisyUI + Tailwind CSS v4
 - **Database:** SQLite (default), PostgreSQL (optional)
 - **OCR:** Tesseract (optional fallback)
+- **Package Manager:** [uv](https://docs.astral.sh/uv/)
 
 ## Development
 
 ```bash
 # Run tests
-pytest
+uv run pytest
 
 # Run linter
-ruff check src/
+uv run ruff check src/
 
 # Build CSS (requires Node.js)
 npm install
 npm run build:css
+
+# Add a dependency
+uv add <package>
+
+# Add a dev dependency
+uv add --dev <package>
+
+# Update lock file after editing pyproject.toml
+uv lock
 ```
 
 ## Project Structure
