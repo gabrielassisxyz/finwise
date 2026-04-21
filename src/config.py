@@ -1,7 +1,8 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env")
     """Application settings loaded from environment variables."""
 
     # FinWise authentication
@@ -24,9 +25,6 @@ class Settings(BaseSettings):
     # Sync configuration
     auto_sync_threshold: float = 1.0
     streaming_max_transactions: int = 30
-
-    class Config:
-        env_file = ".env"
 
 
 settings = Settings()
