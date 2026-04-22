@@ -11,6 +11,9 @@ from src.services.bookkeeper import BookkeeperService
 from src.services.llm_client import LLMClient
 from src.services.upload_orchestrator import UploadOrchestrator
 from src.parsers.image import prepare_image_for_llm
+from src.parsers.csv_xlsx import parse_csv_xlsx
+from src.parsers.ofx import parse_ofx
+from src.parsers.text import parse_text
 from src.config import settings
 from src.templates import templates
 
@@ -43,7 +46,7 @@ async def upload_file(
     bookkeeper = BookkeeperService(llm)
     orchestrator = UploadOrchestrator(db, bookkeeper)
 
-    job_id = orchestrator.create_job(session.id, "screenshot")
+    job_id = orchestrator.create_job(session.id, file.content_type or "unknown")
 
     msg = Message(
         session_id=session.id,
@@ -55,8 +58,46 @@ async def upload_file(
     db.commit()
     db.refresh(msg)
 
-    image_bytes = prepare_image_for_llm(contents)
-    result = await bookkeeper.extract_from_image(image_bytes)
+    result = {"narration": "", "transactions": []}
+    source = "unknown"
+
+    try:
+        if file.content_type and file.content_type.startswith("image/"):
+            source = "screenshot"
+            image_bytes = prepare_image_for_llm(contents)
+            result = await bookkeeper.extract_from_image(image_bytes)
+        elif file.filename and file.filename.endswith((".csv", ".xlsx", ".xls")):
+            source = "spreadsheet"
+            transactions = parse_csv_xlsx(contents, file.filename)
+            result = {
+                "narration": f"Extracted {len(transactions)} transactions from {file.filename}",
+                "transactions": transactions,
+            }
+        elif file.filename and file.filename.endswith(".ofx"):
+            source = "ofx"
+            transactions = parse_ofx(contents)
+            result = {
+                "narration": f"Extracted {len(transactions)} transactions from {file.filename}",
+                "transactions": transactions,
+            }
+        elif file.content_type and (
+            file.content_type.startswith("text/")
+            or file.content_type == "application/json"
+        ):
+            source = "text"
+            parsed = parse_text(contents)
+            text = parsed[0].get("text", "") if parsed else ""
+            result = await bookkeeper.extract_from_text(text)
+        else:
+            result = {
+                "narration": f"Unsupported file type: {file.content_type or file.filename}",
+                "transactions": [],
+            }
+    except Exception as e:
+        result = {
+            "narration": f"Error processing {file.filename}: {str(e)}",
+            "transactions": [],
+        }
 
     transactions = result.get("transactions", [])
     narration = result.get("narration", "")
@@ -67,7 +108,7 @@ async def upload_file(
             message_id=msg.id,
             upload_id=upload_id,
             transactions=transactions,
-            source="screenshot",
+            source=source,
         )
 
     return templates.TemplateResponse(

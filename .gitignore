@@ -33,3 +33,4 @@ node_modules/
 
 # CSS build output is committed for easy deployment
 # static/css/dist.css
+.gstack/
