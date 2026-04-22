@@ -4,7 +4,7 @@
     {% if transactions %}
     <div class="space-y-2">
       {% for tx in transactions %}
-      <div class="bg-base-200 p-3 rounded">
+      <div class="bg-base-200 p-3 rounded-box border border-base-300">
         <div class="flex justify-between">
           <span class="font-medium">{{ tx.payee }}</span>
           <span class="font-mono">{{ "%.2f"|format(tx.amount) }}</span>
