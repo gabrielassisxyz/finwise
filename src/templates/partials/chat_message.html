@@ -1,0 +1,14 @@
+<div class="chat chat-start" id="msg-{{ message.id }}">
+  <div class="chat-bubble chat-bubble-secondary">
+    {{ message.content }}
+    {% if message.attachments %}
+    <div class="text-xs opacity-70 mt-1">
+      {% set attachment = message.attachments | fromjson %}
+      {{ attachment.filename }} ({{ attachment.type }})
+    </div>
+    {% endif %}
+  </div>
+  <div class="chat-footer opacity-50 text-xs">
+    {{ message.created_at.strftime('%H:%M') }}
+  </div>
+</div>

@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+@plugin "daisyui" {
+  themes: light --default, dark;
+}
+
+@plugin "daisyui/theme" {
+  name: "finwise";
+  default: true;
+  prefersdark: false;
+  color-scheme: "light";
+  --color-primary: #2563EB;
+  --color-secondary: #18181B;
+  --color-accent: #3F3F46;
+  --color-neutral: #FAFAFA;
+  --color-base-100: #FFFFFF;
+  --color-info: #3B82F6;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+}
+
+@plugin "daisyui/theme" {
+  name: "finwiseSoft";
+  default: false;
+  prefersdark: true;
+  color-scheme: "dark";
+  --color-neutral: #0F0F12;
+  --color-base-100: #1C1C21;
+}
+
+@plugin "daisyui/theme" {
+  name: "finwiseOled";
+  default: false;
+  prefersdark: true;
+  color-scheme: "dark";
+  --color-neutral: #000000;
+  --color-base-100: #18181B;
+}
+
+html {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    transition: none !important;
+  }
+}
+
+.font-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+}

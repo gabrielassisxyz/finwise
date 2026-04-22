@@ -2,3 +2,35 @@ docs/adr/
 .omx/
 CLAUDE.md
 docs/designs/
+ARCHITECTURE.md
+DESIGN.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+
+# Data and uploads
+data/
+uploads/
+
+# Database
+*.db
+
+# Node
+node_modules/
+
+# CSS build output is committed for easy deployment
+# static/css/dist.css
+.gstack/
