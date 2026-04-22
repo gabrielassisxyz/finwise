@@ -31,5 +31,5 @@ uploads/
 # Node
 node_modules/
 
-# CSS
-static/css/dist.css
+# CSS build output is committed for easy deployment
+# static/css/dist.css
