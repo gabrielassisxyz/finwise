@@ -152,9 +152,10 @@ export function closingSteps(state: FakeState, month: YearMonth): ClosingStep[] 
   const closed = isMonthClosed(state, month);
   const marked = state.review.stepsDone[month] ?? [];
   return STEP_ORDER.map((id) => {
-    if (closed) return { id, state: 'done' };
-    if (id === 'pending') return { id, state: pendingCount(state) === 0 ? 'done' : 'pending' };
-    return { id, state: marked.includes(id) ? 'done' : 'todo' };
+    const markable = !closed && MARKABLE_STEPS.includes(id);
+    if (closed) return { id, state: 'done', markable };
+    if (id === 'pending') return { id, state: pendingCount(state) === 0 ? 'done' : 'pending', markable };
+    return { id, state: marked.includes(id) ? 'done' : 'todo', markable };
   });
 }
 

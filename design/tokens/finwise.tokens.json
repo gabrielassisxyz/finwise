@@ -37,7 +37,7 @@
       "muted": { "$value": { "colorSpace": "oklch", "components": [0.52, 0.01, 155] }, "$description": "Labels, inactive tabs, table header, dates. The prototype also used 0.5 lightness for some of these; unified." },
       "muted-2": { "$value": { "colorSpace": "oklch", "components": [0.55, 0.01, 155] }, "$description": "Raw bank description, captions" },
       "placeholder": { "$value": { "colorSpace": "oklch", "components": [0.62, 0.01, 155] }, "$description": "Input placeholder" },
-      "pill": { "$value": { "colorSpace": "oklch", "components": [0.32, 0.01, 155] }, "$description": "Budget line pill text" },
+      "pill": { "$value": { "colorSpace": "oklch", "components": [0.32, 0.01, 155] }, "$description": "Budget line pill text, the paragraphs of the month report, the dark button's hover, and the name of a line in the closing table. The prototype used 0.35 lightness for the last; unified." },
       "on-accent": { "$value": "{color.surface.card}", "$description": "Text over the accent or over the toast" }
     },
     "accent": {

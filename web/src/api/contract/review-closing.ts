@@ -18,6 +18,8 @@ export type ClosingStepState = 'done' | 'pending' | 'todo';
 export interface ClosingStep {
   id: ClosingStepId;
   state: ClosingStepState;
+  /** The person can mark it as done: steps 2 to 7 of a month that is still open. */
+  markable: boolean;
 }
 
 export interface PlannedActualLine {

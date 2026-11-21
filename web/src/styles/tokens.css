@@ -31,7 +31,7 @@
   --color-text-muted: oklch(0.5200 0.0100 155.00); /** Labels, inactive tabs, table header, dates. The prototype also used 0.5 lightness for some of these; unified. */
   --color-text-muted-2: oklch(0.5500 0.0100 155.00); /** Raw bank description, captions */
   --color-text-placeholder: oklch(0.6200 0.0100 155.00); /** Input placeholder */
-  --color-text-pill: oklch(0.3200 0.0100 155.00); /** Budget line pill text */
+  --color-text-pill: oklch(0.3200 0.0100 155.00); /** Budget line pill text, the paragraphs of the month report, the dark button's hover, and the name of a line in the closing table. The prototype used 0.35 lightness for the last; unified. */
   --color-accent-base: oklch(0.5000 0.1000 155.00); /** Primary button, active tab, progress bar, switch on */
   --color-accent-hover: oklch(0.4400 0.1000 155.00); /** Hover of the primary button */
   --color-accent-logo: oklch(0.5200 0.1000 155.00); /** Logo */

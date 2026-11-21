@@ -28,9 +28,16 @@ describe('the steps of the closing', () => {
       'report',
       'close',
     ]);
-    expect(steps[0]).toEqual({ id: 'pending', state: 'pending' });
+    expect(steps[0]).toEqual({ id: 'pending', state: 'pending', markable: false });
     expect(steps.slice(1).every((step) => step.state === 'todo')).toBe(true);
     expect(pendingCount).toBe(7);
+  });
+
+  it('lets the person mark steps 2 to 7 of an open month, and none of a closed one', async () => {
+    const api = createFakeApi();
+    const markable = async (month: string) => (await api.review.closing(month)).steps.map((step) => step.markable);
+    expect(await markable(MONTH)).toEqual([false, true, true, true, true, true, true, false]);
+    expect(await markable('2026-10')).toEqual(Array(8).fill(false));
   });
 
   it('finishes the first step by itself once nothing waits for review', async () => {

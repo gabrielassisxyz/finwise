@@ -8,6 +8,7 @@ import CofrinhoScreen from './screens/cofrinhos/CofrinhoScreen.vue';
 import CofrinhosScreen from './screens/cofrinhos/CofrinhosScreen.vue';
 import InicioScreen from './screens/inicio/InicioScreen.vue';
 import PatrimonioScreen from './screens/patrimonio/PatrimonioScreen.vue';
+import ClosingTab from './screens/revisao/ClosingTab.vue';
 import PaydayTab from './screens/revisao/PaydayTab.vue';
 import RevisaoScreen from './screens/revisao/RevisaoScreen.vue';
 import WeeklyTab from './screens/revisao/WeeklyTab.vue';
@@ -27,7 +28,7 @@ const routes: RouteRecordRaw[] = [
     meta: { nav: 'revisao' },
     children: [
       { path: '', component: WeeklyTab },
-      { path: 'fechamento', component: ScreenPlaceholder, props: { title: 'Fechamento do mês' } },
+      { path: 'fechamento', component: ClosingTab },
       { path: 'salario', component: PaydayTab },
     ],
   },
