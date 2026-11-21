@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useApi } from '@/api/context';
+import { isApiFailure } from '@/api/http/failure';
 import type { BudgetEstablishment, BudgetView, EditableGroupKey } from '@/api/types';
 import ActionButton from '@/components/ui/ActionButton.vue';
 import { brl, monthInSentence, percentText } from '@/lib/format';
@@ -29,8 +30,14 @@ watch(
   () => [month.selected, revision.current, budget.draft.value] as const,
   async ([selected, , draft]) => {
     const request = ++latest;
-    const loaded = await api.budget.view(selected, draft ?? undefined);
-    if (request === latest) view.value = loaded;
+    try {
+      const loaded = await api.budget.view(selected, draft ?? undefined);
+      if (request === latest) view.value = loaded;
+    } catch (error) {
+      // A draft the backend refuses to evaluate would be asked again after every refusal, so the edit ends here.
+      if (draft && isApiFailure(error) && error.kind === 'read_only') budget.discard();
+      throw error;
+    }
   },
   { immediate: true },
 );
