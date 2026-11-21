@@ -90,6 +90,17 @@ export const STATES = [
     app: { path: '/' },
     steps: [openTransaction(label, which)],
   })),
+  ...[
+    ['painel-divisao', [inPanel.button('Dividir em linhas')]],
+    ['painel-reembolsavel', [inPanel.switch('Reembolsável')]],
+    ['painel-nao-conta', [inPanel.switch('Não conta')]],
+    ['painel-tag', [inPanel.button('#trabalho')]],
+  ].map(([name, steps]) => ({
+    name,
+    prototype: unlocked('inicio'),
+    app: { path: '/' },
+    steps: [openTransaction('Posto Shell'), ...steps],
+  })),
   { name: 'revisao-semanal', prototype: unlocked('revisao', { revTab: 'semanal' }), app: null },
   { name: 'revisao-fechamento', prototype: unlocked('revisao', { revTab: 'fech' }), app: null },
   { name: 'revisao-salario', prototype: unlocked('revisao', { revTab: 'sal' }), app: null },
