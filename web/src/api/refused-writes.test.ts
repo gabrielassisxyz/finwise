@@ -6,6 +6,7 @@ import { createFakeApi } from '@/api/fake';
 import { ApiFailure } from '@/api/http/failure';
 import type { FinwiseApi } from '@/api/types';
 import { prototypeState } from '@/api/fake/prototype-data';
+import AppShell from '@/components/shell/AppShell.vue';
 import TransactionPanel from '@/components/transaction-panel/TransactionPanel.vue';
 import TransactionList from '@/components/transactions/TransactionList.vue';
 import AssinaturasScreen from '@/screens/assinaturas/AssinaturasScreen.vue';
@@ -17,6 +18,8 @@ import { useOverlayStore } from '@/stores/overlay';
 import { usePanelStore } from '@/stores/panel';
 import { useRevisionStore } from '@/stores/revision';
 import { mountWithFailures, readOnlyApi, type FailureMount } from '@/test/readOnly';
+import { prototypeOverview } from '@/test/mount';
+import { createMemoryHistory, createRouter } from 'vue-router';
 import { LEDGER_UNAVAILABLE_MESSAGE, READ_ONLY_MESSAGE } from './failures';
 
 // One refused write through each of the seven ways the interface makes one. The
@@ -326,5 +329,36 @@ describe('the evaluations of the budget and of the scenarios', () => {
     expect(evaluations).toBe(1);
     expect(mounted.toasts).toEqual([READ_ONLY_MESSAGE]);
     expect(mounted.wrapper.vm.$router.currentRoute.value.fullPath).toBe('/budget');
+  });
+
+  // The frame closes everything floating when a screen is left, and the return to the budget is such a leave, so
+  // the toast has to be shown after that navigation has completed.
+  it('keeps the read-only toast on the budget when the frame is around the scenarios', async () => {
+    const api = readOnlyApi(createFakeApi({ startLocked: false }));
+    let evaluations = 0;
+    const evaluateScenario: FinwiseApi['budget']['evaluateScenario'] = (...args) => {
+      evaluations += 1;
+      return api.budget.evaluateScenario(...args);
+    };
+    const counted = { ...api, budget: { ...api.budget, evaluateScenario } } as FinwiseApi;
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/budget', component: Blank, meta: { nav: 'budget' } },
+        { path: '/budget/cenarios', component: ScenariosScreen as Component, meta: { nav: 'budget' } },
+      ],
+    });
+    const mounted = await mountWithFailures(AppShell, [], '/budget', {
+      api: counted,
+      router,
+      mounting: { props: { overview: prototypeOverview() } },
+    });
+
+    await router.push('/budget/cenarios');
+    await mounted.settle();
+
+    expect(evaluations).toBe(1);
+    expect(router.currentRoute.value.fullPath).toBe('/budget');
+    expect(useOverlayStore(mounted.pinia).toast?.message).toBe(READ_ONLY_MESSAGE);
   });
 });
