@@ -1,3 +1,4 @@
+import type { ChangeResult } from './changes';
 import type { IsoDay } from './common';
 import type { Transaction } from './transactions';
 
@@ -86,8 +87,34 @@ export interface TransactionDetail extends Transaction {
   history: HistoryEntry[];
 }
 
-/** What the transaction panel reads. */
+/** Reads and writes of the transaction panel. Every write answers with the handle that takes it back. */
 export interface TransactionDetailApi {
   /** Null for an unknown id. */
   detail(id: string): Promise<TransactionDetail | null>;
+  /** Accepts the model's classification as it stands, or its suggestion for a pending one. */
+  confirmLine(id: string): Promise<ChangeResult | null>;
+  /** The optional answer to "why" after correcting the model, kept on the history step. */
+  setReason(id: string, reason: string): Promise<ChangeResult>;
+  /** A blank nickname clears it. */
+  setNickname(id: string, nickname: string): Promise<ChangeResult>;
+  setDefaultLine(id: string, line: string): Promise<ChangeResult>;
+  addFixedTag(id: string, tag: string): Promise<ChangeResult>;
+  removeFixedTag(id: string, tag: string): Promise<ChangeResult>;
+  /** The tag is stored with its leading `#`, spaces turned into hyphens. */
+  addTag(id: string, tag: string): Promise<ChangeResult>;
+  removeTag(id: string, tag: string): Promise<ChangeResult>;
+  setNote(id: string, note: string): Promise<ChangeResult>;
+  /** Null takes the split away. */
+  setSplit(id: string, parts: SplitPart[] | null): Promise<ChangeResult>;
+  setReimbursable(id: string, on: boolean): Promise<ChangeResult>;
+  setExpectedReimbursement(id: string, amount: number | null): Promise<ChangeResult>;
+  linkReimbursement(id: string, creditId: string): Promise<ChangeResult>;
+  unlinkReimbursement(id: string): Promise<ChangeResult>;
+  /** Turning it on starts without a reason; it only takes effect once `setExclusionReason` gives one. */
+  setExcluded(id: string, on: boolean): Promise<ChangeResult>;
+  setExclusionReason(id: string, reason: string): Promise<ChangeResult>;
+  setRefund(id: string, on: boolean): Promise<ChangeResult>;
+  setRefundLine(id: string, line: string): Promise<ChangeResult>;
+  /** Restores the state before that step alone and drops the step from the history. */
+  undoHistoryStep(id: string, stepId: string): Promise<ChangeResult | null>;
 }
