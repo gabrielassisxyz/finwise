@@ -2,6 +2,7 @@ import type { DOMWrapper, VueWrapper } from '@vue/test-utils';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { defineComponent, type Component } from 'vue';
 import type { FakeState } from '@/api/fake/model';
+import { createFakeApi } from '@/api/fake';
 import { prototypeState } from '@/api/fake/prototype-data';
 import TransactionPanel from '@/components/transaction-panel/TransactionPanel.vue';
 import TransactionList from '@/components/transactions/TransactionList.vue';
@@ -185,6 +186,36 @@ describe('the closing\'s writes and the budget\'s save', () => {
 
     expect(afterRefusal(mounted, before)).toEqual(refusedOnce);
     expect((await mounted.api.shell.overview()).closedMonths.map((closed) => closed.month)).toEqual(['2026-10']);
+  });
+
+  it('leaves the "Fechar o mês" step unfolded when the close is refused, and folds it when the close goes through', async () => {
+    const withNothingPending = () => {
+      const state = prototypeState();
+      for (const transaction of state.transactions.filter((candidate) => candidate.pending)) {
+        Object.assign(transaction, { line: transaction.pending?.suggestion ?? null, by: 'Você', pending: null });
+      }
+      return state;
+    };
+    const isOpen = (mounted: FailureMount) => stepOf(mounted.wrapper, 'Fechar o mês').find('.body').exists();
+    const confirmClose = async (mounted: FailureMount) => {
+      await click(mounted, stepOf(mounted.wrapper, 'Fechar o mês').find('.head'));
+      await click(mounted, stepOf(mounted.wrapper, 'Fechar o mês').find('.close'));
+      useOverlayStore(mounted.pinia).confirmation!.onConfirm();
+      await mounted.settle();
+    };
+
+    const refused = await mountClosing(withNothingPending());
+    await confirmClose(refused);
+    expect(refused.toasts).toEqual([READ_ONLY_MESSAGE]);
+    expect(isOpen(refused)).toBe(true);
+
+    const state = withNothingPending();
+    const accepted = await mountWithFailures(ClosingTab, [{ path: '/revisao/fechamento', component: Blank }], '/revisao/fechamento', {
+      api: createFakeApi({ startLocked: false, state }),
+    });
+    await confirmClose(accepted);
+    expect(accepted.toasts).toEqual([]);
+    expect(isOpen(accepted)).toBe(false);
   });
 
   it('shows the read-only message once for saving the budget, and keeps the edit', async () => {
