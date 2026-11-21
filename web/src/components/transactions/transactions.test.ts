@@ -307,9 +307,9 @@ describe('acting on the list', () => {
     expect(bar()).toBeNull();
 
     await select(wrapper, 'Aluguel');
-    expect(bar()!.textContent).toContain('1 selecionada');
+    expect(bar()!.querySelector('.count')!.textContent).toBe('1 selecionada');
     await select(wrapper, 'Posto Shell');
-    expect(bar()!.textContent).toContain('2 selecionadas');
+    expect(bar()!.querySelector('.count')!.textContent).toBe('2 selecionadas');
     expect([...bar()!.querySelectorAll('button')].map((button) => button.textContent)).toEqual([
       'Alterar linha',
       'Adicionar tag',
@@ -361,9 +361,11 @@ describe('acting on the list', () => {
   });
 
   it('marks the selection as not counting', async () => {
-    const { wrapper, overlay } = await mountList();
+    const { wrapper, overlay, api } = await mountList();
+    const excludeMany = vi.spyOn(api.transactions, 'excludeMany');
     await select(wrapper, 'Aluguel', 'Posto Shell');
     await click(barButton('Marcar como não conta'));
+    expect(excludeMany).toHaveBeenCalledWith(['t34', 't2'], 'Marcada em lote');
 
     expect(overlay.toast!.message).toBe('2 transações marcadas como não conta.');
     expect(toastActions(overlay)).toEqual(['Desfazer']);

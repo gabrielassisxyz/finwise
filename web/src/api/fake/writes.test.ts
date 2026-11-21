@@ -159,3 +159,33 @@ describe('undo', () => {
     await expect(api.changes.undo('nope')).rejects.toThrow();
   });
 });
+
+describe('what the stand-in keeps underneath', () => {
+  it('remembers the establishment default after Todas, and forgets it on undo', async () => {
+    const state = prototypeState();
+    const api = createFakeApi({ state });
+    const change = await api.transactions.setLine('t3', 'Lazer');
+    const outcome = await api.transactions.applyLineToEstablishment(change!.changeId);
+
+    expect(outcome.changeId).toBe(change!.changeId);
+    expect(state.establishments.iFood).toEqual({ line: 'Lazer' });
+
+    await api.changes.undo(outcome.changeId);
+    expect(state.establishments.iFood).toBeUndefined();
+  });
+
+  it('never repeats a tag the transaction already carries', async () => {
+    const state = prototypeState();
+    const api = createFakeApi({ state });
+    await api.transactions.addTagToMany(['t16', 't3'], '#viagem');
+    expect(state.transactions.find((transaction) => transaction.id === 't16')!.tags).toEqual(['#viagem']);
+    expect(state.transactions.find((transaction) => transaction.id === 't3')!.tags).toEqual(['#viagem']);
+  });
+
+  it('keeps the reason a transaction was marked as not counting for', async () => {
+    const state = prototypeState();
+    const api = createFakeApi({ state });
+    await api.transactions.excludeMany(['t3'], 'Marcada em lote');
+    expect(state.transactions.find((transaction) => transaction.id === 't3')!.excludedReason).toBe('Marcada em lote');
+  });
+});
