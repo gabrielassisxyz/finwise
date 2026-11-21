@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 import type { NavId } from './navigation';
+import AssinaturaScreen from './screens/assinaturas/AssinaturaScreen.vue';
 import AssinaturasScreen from './screens/assinaturas/AssinaturasScreen.vue';
 import CofrinhoScreen from './screens/cofrinhos/CofrinhoScreen.vue';
 import CofrinhosScreen from './screens/cofrinhos/CofrinhosScreen.vue';
@@ -20,6 +21,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/cofrinhos', component: CofrinhosScreen, meta: { nav: 'cofrinhos' } },
   { path: '/cofrinhos/:id', component: CofrinhoScreen, meta: { nav: 'cofrinhos' } },
   { path: '/assinaturas', component: AssinaturasScreen, meta: { nav: 'assinaturas' } },
+  { path: '/assinaturas/:id', component: AssinaturaScreen, meta: { nav: 'assinaturas' } },
   { path: '/patrimonio', component: PatrimonioScreen, meta: { nav: 'patrimonio' } },
   { path: '/contas', component: ScreenPlaceholder, props: { title: 'Contas' }, meta: { nav: 'contas' } },
   { path: '/contas/cartao', component: ScreenPlaceholder, props: { title: 'Cartão' }, meta: { nav: 'contas' } },
