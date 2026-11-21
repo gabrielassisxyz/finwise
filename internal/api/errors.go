@@ -54,7 +54,10 @@ func writeErrorWithStatus(w http.ResponseWriter, r *http.Request, status int, ki
 // kindOfReadError maps what a read handler returned. Only the error's class is
 // looked at, never its text: that text may carry a row id.
 func kindOfReadError(err error) errorKind {
+	var refused *badArgumentsError
 	switch {
+	case errors.As(err, &refused):
+		return kindBadRequest
 	case ledger.IsUnsupportedVersion(err),
 		errors.Is(err, fs.ErrNotExist),
 		errors.Is(err, fs.ErrPermission):
@@ -80,3 +83,10 @@ func noteErrorKind(ctx context.Context, kind errorKind) {
 		note.kind = kind
 	}
 }
+
+// badArgumentsError is a handler refusing arguments that passed the router's
+// count but are not what the method takes. It carries no text: an argument may
+// be a row id.
+type badArgumentsError struct{}
+
+func (*badArgumentsError) Error() string { return "api: the arguments are not what the method takes" }

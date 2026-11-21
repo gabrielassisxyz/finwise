@@ -55,6 +55,7 @@ func (registry *Registry) lookup(method string) (ReadHandler, bool) {
 // Register once per method, so two domains never edit the same lines.
 var domainRegistrations = []func(*Registry){
 	registerShell,
+	registerAccounts,
 }
 
 // NewReadRegistry returns the registry every domain's handlers are in.

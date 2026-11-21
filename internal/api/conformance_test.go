@@ -24,6 +24,10 @@ type readCase struct {
 
 var readCases = []readCase{
 	{"shell.overview", `[]`},
+	{"accounts.list", `[]`},
+	{"accounts.detail", `["acc-itau"]`},
+	{"accounts.detail", `["card-itau"]`},
+	{"accounts.detail", `["no-such-account"]`},
 }
 
 // manifestSchemas compiles each read method's result schema once. The manifest is
