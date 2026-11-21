@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import type { BudgetDoc, ScenarioImpact } from '@/api/types';
 import ActionButton from '@/components/ui/ActionButton.vue';
-import { brl, brlWhole, signedBrl } from '@/lib/format';
+import { brl, brlWhole, percentText, signedBrl } from '@/lib/format';
 
 const props = defineProps<{ name: string; budget: BudgetDoc; impact: ScenarioImpact }>();
 
@@ -25,7 +25,7 @@ const investmentText = computed(() => {
   return `Investimento ${brlWhole(current.investment)} → ${sign}${brlWhole(scenario.investment)} (${change})`;
 });
 
-const rateText = computed(() => `Taxa de investimento ${props.impact.current.rate}% → ${props.impact.scenario.rate}%`);
+const rateText = computed(() => `Taxa de investimento ${percentText(props.impact.current.rate)} → ${percentText(props.impact.scenario.rate)}`);
 
 function typed(event: Event): string {
   return (event.target as HTMLInputElement).value;

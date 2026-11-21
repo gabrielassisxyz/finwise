@@ -12,10 +12,11 @@ export function lineLabel(detail: TransactionDetail): string {
   return detail.line ?? detail.pending?.suggestion ?? 'Sem linha';
 }
 
-/** Who is behind the line, in the sentence that follows its name. */
-export function originSentence(detail: TransactionDetail): string {
+/** Who is behind the line, in the sentence that follows its name; nothing while nobody has classified it. */
+export function originSentence(detail: TransactionDetail): string | null {
   if (detail.movement && !detail.line) return 'movimentação não entra no budget';
   if (detail.pending) return `sugestão da IA, ${detail.pending.confidence}% de confiança`;
+  if (detail.classifiedBy === null) return null;
   if (detail.classifiedBy === 'IA') return `IA, ${detail.confidence}% de confiança`;
   return `definida por ${detail.classifiedBy}`;
 }

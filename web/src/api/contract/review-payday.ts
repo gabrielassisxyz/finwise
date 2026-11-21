@@ -15,11 +15,12 @@ export interface PaydayTransfer {
 export interface PaydayView {
   /** Fixed and essential lines plus the variable ones: what the account must hold before the salary is set aside. */
   cushion: number;
-  balance: number;
-  balanceLabel: string;
-  /** Balance minus cushion. */
-  difference: number;
-  covered: boolean;
+  /** Null when no account receives the salary. */
+  balance: number | null;
+  balanceLabel: string | null;
+  /** Balance minus cushion; null with no balance. */
+  difference: number | null;
+  covered: boolean | null;
   transfers: PaydayTransfer[];
 }
 

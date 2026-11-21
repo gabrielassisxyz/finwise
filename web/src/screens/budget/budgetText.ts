@@ -1,5 +1,5 @@
 import type { BudgetCell, BudgetGroupKey, BudgetGroupView, BudgetLineView } from '@/api/types';
-import { brl, longDay, signedBrl } from '@/lib/format';
+import { brl, longDay, percentText, signedBrl } from '@/lib/format';
 
 // The words of the budget screen. What they say is worked out by the backend.
 
@@ -42,7 +42,7 @@ export function cellText(cell: BudgetCell): string {
     case 'difference':
       return signedBrl(cell.amount);
     case 'percent':
-      return `${cell.value}%`;
+      return percentText(cell.value);
     case 'next-charge':
       return cell.charge ? `${cell.charge.description} · ${longDay(cell.charge.day)}` : 'Sem data marcada';
     case 'rainy-deposit':

@@ -7,7 +7,8 @@ export interface SettingsPot {
   id: string;
   name: string | null;
   bank: string;
-  cdiPercent: number;
+  /** Null when the bank does not say what the pot pays. */
+  cdiPercent: number | null;
   bucket: Bucket | null;
   linkedLines: string[];
 }
@@ -31,14 +32,16 @@ export interface SettingsPerson {
 export interface CalibrationBand {
   from: number;
   to: number;
-  correctionPercent: number;
+  /** Null for a band no classification has fallen in. */
+  correctionPercent: number | null;
 }
 
 export interface CategorizationSettings {
   threshold: number;
   minExamples: number;
   calibration: CalibrationBand[];
-  suggestedThreshold: number;
+  /** Null while no band has classifications to judge it by. */
+  suggestedThreshold: number | null;
 }
 
 export interface Connection {
@@ -53,15 +56,18 @@ export interface Moment {
 
 export interface DataSettings {
   connections: Connection[];
-  lastSync: Moment;
-  lastBackup: Moment;
+  /** Null before the first synchronisation. */
+  lastSync: Moment | null;
+  /** Null when no backup has run. */
+  lastBackup: Moment | null;
 }
 
 export interface SettingsOverview {
   pots: SettingsPot[];
   establishments: SettingsEstablishment[];
   people: SettingsPerson[];
-  cardTitle: string;
+  /** Null when the ledger holds no card. */
+  cardTitle: string | null;
   cardLabel: string;
   categorization: CategorizationSettings;
   closing: CardClosing;

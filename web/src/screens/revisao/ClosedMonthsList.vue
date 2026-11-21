@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ClosedMonthEntry } from '@/api/types';
+import EmptyBlock from '@/components/ui/EmptyBlock.vue';
 import { longDay } from '@/lib/format';
 import { capitalizedMonth } from './closingText';
 
@@ -10,6 +11,7 @@ defineEmits<{ open: [month: string] }>();
 <template>
   <div class="closed">
     <h2 class="heading">Meses fechados</h2>
+    <EmptyBlock v-if="months.length === 0" title="Nenhum mês fechado ainda" hint="Os meses que você fechar ficam guardados aqui." />
     <div class="list">
       <button v-for="entry in months" :key="entry.month" class="entry" @click="$emit('open', entry.month)">
         <span class="label">{{ capitalizedMonth(entry.month) }}</span>

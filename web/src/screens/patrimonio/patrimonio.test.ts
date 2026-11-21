@@ -177,6 +177,14 @@ describe('chart geometry', () => {
     expect(columnHeight(80558.75, 100000)).toBeCloseTo(80.55875, 5);
   });
 
+  it('gives a finite height, and an axis with only its floor, when the chart has no top', () => {
+    for (const total of [0, 25000, -3]) {
+      expect(Number.isFinite(columnHeight(total, 0))).toBe(true);
+      expect(columnHeight(total, 0)).toBe(0);
+    }
+    expect(axisLabels(0)).toEqual(['', '', '', '', '0']);
+  });
+
   it('cuts a column into the three buckets, invested at the bottom', () => {
     const slices = stackShares({ month: '2026-11', available: 10, reserved: 30, invested: 60, total: 100 });
     expect(slices).toEqual([

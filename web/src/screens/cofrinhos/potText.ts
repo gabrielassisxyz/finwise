@@ -22,7 +22,8 @@ export function linkedLinesText(lines: PotLinkedLine[]): string {
 }
 
 export function potSubtitle(pot: Pick<SavingsPotDetail, 'bank' | 'bucket' | 'cdiPercent'>): string {
-  return [pot.bank, pot.bucket ?? 'Sem balde', `${pot.cdiPercent}% do CDI`].join(' · ');
+  const rate = pot.cdiPercent === null ? [] : [`${pot.cdiPercent}% do CDI`];
+  return [pot.bank, pot.bucket ?? 'Sem balde', ...rate].join(' · ');
 }
 
 /** A day inside the year the page is about shows without the year. */

@@ -67,3 +67,14 @@ export function signedBrl(amount: number): string {
   if (amount === 0) return brl(amount);
   return `${amount < 0 ? MINUS : '+'}${NBSP}${brl(amount)}`;
 }
+
+/** A figure the ledger cannot give is a dash, never a zero that would pass for a true one. */
+export const UNKNOWN = '—';
+
+export function orUnknown(value: number | null, format: (amount: number) => string): string {
+  return value === null ? UNKNOWN : format(value);
+}
+
+export function percentText(value: number | null): string {
+  return orUnknown(value, (percent) => `${percent}%`);
+}

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { SavingsPotRow } from '@/api/types';
-import { brlWhole, longDay, signedBrl, brl } from '@/lib/format';
+import { brlWhole, longDay, orUnknown, signedBrl, brl, UNKNOWN } from '@/lib/format';
 
 defineProps<{ pot: SavingsPotRow; showStatus: boolean }>();
 defineEmits<{ open: [] }>();
@@ -15,8 +15,8 @@ defineEmits<{ open: [] }>();
     <span class="secondary wide-only" data-label="Banco">{{ pot.bank }}</span>
     <span class="secondary wide-only" data-label="Balde">{{ pot.bucket ?? 'Sem balde' }}</span>
     <span class="balance" data-label="Saldo">{{ brl(pot.balance) }}</span>
-    <span class="secondary right" data-label="% CDI">{{ pot.cdiPercent }}%</span>
-    <span class="yield" data-label="Rendimento no mês">{{ pot.closed ? '—' : signedBrl(pot.monthlyYield) }}</span>
+    <span class="secondary right" data-label="% CDI">{{ pot.cdiPercent === null ? UNKNOWN : `${pot.cdiPercent}%` }}</span>
+    <span class="yield" data-label="Rendimento no mês">{{ pot.closed ? UNKNOWN : orUnknown(pot.monthlyYield, signedBrl) }}</span>
     <span class="secondary" data-label="Vencimento">{{ pot.maturity ? longDay(pot.maturity) : '—' }}</span>
     <span class="target" data-label="Alvo">
       <span>{{ pot.target ? `${brlWhole(pot.balance)} de ${brlWhole(pot.target.amount)}` : '—' }}</span>

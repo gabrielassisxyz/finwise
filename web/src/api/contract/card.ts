@@ -47,12 +47,13 @@ export interface CardOverview {
 
 export interface CardClosing {
   mode: ClosingMode;
-  /** The day the bank's own rule closes the bill on. */
-  bankDay: number;
+  /** The day the bank's own rule closes the bill on; null when the ledger holds no card. */
+  bankDay: number | null;
   /** The day used when the mode is manual. */
   manualDay: number;
 }
 
 export interface CardApi {
-  overview(): Promise<CardOverview>;
+  /** Null when the ledger holds no card. */
+  overview(): Promise<CardOverview | null>;
 }

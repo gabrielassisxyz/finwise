@@ -15,14 +15,14 @@ export function createPayday(state: FakeState, log: ChangeLog): PaydayApi {
       const groups = budgetFor(state, month);
       const cushion = groupTotalOf(groups, 'fix') + groupTotalOf(groups, 'var');
       const account = state.accounts.find((candidate) => candidate.id === SALARY_ACCOUNT_ID);
-      const balance = account?.balance ?? 0;
-      const difference = cents(balance - cushion);
+      const balance = account?.balance ?? null;
+      const difference = balance === null ? null : cents(balance - cushion);
       return {
         cushion,
         balance,
-        balanceLabel: account ? `${account.bank} · ${account.name}` : '',
+        balanceLabel: account ? `${account.bank} · ${account.name}` : null,
         difference,
-        covered: difference >= 0,
+        covered: difference === null ? null : difference >= 0,
         transfers: state.plannedContributions.map(({ name, amount, state: transferState, doneOn, markedByHand }) => ({
           name,
           amount,

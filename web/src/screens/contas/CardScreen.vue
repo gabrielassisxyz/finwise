@@ -3,6 +3,7 @@ import { ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useApi } from '@/api/context';
 import type { CardOverview } from '@/api/types';
+import EmptyBlock from '@/components/ui/EmptyBlock.vue';
 import { useRevisionStore } from '@/stores/revision';
 import CardBills from './CardBills.vue';
 import CardFacts from './CardFacts.vue';
@@ -12,7 +13,8 @@ const api = useApi();
 const router = useRouter();
 const revision = useRevisionStore();
 
-const card = ref<CardOverview | null>(null);
+// Undefined until the answer arrives, null when the ledger has no card.
+const card = ref<CardOverview | null | undefined>(undefined);
 
 // A write elsewhere (a nickname, the closing day) refetches in place.
 watch(
@@ -35,6 +37,11 @@ watch(
         <CardBills :bills="card.bills" />
       </div>
     </template>
+    <EmptyBlock
+      v-else-if="card === null"
+      title="Nenhum cartão encontrado"
+      hint="O cartão aparece aqui depois que o banco enviar a fatura."
+    />
   </div>
 </template>
 

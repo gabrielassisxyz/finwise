@@ -23,9 +23,10 @@ const sum = (amounts: number[]): number => amounts.reduce((total, amount) => tot
 // It is the prototype's own invented formula, not a market rate.
 const YIELD_PER_CDI_POINT = 0.000105;
 
-/** What an open pot earned this month; a closed pot earns nothing. */
-export function monthlyYield(pot: FakeSavingsPot): number {
-  return pot.closed ? 0 : cents(pot.balance * pot.cdiPercent * YIELD_PER_CDI_POINT);
+/** What an open pot earned this month; a closed pot earns nothing and one whose rate is unknown has no figure. */
+export function monthlyYield(pot: FakeSavingsPot): number | null {
+  if (pot.closed) return 0;
+  return pot.cdiPercent === null ? null : cents(pot.balance * pot.cdiPercent * YIELD_PER_CDI_POINT);
 }
 
 // Days of the month the invented ledger holds a yield for: business days up to the last sync.
@@ -34,7 +35,7 @@ const YIELD_DAYS = [27, 26, 25, 24, 23, 19, 18, 17, 16, 13, 12, 11, 10, 9, 6, 5,
 /** The month's yield spread over its days; the last day takes the rounding so the days add up to the total. */
 export function yieldDays(state: FakeState, pot: FakeSavingsPot): PotYieldDay[] {
   const total = monthlyYield(pot);
-  if (total === 0) return [];
+  if (!total) return [];
   const base = total / YIELD_DAYS.length;
   let accumulated = 0;
   return YIELD_DAYS.map((day, index) => {

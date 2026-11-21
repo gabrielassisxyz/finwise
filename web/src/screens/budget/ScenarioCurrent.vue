@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { BudgetDoc, InvestmentFigures } from '@/api/types';
-import { brl, brlWhole } from '@/lib/format';
+import { brl, brlWhole, percentText } from '@/lib/format';
 
 defineProps<{ budget: BudgetDoc; current: InvestmentFigures }>();
 </script>
@@ -10,7 +10,7 @@ defineProps<{ budget: BudgetDoc; current: InvestmentFigures }>();
     <div class="head">
       <span class="title">Budget atual</span>
       <span class="summary">
-        Investimento {{ brlWhole(current.investment) }} · Taxa de investimento {{ current.rate }}%
+        Investimento {{ brlWhole(current.investment) }} · Taxa de investimento {{ percentText(current.rate) }}
       </span>
     </div>
     <template v-for="group in budget" :key="group.key">

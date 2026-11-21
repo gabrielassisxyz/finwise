@@ -15,7 +15,7 @@ const anchorOf = (event: Event): HTMLElement => event.currentTarget as HTMLEleme
   <PanelSection title="Linha do budget">
     <button class="line-button" @click="actions.pickLine(anchorOf($event), detail)">
       <span class="line">{{ lineLabel(detail) }}</span>
-      <span class="origin">· {{ originSentence(detail) }}</span>
+      <span v-if="originSentence(detail)" class="origin">· {{ originSentence(detail) }}</span>
       <span class="chevron">▾</span>
     </button>
     <template v-if="detail.justification !== null">

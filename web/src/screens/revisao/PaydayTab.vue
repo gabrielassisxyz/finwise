@@ -2,7 +2,8 @@
 import { computed, ref, watch } from 'vue';
 import { useApi } from '@/api/context';
 import type { PaydayTransfer, PaydayView } from '@/api/types';
-import { brl, shortDay } from '@/lib/format';
+import EmptyBlock from '@/components/ui/EmptyBlock.vue';
+import { brl, orUnknown, shortDay, UNKNOWN } from '@/lib/format';
 import { useMonthStore } from '@/stores/month';
 import { useRevisionStore } from '@/stores/revision';
 import { useReviewActions } from './useReviewActions';
@@ -28,13 +29,15 @@ const figures = computed(() => {
   const { cushion, balance, balanceLabel, difference, covered } = view.value;
   return [
     { key: 'Colchão necessário', value: brl(cushion), hint: 'Fixos e essenciais + variáveis do mês', tone: '' },
-    { key: 'Saldo em conta', value: brl(balance), hint: balanceLabel, tone: '' },
-    {
-      key: covered ? 'Acima do colchão' : 'Faltam para o colchão',
-      value: brl(difference),
-      hint: covered ? 'O salário pode ser guardado no dia em que chegar' : 'Complete o colchão antes de guardar',
-      tone: covered ? 'positive' : 'bad',
-    },
+    { key: 'Saldo em conta', value: orUnknown(balance, brl), hint: balanceLabel ?? 'Nenhuma conta recebe o salário', tone: '' },
+    covered === null
+      ? { key: 'Diferença para o colchão', value: UNKNOWN, hint: 'Sem saldo para comparar', tone: '' }
+      : {
+          key: covered ? 'Acima do colchão' : 'Faltam para o colchão',
+          value: orUnknown(difference, brl),
+          hint: covered ? 'O salário pode ser guardado no dia em que chegar' : 'Complete o colchão antes de guardar',
+          tone: covered ? 'positive' : 'bad',
+        },
   ];
 });
 
@@ -65,6 +68,11 @@ async function markDone(transfer: PaydayTransfer): Promise<void> {
         <span class="title">Transferências do dia do salário</span>
         <span class="hint">O app marca como feita quando encontra a transferência. Você também pode marcar à mão.</span>
       </div>
+      <EmptyBlock
+        v-if="view.transfers.length === 0"
+        title="Nenhuma transferência planejada"
+        hint="Elas aparecem aqui quando o budget tiver aportes para fazer no dia do salário."
+      />
       <div v-for="transfer in view.transfers" :key="transfer.name" class="row stack-row">
         <span class="name stack-full">{{ transfer.name }}</span>
         <span class="amount" data-label="Valor">{{ brl(transfer.amount) }}</span>

@@ -28,7 +28,7 @@ function overview(state: FakeState): SettingsOverview {
       })),
     establishments: listedEstablishments(state),
     people: listedPeople(state),
-    cardTitle: PROTOTYPE_CARD_FULL_LABEL,
+    cardTitle: state.card ? PROTOTYPE_CARD_FULL_LABEL : null,
     cardLabel: settings.cardLabel,
     categorization: {
       threshold: state.confidenceThreshold,
@@ -36,14 +36,14 @@ function overview(state: FakeState): SettingsOverview {
       calibration: bands,
       suggestedThreshold: suggestedThreshold(bands),
     },
-    closing: { mode: settings.closingMode, bankDay: state.card.bankClosingDay, manualDay: settings.manualClosingDay },
+    closing: { mode: settings.closingMode, bankDay: state.card?.bankClosingDay ?? null, manualDay: settings.manualClosingDay },
     data: {
       connections: settings.connections.map(({ bank, consentExpired }) => ({
         bank,
         status: consentExpired ? 'consent-expired' : 'ok',
       })),
-      lastSync: { ...settings.lastSync },
-      lastBackup: { ...settings.lastBackup },
+      lastSync: settings.lastSync && { ...settings.lastSync },
+      lastBackup: settings.lastBackup && { ...settings.lastBackup },
     },
   };
 }

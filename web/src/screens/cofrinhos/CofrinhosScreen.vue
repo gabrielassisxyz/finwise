@@ -3,6 +3,7 @@ import { ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useApi } from '@/api/context';
 import type { SavingsPotGroup } from '@/api/types';
+import EmptyBlock from '@/components/ui/EmptyBlock.vue';
 import ToggleButton from '@/components/ui/ToggleButton.vue';
 import { brl } from '@/lib/format';
 import { useSavingsViewStore } from '@/stores/savings-view';
@@ -12,7 +13,7 @@ const api = useApi();
 const router = useRouter();
 const view = useSavingsViewStore();
 
-const groups = ref<SavingsPotGroup[]>([]);
+const groups = ref<SavingsPotGroup[] | null>(null);
 
 watch(
   () => view.showClosed,
@@ -46,6 +47,11 @@ watch(
             <span>Alvo</span>
             <span v-if="view.showClosed">Status</span>
           </div>
+          <EmptyBlock
+            v-if="groups && groups.length === 0"
+            title="Nenhum cofrinho ainda"
+            hint="Os cofrinhos e investimentos dos seus bancos aparecem aqui depois da sincronização."
+          />
           <template v-for="group in groups" :key="group.bucket ?? 'none'">
             <div class="group-head">
               <span class="group-name">{{ group.bucket ?? 'Sem balde' }}</span>

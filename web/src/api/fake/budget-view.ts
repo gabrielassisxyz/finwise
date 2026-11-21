@@ -100,7 +100,7 @@ function editableGroup(state: FakeState, group: FakeBudgetGroup, spent: Spent): 
   };
 }
 
-function investmentLine(investment: number, rate: number, made: number): BudgetLineView {
+function investmentLine(investment: number, rate: number | null, made: number): BudgetLineView {
   const over = investment < 0;
   const marks = over ? [{ text: 'Budget maior que a receita', tone: 'bad' as const }] : [];
   return lineView('Investimento', [money(investment), money(made), { type: 'percent', value: rate }], { over, marks });

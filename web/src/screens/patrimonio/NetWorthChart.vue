@@ -36,7 +36,7 @@ const height = (point: NetWorthPoint) => `${columnHeight(point.total, props.char
       </ToggleButton>
     </div>
     <div class="plot-row">
-      <div class="axis"><span v-for="label in labels" :key="label">{{ label }}</span></div>
+      <div class="axis"><span v-for="(label, index) in labels" :key="index">{{ label }}</span></div>
       <div class="plot-column">
         <div class="plot" :style="{ gridTemplateColumns: `repeat(${columns.length}, 1fr)` }">
           <div v-for="column in columns" :key="column.month" class="slot">

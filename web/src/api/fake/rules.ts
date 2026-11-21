@@ -71,8 +71,8 @@ export function plannedInvestmentOf(groups: FakeBudgetGroup[]): number {
   return groupTotalOf(groups, 'rec') - out;
 }
 
-export function percentOfIncome(income: number, amount: number): number {
-  return income ? Math.round((amount / income) * 100) : 0;
+export function percentOfIncome(income: number, amount: number): number | null {
+  return income ? Math.round((amount / income) * 100) : null;
 }
 
 export function netWorth(state: FakeState): NetWorthSummary {
