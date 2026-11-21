@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useApi } from '@/api/context';
+import { isApiFailure } from '@/api/http/failure';
 import type { BudgetDoc, SavedScenario, ScenarioImpact } from '@/api/types';
 import { monthInSentence } from '@/lib/format';
 import { useMonthStore } from '@/stores/month';
@@ -45,8 +46,14 @@ watch(
   async (value) => {
     if (!value) return;
     const request = ++latest;
-    const loaded = await api.budget.evaluateScenario(month.selected, value);
-    if (request === latest) impact.value = loaded;
+    try {
+      const loaded = await api.budget.evaluateScenario(month.selected, value);
+      if (request === latest) impact.value = loaded;
+    } catch (error) {
+      // Without an evaluation the screen has no impact to show, so it returns to the budget it came from.
+      if (isApiFailure(error) && error.kind === 'read_only') void leave();
+      throw error;
+    }
   },
   { deep: true },
 );
