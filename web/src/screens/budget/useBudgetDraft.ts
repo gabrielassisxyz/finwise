@@ -1,6 +1,11 @@
 import { ref } from 'vue';
 import type { BudgetDoc, BudgetLineDoc, EditableGroupKey } from '@/api/types';
 
+/** A copy that is safe to take from a reactive source, which `structuredClone` refuses. */
+export function copyBudget(budget: BudgetDoc): BudgetDoc {
+  return budget.map((group) => ({ ...group, lines: group.lines.map((line) => ({ ...line })) }));
+}
+
 /**
  * A budget being edited: reordering, renaming and adding lines. What the
  * numbers come to is asked of the backend, which is given the draft.
@@ -9,7 +14,7 @@ export function useBudgetDraft() {
   const draft = ref<BudgetDoc | null>(null);
 
   function start(budget: BudgetDoc): void {
-    draft.value = structuredClone(budget);
+    draft.value = copyBudget(budget);
   }
 
   function discard(): void {

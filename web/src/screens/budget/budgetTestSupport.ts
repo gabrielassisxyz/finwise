@@ -5,12 +5,14 @@ import { useOverlayStore } from '@/stores/overlay';
 import { prototypeOverview } from '@/test/mount';
 import { mountRouted } from '@/test/mountRouted';
 import BudgetScreen from './BudgetScreen.vue';
+import ScenariosScreen from './ScenariosScreen.vue';
 
 const Blank = { template: '<div />' };
 
 export const routes = [
   { path: '/', component: Blank },
   { path: '/budget', component: BudgetScreen as Component },
+  { path: '/budget/cenarios', component: ScenariosScreen as Component },
 ];
 
 export const plain = (text: string) => text.replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
