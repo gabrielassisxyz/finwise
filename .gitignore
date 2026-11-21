@@ -1,0 +1,13 @@
+node_modules/
+web/dist/
+
+# Working area of the design pipeline: the prototype bundle, candidate
+# screenshots and diff heatmaps. Only the reference screenshots are versioned.
+work/
+
+# Databases hold personal financial data.
+*.db
+*.db-*
+
+.env
+.env.*
