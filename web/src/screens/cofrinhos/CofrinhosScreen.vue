@@ -62,7 +62,7 @@ watch(
               :key="pot.id"
               :pot="pot"
               :show-status="view.showClosed"
-              @open="router.push(`/cofrinhos/${pot.id}`)"
+              @open="router.push(`/cofrinhos/${encodeURIComponent(pot.id)}`)"
             />
           </template>
         </div>
