@@ -3,6 +3,10 @@
 > Read before every interaction. This file holds only the rules that are already in force; the stack,
 > the commands and the gates are added as the project gains them.
 
+> **What it is:** a personal finance app for one person, over the SQLite ledger that
+> [pluggy-sync](https://github.com/gabrielassisxyz/pluggy-sync) collects. The numbers are someone's
+> money: a wrong total or a silently dropped transaction is the failure that matters.
+
 ## Tracker
 - Work is tracked with `br` in `.beads/` (`br ready`, `br show <id>`). A bead is self-contained:
   implement from it, not from an external plan.
@@ -12,3 +16,40 @@
   on the pull request is green; nobody waits for a human to press merge. While the repository has
   no gate and no checks, the pull request body says how the change was verified. Work still goes
   through a branch, atomic commits and a pull request whose body carries the why.
+
+## Stack & Commands
+- **Frontend:** `web/` is Vue 3, Vite and TypeScript, with vue-router and Pinia. Styles are plain
+  CSS in each component, built on CSS variables. No backend exists yet: the app runs on
+  `web/src/api/fake`, an in-memory stand-in that answers with the design prototype's dataset.
+- **Install:** `npm --prefix web ci`
+- **Run:** `npm --prefix web run dev`. The PIN of the stand-in is `123456`.
+- **Test:** `npm --prefix web test`
+- **Gate:** `bin/ci` (secret scan, shellcheck, tokens current, no raw design value, types, tests,
+  build). It is the exact thing CI runs. Run it before a pull request.
+- **Parity:** `npm --prefix web run parity` measures every ported screen against the design. It is
+  not part of `bin/ci` because the measurement depends on the browser build; run it for any change
+  that touches a screen and put its output in the pull request body.
+
+## Design
+- The design arrives as an HTML prototype. It is a reference, never code to copy: `design/README.md`
+  says how it becomes tokens, reference screenshots and screens.
+- `design/tokens/finwise.tokens.json` is the only place a color, a type size, a radius, a shadow or
+  a step of the spacing scale is written. `npm --prefix web run tokens` builds
+  `web/src/styles/tokens.css` from it; that file is versioned and never edited by hand.
+- A component references tokens and nothing else for those values. A one-off that is not a design
+  decision carries a `token-exempt: <reason>` comment on its line.
+- A screen is ported when its states in `web/scripts/parity/states.mjs` pass on both viewports.
+  A screen being built is fixed in the component or in the tokens, never by raising the limit.
+- Interface text is Brazilian Portuguese. Everything else in the repository is English.
+
+## Tests
+- Every feature is born with a test; every bugfix with a regression test.
+- Tests run with one command, no manual setup, no credential.
+- The backend is faked at the API boundary with `createFakeApi`, not with an inline stub.
+- Fixtures are invented. Nothing derived from a real account is committed.
+
+## Common hurdles
+
+| hurdle | class | gate |
+|---|---|---|
+| `vue-tsc` 3 loads the JavaScript compiler from the `typescript` package, which TypeScript 7 no longer ships; `typescript` stays on 6 until `vue-tsc` supports the native one | prose | none |
