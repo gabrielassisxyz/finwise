@@ -1,0 +1,145 @@
+{
+  "total": 14135.46,
+  "buckets": [
+    {
+      "bucket": "Disponível",
+      "total": 2059.66,
+      "items": [
+        {
+          "name": "Banco não identificado · Conta Digital",
+          "detail": "conta",
+          "amount": 0.00
+        },
+        {
+          "name": "C6 · Conta C6",
+          "detail": "conta",
+          "amount": 25.00
+        },
+        {
+          "name": "Itaú · Conta Corrente",
+          "detail": "conta",
+          "amount": 1234.56
+        },
+        {
+          "name": "Mercado Pago",
+          "detail": "conta",
+          "amount": 300.10
+        },
+        {
+          "name": "Nubank · Conta Nubank",
+          "detail": "conta",
+          "amount": 500.00
+        }
+      ]
+    },
+    {
+      "bucket": "Reservado",
+      "total": 2075.80,
+      "items": [
+        {
+          "name": "Caixinha da casa",
+          "detail": "Mercado Pago",
+          "amount": 800.00
+        },
+        {
+          "name": "Reserva",
+          "detail": "Nubank",
+          "amount": 1225.80
+        },
+        {
+          "name": "Sem identidade",
+          "detail": "Nubank",
+          "amount": 50.00
+        }
+      ]
+    },
+    {
+      "bucket": "Investido",
+      "total": 10000.00,
+      "items": [
+        {
+          "name": "LCI Exemplo",
+          "detail": "Itaú",
+          "amount": 7000.00
+        },
+        {
+          "name": "CDB Exemplo",
+          "detail": "Nubank",
+          "amount": 3000.00
+        }
+      ]
+    }
+  ],
+  "chart": {
+    "max": 20000.00,
+    "months": [
+      "2026-01",
+      "2026-02",
+      "2026-03"
+    ],
+    "points": [
+      {
+        "month": "2026-01",
+        "available": 120.00,
+        "reserved": 900.00,
+        "invested": 0.00,
+        "total": 1020.00
+      },
+      {
+        "month": "2026-02",
+        "available": 260.00,
+        "reserved": 1000.00,
+        "invested": 0.00,
+        "total": 1260.00
+      },
+      {
+        "month": "2026-03",
+        "available": 2059.66,
+        "reserved": 2075.80,
+        "invested": 10000.00,
+        "total": 14135.46
+      }
+    ]
+  },
+  "historyStart": "2026-01",
+  "contribution": {
+    "planned": 0.00,
+    "done": 0.00,
+    "progress": 0
+  },
+  "investmentRate": {
+    "month": "2026-03",
+    "planned": null,
+    "actual": null
+  },
+  "yields": {
+    "pots": [
+      {
+        "name": "LCI Exemplo",
+        "cdiPercent": 95.00,
+        "amount": null
+      },
+      {
+        "name": "Caixinha da casa",
+        "cdiPercent": 110.00,
+        "amount": 10.00
+      },
+      {
+        "name": "CDB Exemplo",
+        "cdiPercent": 115.00,
+        "amount": null
+      },
+      {
+        "name": "Reserva",
+        "cdiPercent": 100.00,
+        "amount": 0.80
+      },
+      {
+        "name": "Sem identidade",
+        "cdiPercent": 100.00,
+        "amount": null
+      }
+    ],
+    "total": null
+  }
+}

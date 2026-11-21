@@ -1,0 +1,40 @@
+{
+  "total": 0.00,
+  "buckets": [
+    {
+      "bucket": "Disponível",
+      "total": 0.00,
+      "items": []
+    },
+    {
+      "bucket": "Reservado",
+      "total": 0.00,
+      "items": []
+    },
+    {
+      "bucket": "Investido",
+      "total": 0.00,
+      "items": []
+    }
+  ],
+  "chart": {
+    "max": 0.00,
+    "months": [],
+    "points": []
+  },
+  "historyStart": "2026-03",
+  "contribution": {
+    "planned": 0.00,
+    "done": 0.00,
+    "progress": 0
+  },
+  "investmentRate": {
+    "month": "2026-03",
+    "planned": null,
+    "actual": null
+  },
+  "yields": {
+    "pots": [],
+    "total": null
+  }
+}

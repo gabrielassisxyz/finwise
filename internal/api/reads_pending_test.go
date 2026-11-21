@@ -17,7 +17,6 @@ var pendingReads = []string{
 	"budget.scenarios",
 	"budget.view",
 	"home.summary",
-	"netWorth.overview",
 	"review.closing",
 	"review.payday",
 	"review.weekly",
