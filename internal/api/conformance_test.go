@@ -28,6 +28,20 @@ var readCases = []readCase{
 	{"accounts.detail", `["acc-itau"]`},
 	{"accounts.detail", `["card-itau"]`},
 	{"accounts.detail", `["no-such-account"]`},
+	{"transactions.list", `[{"month":"2026-02","period":"month"}]`},
+	{"transactions.list", `[{"month":"2026-03","period":"month"}]`},
+	{"transactions.list", `[{"month":"2026-03","period":"last-3-months"}]`},
+	{"transactions.list", `[{"month":"2026-03","period":"year"}]`},
+	{"transactions.list", `[{"month":"2025-12","period":"month"}]`},
+	{"transactions.filterOptions", `[]`},
+	{"transactions.detail", `["tx-instalment"]`},
+	{"transactions.detail", `["tx-foreign"]`},
+	{"transactions.detail", `["tx-month-end"]`},
+	{"transactions.detail", `["tx-own-transfer"]`},
+	{"transactions.detail", `["tx-pending"]`},
+	{"transactions.detail", `["tx-salary"]`},
+	{"transactions.detail", `["tx-unconverted"]`},
+	{"transactions.detail", `["no-such-transaction"]`},
 }
 
 // manifestSchemas compiles each read method's result schema once. The manifest is

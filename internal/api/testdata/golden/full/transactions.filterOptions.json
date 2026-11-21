@@ -1,0 +1,26 @@
+{
+  "accounts": [
+    {
+      "value": "acc-other",
+      "label": "Banco não identificado"
+    },
+    {
+      "value": "acc-stale",
+      "label": "C6"
+    },
+    {
+      "value": "acc-itau",
+      "label": "Itaú"
+    },
+    {
+      "value": "acc-pots",
+      "label": "Mercado Pago"
+    },
+    {
+      "value": "card-itau",
+      "label": "Platinum Visa"
+    }
+  ],
+  "tags": [],
+  "lines": []
+}

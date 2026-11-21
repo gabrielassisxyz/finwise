@@ -57,10 +57,9 @@ func readAccountsList(ctx context.Context, _ []json.RawMessage, reader *ledger.R
 	}
 	today, banks, latest := brday.DayOf(nowOf(ctx)), bankLabels(accounts), latestDayOf(rows)
 	list := make([]accountRow, 0, len(accounts))
-	for _, account := range accounts {
+	for _, account := range orderedAccounts(accounts, banks) {
 		list = append(list, accountRowOf(account, banks[account.ID], isIdle(latest[account.ID], today)))
 	}
-	sortAccountRows(list)
 	return list, nil
 }
 
@@ -88,22 +87,24 @@ func nameOfAccount(account ledger.Account) string {
 	return unnamedAccount
 }
 
-// sortAccountRows lists accounts before cards, then by bank, name and id, so the
+// orderedAccounts lists accounts before cards, then by bank, name and id, so the
 // order does not depend on how the ledger happens to be stored.
-func sortAccountRows(rows []accountRow) {
-	sort.SliceStable(rows, func(a, b int) bool {
-		left, right := rows[a], rows[b]
-		if left.Kind != right.Kind {
-			return left.Kind == accountKindBank
+func orderedAccounts(accounts []ledger.Account, banks map[string]string) []ledger.Account {
+	ordered := append([]ledger.Account(nil), accounts...)
+	sort.SliceStable(ordered, func(a, b int) bool {
+		left, right := ordered[a], ordered[b]
+		if kindOfAccount(left) != kindOfAccount(right) {
+			return kindOfAccount(left) == accountKindBank
 		}
-		if left.Bank != right.Bank {
-			return left.Bank < right.Bank
+		if banks[left.ID] != banks[right.ID] {
+			return banks[left.ID] < banks[right.ID]
 		}
-		if left.Name != right.Name {
-			return left.Name < right.Name
+		if nameOfAccount(left) != nameOfAccount(right) {
+			return nameOfAccount(left) < nameOfAccount(right)
 		}
 		return left.ID < right.ID
 	})
+	return ordered
 }
 
 // readAccountDetail answers null for an unknown id and for a card, which has a
@@ -155,4 +156,29 @@ func daysBetween(from, to brday.Day) int {
 		return 0
 	}
 	return int(end.Sub(start) / (24 * time.Hour))
+}
+
+// accountLabelsOf is how an account is named wherever a transaction or a filter
+// refers to it: a bank account by its bank, a card by its own name. Two accounts
+// that would read the same are told apart by their names.
+func accountLabelsOf(accounts []ledger.Account, banks map[string]string) map[string]string {
+	labels := make(map[string]string, len(accounts))
+	taken := map[string]int{}
+	for _, account := range accounts {
+		labels[account.ID] = plainLabelOf(account, banks[account.ID])
+		taken[labels[account.ID]]++
+	}
+	for _, account := range accounts {
+		if taken[labels[account.ID]] > 1 {
+			labels[account.ID] = bankAccountDescription(banks[account.ID], nameOfAccount(account))
+		}
+	}
+	return labels
+}
+
+func plainLabelOf(account ledger.Account, bank string) string {
+	if account.Type == ledger.AccountCredit {
+		return nameOfAccount(account)
+	}
+	return bank
 }

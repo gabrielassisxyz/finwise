@@ -56,6 +56,7 @@ func (registry *Registry) lookup(method string) (ReadHandler, bool) {
 var domainRegistrations = []func(*Registry){
 	registerShell,
 	registerAccounts,
+	registerTransactions,
 }
 
 // NewReadRegistry returns the registry every domain's handlers are in.
