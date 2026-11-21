@@ -4,6 +4,7 @@ import App from '@/App.vue';
 import { apiKey } from '@/api/context';
 import type { FinwiseApi } from '@/api/types';
 import { shiftMonth } from '@/lib/format';
+import { isApiFailure } from '@/api/http/failure';
 import { createAppRouter } from '@/router';
 import { CONFIG_SECTIONS } from '@/screens/config/sections';
 import { useSubscriptionsViewStore } from '@/stores/subscriptions-view';
@@ -36,13 +37,13 @@ export function pathsOf(absent: AbsentIds): Record<string, (ids: Ids) => string[
     '/budget': () => ['/budget'],
     '/budget/cenarios': () => ['/budget/cenarios'],
     '/cofrinhos': () => ['/cofrinhos'],
-    '/cofrinhos/:id': (ids) => [...ids.pots, absent.pot].map((id) => `/cofrinhos/${id}`),
+    '/cofrinhos/:id': (ids) => [...ids.pots, absent.pot].map((id) => `/cofrinhos/${encodeURIComponent(id)}`),
     '/assinaturas': () => ['/assinaturas'],
-    '/assinaturas/:id': (ids) => [...ids.subscriptions, absent.subscription].map((id) => `/assinaturas/${id}`),
+    '/assinaturas/:id': (ids) => [...ids.subscriptions, absent.subscription].map((id) => `/assinaturas/${encodeURIComponent(id)}`),
     '/patrimonio': () => ['/patrimonio'],
     '/contas': () => ['/contas'],
     '/contas/cartao': () => ['/contas/cartao'],
-    '/contas/:id': (ids) => [...ids.accounts, absent.account].map((id) => `/contas/${id}`),
+    '/contas/:id': (ids) => [...ids.accounts, absent.account].map((id) => `/contas/${encodeURIComponent(id)}`),
     '/config/:section?': () => ['/config', ...CONFIG_SECTIONS.map((section) => `/config/${section.id}`)],
   };
 }
@@ -71,6 +72,8 @@ export interface Sweep {
   /** What went wrong on screen or in Vue, each with the place it was seen. */
   problems: string[];
   rejections: unknown[];
+  /** Calls the read-only backend refused and the app turns into a toast: one entry per refusal, with Vue's name for where it was raised. */
+  refusals: string[];
   host: HTMLElement;
   router: ReturnType<typeof createAppRouter>;
   settle: () => Promise<void>;
@@ -84,6 +87,7 @@ export interface Sweep {
 export function createSweep(api: FinwiseApi): Sweep {
   const problems: string[] = [];
   const rejections: unknown[] = [];
+  const refusals: string[] = [];
   const onRejection = (reason: unknown) => rejections.push(reason);
   const router = createAppRouter();
   const host = document.createElement('div');
@@ -135,7 +139,12 @@ export function createSweep(api: FinwiseApi): Sweep {
       global: {
         plugins: [createPinia(), router],
         provide: { [apiKey as symbol]: api },
-        config: { errorHandler: (error, _instance, info) => problems.push(`${info}: ${String(error)}`) },
+        config: {
+          errorHandler: (error, _instance, info) => {
+            if (isApiFailure(error) && error.kind === 'read_only') refusals.push(info);
+            else problems.push(`${info}: ${String(error)}`);
+          },
+        },
       },
     });
     await router.push('/');
@@ -148,5 +157,5 @@ export function createSweep(api: FinwiseApi): Sweep {
     host.remove();
   }
 
-  return { problems, rejections, host, router, settle, start, stop, inspect, expandEverything };
+  return { problems, rejections, refusals, host, router, settle, start, stop, inspect, expandEverything };
 }
