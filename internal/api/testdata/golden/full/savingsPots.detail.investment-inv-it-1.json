@@ -1,0 +1,27 @@
+{
+  "id": "investment:inv-it-1",
+  "name": "LCI Exemplo",
+  "bank": "Itaú",
+  "bucket": "Investido",
+  "cdiPercent": 95.00,
+  "balance": 7000.00,
+  "belowTarget": null,
+  "contribution": {
+    "state": "none-planned"
+  },
+  "linkedLines": [],
+  "investment": {
+    "applied": 6500.00,
+    "gross": 7000.00,
+    "tax": 0.00,
+    "net": 7000.00,
+    "redeemableOn": "2027-01-15"
+  },
+  "movements": [],
+  "yield": {
+    "month": "2026-03",
+    "total": null,
+    "days": []
+  },
+  "historyStart": "2026-03"
+}

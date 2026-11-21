@@ -1,0 +1,8 @@
+{
+  "id": "acc-pots",
+  "bank": "Mercado Pago",
+  "name": "Mercado Pago",
+  "ledgerAccount": "acc-pots",
+  "bucket": "Disponível",
+  "balance": 300.10
+}

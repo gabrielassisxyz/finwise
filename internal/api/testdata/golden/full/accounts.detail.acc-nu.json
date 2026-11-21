@@ -1,0 +1,8 @@
+{
+  "id": "acc-nu",
+  "bank": "Nubank",
+  "name": "Conta Nubank",
+  "ledgerAccount": "acc-nu",
+  "bucket": "Disponível",
+  "balance": 500.00
+}

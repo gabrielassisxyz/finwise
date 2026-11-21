@@ -1,0 +1,8 @@
+{
+  "id": "acc-stale",
+  "bank": "C6",
+  "name": "Conta C6",
+  "ledgerAccount": "acc-stale",
+  "bucket": "Disponível",
+  "balance": 25.00
+}

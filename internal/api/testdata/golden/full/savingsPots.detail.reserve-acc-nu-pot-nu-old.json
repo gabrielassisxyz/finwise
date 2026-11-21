@@ -1,0 +1,21 @@
+{
+  "id": "reserve:acc-nu/pot-nu-old",
+  "name": "Antiga",
+  "bank": "Nubank",
+  "bucket": "Reservado",
+  "cdiPercent": 100.00,
+  "balance": 0.00,
+  "belowTarget": null,
+  "contribution": {
+    "state": "closed"
+  },
+  "linkedLines": [],
+  "investment": null,
+  "movements": [],
+  "yield": {
+    "month": "2026-03",
+    "total": 0.00,
+    "days": []
+  },
+  "historyStart": "2026-03"
+}

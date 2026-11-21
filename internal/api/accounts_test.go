@@ -124,3 +124,13 @@ func TestAccountDetailRefusesArgumentsThatAreNotAnId(t *testing.T) {
 		expectError(t, arguments, response, http.StatusBadRequest, "bad_request")
 	}
 }
+
+// The interface opens a page for every account the list names, so each one needs a recorded answer.
+func init() {
+	readCases = append(readCases,
+		readCase{"accounts.detail", `["acc-other"]`},
+		readCase{"accounts.detail", `["acc-stale"]`},
+		readCase{"accounts.detail", `["acc-pots"]`},
+		readCase{"accounts.detail", `["acc-nu"]`},
+	)
+}

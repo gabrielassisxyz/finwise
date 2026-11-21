@@ -1,0 +1,27 @@
+{
+  "id": "reserve:acc-nu/pot-nu-1",
+  "name": "Reserva",
+  "bank": "Nubank",
+  "bucket": "Reservado",
+  "cdiPercent": 100.00,
+  "balance": 1225.80,
+  "belowTarget": null,
+  "contribution": {
+    "state": "none-planned"
+  },
+  "linkedLines": [],
+  "investment": null,
+  "movements": [
+    {
+      "day": "2026-03-13",
+      "description": "Depósito",
+      "amount": 50.00
+    }
+  ],
+  "yield": {
+    "month": "2026-03",
+    "total": 0.80,
+    "days": []
+  },
+  "historyStart": "2026-01"
+}

@@ -1,0 +1,21 @@
+{
+  "id": "slot:acc-nu/1",
+  "name": "Sem identidade",
+  "bank": "Nubank",
+  "bucket": "Reservado",
+  "cdiPercent": 100.00,
+  "balance": 50.00,
+  "belowTarget": null,
+  "contribution": {
+    "state": "none-planned"
+  },
+  "linkedLines": [],
+  "investment": null,
+  "movements": [],
+  "yield": {
+    "month": "2026-03",
+    "total": null,
+    "days": []
+  },
+  "historyStart": "2026-01"
+}
