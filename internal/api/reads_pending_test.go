@@ -16,8 +16,6 @@ var pendingReads = []string{
 	"home.summary",
 	"netWorth.overview",
 	"review.closing",
-	"review.payday",
-	"review.weekly",
 	"savingsPots.detail",
 	"savingsPots.list",
 	"settings.overview",
