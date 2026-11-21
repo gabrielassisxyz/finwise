@@ -95,3 +95,20 @@ func TestInvestmentPrincipalsAreTheOriginalAmountsOfCurrentInvestments(t *testin
 		t.Errorf("principals %v, want only inv-1 at 10025", principals)
 	}
 }
+
+func TestABillWithNoClosingDateReadsWithNoClosingDate(t *testing.T) {
+	f := ledgertest.New(t)
+	f.AddBill(ledgertest.Bill{ID: "bill-open", AccountID: "acc-card", DueDate: "2026-04-10", Total: 10})
+	f.AddBill(ledgertest.Bill{ID: "bill-closed", AccountID: "acc-card", DueDate: "2026-03-10", ClosingDate: "2026-03-04", Total: 20})
+
+	bills, err := ledger.New(f.Path).Bills(t.Context())
+	if err != nil || len(bills) != 2 {
+		t.Fatalf("%v, %v", bills, err)
+	}
+	if bills[0].ID != "bill-closed" || bills[0].ClosingDate == nil || *bills[0].ClosingDate != "2026-03-04" {
+		t.Errorf("the dated bill read as %+v", bills[0])
+	}
+	if bills[1].ID != "bill-open" || bills[1].ClosingDate != nil {
+		t.Errorf("the undated bill read as %+v, want no closing date", bills[1])
+	}
+}
