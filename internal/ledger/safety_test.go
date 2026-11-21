@@ -112,6 +112,59 @@ func TestMissingSnapshotIsAnErrorNotAnEmptyLedger(t *testing.T) {
 	}
 }
 
+func TestEveryQueryNamesAFileThatIsNotADatabaseAsUnreadable(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "pluggy-snapshot.db")
+	if err := os.WriteFile(path, []byte("this is text, not a SQLite database, and it is long enough to fill a header"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	for name, err := range everyQuery(ledger.New(path)) {
+		if !ledger.IsUnreadableSnapshot(err) {
+			t.Errorf("%s: err = %T, want the unreadable-snapshot error", name, err)
+		}
+		if ledger.IsUnsupportedVersion(err) {
+			t.Errorf("%s: a file that is not a database was reported as another version", name)
+		}
+	}
+}
+
+// The header and the first page are intact, so the file opens and passes the
+// version check; the pages that hold the rows are overwritten, so the failure
+// comes in the middle of a query.
+func TestADamagedDatabaseIsUnreadableToo(t *testing.T) {
+	f := populated(t)
+	content, err := os.ReadFile(f.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const firstPage = 4096
+	for index := firstPage; index < len(content); index++ {
+		content[index] = 0xFF
+	}
+	if err := os.WriteFile(f.Path, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	reader := ledger.New(f.Path)
+	if _, err := reader.Accounts(t.Context()); !ledger.IsUnreadableSnapshot(err) {
+		t.Errorf("Accounts: err = %T, want the unreadable-snapshot error", err)
+	}
+	if _, err := reader.CleanTransactions(t.Context(), february2026(t)); !ledger.IsUnreadableSnapshot(err) {
+		t.Errorf("CleanTransactions: err = %T, want the unreadable-snapshot error", err)
+	}
+}
+
+func TestAMissingFileAndAnotherVersionAreNotUnreadable(t *testing.T) {
+	if _, err := ledger.New(filepath.Join(t.TempDir(), "absent.db")).Accounts(t.Context()); ledger.IsUnreadableSnapshot(err) {
+		t.Error("a missing file was reported as unreadable")
+	}
+	f := populated(t)
+	f.SetUserVersion(2)
+	if _, err := ledger.New(f.Path).Accounts(t.Context()); ledger.IsUnreadableSnapshot(err) {
+		t.Error("another schema version was reported as unreadable")
+	}
+}
+
 func listDirectory(t testing.TB, directory string) []string {
 	t.Helper()
 	entries, err := os.ReadDir(directory)

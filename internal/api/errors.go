@@ -59,6 +59,7 @@ func kindOfReadError(err error) errorKind {
 	case errors.As(err, &refused):
 		return kindBadRequest
 	case ledger.IsUnsupportedVersion(err),
+		ledger.IsUnreadableSnapshot(err),
 		errors.Is(err, fs.ErrNotExist),
 		errors.Is(err, fs.ErrPermission):
 		return kindLedgerUnavailable
