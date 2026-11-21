@@ -1,5 +1,5 @@
 import { flushPromises } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createFakeApi } from '@/api/fake';
 import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
@@ -173,5 +173,117 @@ describe('TransactionList', () => {
 
     await wrapper.findAll('.tab')[2]!.trigger('click');
     expect(checked()).toBe(0);
+  });
+});
+
+describe('acting on the list', () => {
+  type Mounted = Awaited<ReturnType<typeof mountList>>;
+
+  const rowsNamed = (wrapper: Mounted['wrapper'], name: string) =>
+    wrapper.findAll('.row').filter((row) => row.find('.name').text() === name);
+  const pillOf = (wrapper: Mounted['wrapper'], name: string, nth = 0) => rowsNamed(wrapper, name)[nth]!.find('.pill .label').text();
+  const toastActions = (overlay: Mounted['overlay']) => overlay.toast!.actions.map((action) => action.label);
+  const runToastAction = async (overlay: Mounted['overlay'], label: string) => {
+    overlay.toast!.actions.find((action) => action.label === label)!.run();
+    await flushPromises();
+  };
+  const pickLine = async (mounted: Mounted, name: string, line: string, nth = 0) => {
+    await rowsNamed(mounted.wrapper, name)[nth]!.find('.pill-button').trigger('click');
+    mounted.overlay.menu!.items.find((item) => item.label === line)!.onPick!();
+    await flushPromises();
+  };
+
+  it('opens a searchable menu of the budget lines from the pill, with the current one marked', async () => {
+    const { wrapper, overlay } = await mountList();
+    await rowsNamed(wrapper, 'Posto Shell')[0]!.find('.pill-button').trigger('click');
+
+    expect(overlay.menu).toMatchObject({ search: true, placeholder: 'Buscar linha' });
+    expect(overlay.menu!.items[0]).toMatchObject({ label: 'Mercado', hint: 'Variáveis', current: false });
+    expect(overlay.menu!.items.filter((item) => item.current).map((item) => item.label)).toEqual(['Transporte']);
+  });
+
+  it('changes the line, asks about the establishment and keeps the rows on screen meanwhile', async () => {
+    const mounted = await mountList();
+    const { wrapper, overlay, api } = mounted;
+    const list = api.transactions.list.bind(api.transactions);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    vi.spyOn(api.transactions, 'list').mockImplementation(async (query) => (await held, list(query)));
+
+    await pickLine(mounted, 'Posto Shell', 'Lazer');
+
+    expect(wrapper.find('.skeleton').exists()).toBe(false);
+    expect(rowNames(wrapper)).toHaveLength(40);
+    expect(overlay.toast!.message).toBe('Linha alterada para Lazer. Aplicar a todas as compras em Posto Shell?');
+    expect(toastActions(overlay)).toEqual(['Só esta', 'Todas', 'Desfazer']);
+
+    release();
+    await flushPromises();
+    expect(pillOf(wrapper, 'Posto Shell')).toBe('Lazer');
+  });
+
+  it('does nothing when the same line is picked again', async () => {
+    const mounted = await mountList();
+    await pickLine(mounted, 'Posto Shell', 'Transporte');
+    expect(mounted.overlay.toast).toBeNull();
+  });
+
+  it('dismisses the toast on "Só esta" and leaves the other purchases alone', async () => {
+    const mounted = await mountList();
+    await pickLine(mounted, 'iFood', 'Lazer');
+    await runToastAction(mounted.overlay, 'Só esta');
+    expect(mounted.overlay.toast).toBeNull();
+    expect(pillOf(mounted.wrapper, 'iFood', 1)).toBe('Restaurantes e bares');
+  });
+
+  it('applies the line to the whole establishment and says how many changed', async () => {
+    const mounted = await mountList();
+    await pickLine(mounted, 'iFood', 'Lazer');
+    await runToastAction(mounted.overlay, 'Todas');
+
+    expect(mounted.overlay.toast!.message).toBe('Lazer agora vale para todas as compras em iFood: 3 alteradas.');
+    expect(toastActions(mounted.overlay)).toEqual(['Desfazer']);
+    expect(rowsNamed(mounted.wrapper, 'iFood').map((row) => row.find('.pill .label').text())).toEqual(['Lazer', 'Lazer', 'Lazer']);
+  });
+
+  it('says "alterada" when the establishment has no other purchase', async () => {
+    const mounted = await mountList();
+    await pickLine(mounted, 'Pousada Serra Azul', 'Lazer');
+    await runToastAction(mounted.overlay, 'Todas');
+    expect(mounted.overlay.toast!.message).toBe('Lazer agora vale para todas as compras em Pousada Serra Azul: 1 alterada.');
+  });
+
+  it('takes back both steps with one Desfazer', async () => {
+    const mounted = await mountList();
+    await pickLine(mounted, 'iFood', 'Lazer');
+    await runToastAction(mounted.overlay, 'Todas');
+    await runToastAction(mounted.overlay, 'Desfazer');
+
+    expect(mounted.overlay.toast).toBeNull();
+    expect(rowsNamed(mounted.wrapper, 'iFood').map((row) => row.find('.pill .label').text())).toEqual([
+      'Delivery',
+      'Restaurantes e bares',
+      'Delivery',
+    ]);
+  });
+
+  it('skips the question for a person and offers only Desfazer', async () => {
+    const mounted = await mountList();
+    await pickLine(mounted, 'Aluguel', 'Casa');
+    expect(mounted.overlay.toast!.message).toBe('Linha alterada para Casa.');
+    expect(toastActions(mounted.overlay)).toEqual(['Desfazer']);
+  });
+
+  it('lowers the pending count of the frame when a pending purchase gets a line', async () => {
+    const mounted = await mountList();
+    const shell = useShellStore();
+    expect(shell.overview!.pendingCount).toBe(7);
+
+    await pickLine(mounted, 'Bar do Zé', 'Restaurantes e bares');
+    expect(shell.overview!.pendingCount).toBe(6);
+    expect(mounted.wrapper.findAll('.row').filter((row) => row.text().includes('Pendente'))).toHaveLength(1);
+
+    await runToastAction(mounted.overlay, 'Desfazer');
+    expect(shell.overview!.pendingCount).toBe(7);
   });
 });

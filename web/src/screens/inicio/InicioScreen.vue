@@ -4,16 +4,19 @@ import { useApi } from '@/api/context';
 import type { HomeSummary } from '@/api/types';
 import TransactionList from '@/components/transactions/TransactionList.vue';
 import { useMonthStore } from '@/stores/month';
+import { useRevisionStore } from '@/stores/revision';
 import SummaryStrip from './SummaryStrip.vue';
 
 const api = useApi();
 const month = useMonthStore();
+const revision = useRevisionStore();
 
 const summary = ref<HomeSummary | null>(null);
 
+// A write refetches the summary in place: the strip keeps showing the old figures until the new ones land.
 watch(
-  () => month.selected,
-  async (selected) => {
+  () => [month.selected, revision.current] as const,
+  async ([selected]) => {
     const loaded = await api.home.summary(selected);
     if (selected === month.selected) summary.value = loaded;
   },
