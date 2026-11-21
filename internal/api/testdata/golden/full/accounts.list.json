@@ -32,6 +32,14 @@
     "idle": false
   },
   {
+    "id": "acc-nu",
+    "bank": "Nubank",
+    "name": "Conta Nubank",
+    "kind": "Conta",
+    "amount": 500.00,
+    "idle": false
+  },
+  {
     "id": "card-itau",
     "bank": "Itaú",
     "name": "Platinum Visa",

@@ -17,6 +17,10 @@
       "label": "Mercado Pago"
     },
     {
+      "value": "acc-nu",
+      "label": "Nubank"
+    },
+    {
       "value": "card-itau",
       "label": "Platinum Visa"
     }

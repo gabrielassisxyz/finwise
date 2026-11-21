@@ -63,8 +63,10 @@ func newFullLedger(t testing.TB) *ledgertest.Fixture {
 	f := ledgertest.New(t)
 	addFixtureConnections(f)
 	addFixtureAccounts(f)
+	walkReachesBack(t, f, accountPots)
 	addFixtureBankRows(f)
 	addFixtureCardRows(f)
+	addFixtureSavings(t, f)
 	return f
 }
 

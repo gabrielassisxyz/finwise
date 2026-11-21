@@ -285,7 +285,8 @@ func TestFilterOptionsOfferEveryAccountWithAReadableLabel(t *testing.T) {
 		got = append(got, option["value"]+"="+option["label"])
 	}
 	want := []string{
-		"acc-other=Banco não identificado", "acc-stale=C6", "acc-itau=Itaú", "acc-pots=Mercado Pago", "card-itau=Platinum Visa",
+		"acc-other=Banco não identificado", "acc-stale=C6", "acc-itau=Itaú", "acc-pots=Mercado Pago", "acc-nu=Nubank",
+		"card-itau=Platinum Visa",
 	}
 	if strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Errorf("accounts = %v, want %v", got, want)

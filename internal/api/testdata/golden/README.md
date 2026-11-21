@@ -4,7 +4,9 @@ Each file is the exact answer of one read method, as the HTTP layer sends it
 (pretty-printed, keys in the order the server writes them), over one of the two
 invented fixture ledgers built in `internal/api/fixtures_test.go`:
 
-- `full/` holds every shape the transaction rules know.
+- `full/` holds every shape the transaction rules know, and what the card, the pots and the net worth
+  read: two banks' pots (one reporting yield gross and one net, one of them closed and one without an
+  identity), investments on a connection with pots and on one without, and a net worth history of three months.
 - `empty/` holds a ledger with no account and no transaction.
 
 Nothing here comes from a real account, and `-update` refuses to run while

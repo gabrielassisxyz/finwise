@@ -29,11 +29,12 @@ func TestAccountsListOverTheFullLedger(t *testing.T) {
 		idle             bool
 	}
 	want := map[string]expected{
-		accountItau:  {"Itaú", "Conta Corrente", "Conta", false},
-		accountPots:  {"Mercado Pago", "Mercado Pago", "Conta", false},
-		accountStale: {"C6", "Conta C6", "Conta", true},
-		accountOther: {"Banco não identificado", "Conta Digital", "Conta", true},
-		accountCard:  {"Itaú", "Platinum Visa", "Cartão", false},
+		accountItau:   {"Itaú", "Conta Corrente", "Conta", false},
+		accountPots:   {"Mercado Pago", "Mercado Pago", "Conta", false},
+		accountStale:  {"C6", "Conta C6", "Conta", true},
+		accountOther:  {"Banco não identificado", "Conta Digital", "Conta", true},
+		accountNubank: {"Nubank", "Conta Nubank", "Conta", false},
+		accountCard:   {"Itaú", "Platinum Visa", "Cartão", false},
 	}
 	if len(rows) != len(want) {
 		t.Fatalf("%d accounts listed, want %d", len(rows), len(want))
@@ -53,7 +54,7 @@ func TestAccountsComeBeforeCardsThenByBank(t *testing.T) {
 	for _, row := range rows {
 		order = append(order, row["id"].(string))
 	}
-	want := []string{accountOther, accountStale, accountItau, accountPots, accountCard}
+	want := []string{accountOther, accountStale, accountItau, accountPots, accountNubank, accountCard}
 	if strings.Join(order, ",") != strings.Join(want, ",") {
 		t.Errorf("order %v, want %v", order, want)
 	}
