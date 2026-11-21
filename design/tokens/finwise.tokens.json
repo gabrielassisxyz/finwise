@@ -16,7 +16,9 @@
       "toast": { "$value": "{color.text.ink}", "$description": "Toast" },
       "toast-button": { "$value": { "colorSpace": "oklch", "components": [0.34, 0.015, 155] }, "$description": "Action inside a toast" },
       "toast-button-hover": { "$value": { "colorSpace": "oklch", "components": [0.42, 0.02, 155] }, "$description": "Hover of an action inside a toast" },
-      "switch-off": { "$value": { "colorSpace": "oklch", "components": [0.84, 0.008, 150] }, "$description": "Track of a switch that is off" }
+      "switch-off": { "$value": { "colorSpace": "oklch", "components": [0.84, 0.008, 150] }, "$description": "Track of a switch that is off" },
+      "action-dark": { "$value": "{color.text.ink}", "$description": "Dark button that approves or marks a step as done" },
+      "action-dark-hover": { "$value": "{color.text.pill}", "$description": "Hover of the dark button" }
     },
     "border": {
       "default": { "$value": { "colorSpace": "oklch", "components": [0.92, 0.006, 150] }, "$description": "Card, sidebar, header. The prototype used 0.02 chroma for the rule under a scenario's name and under the head of the pay-ahead card; unified." },
@@ -35,7 +37,7 @@
       "muted": { "$value": { "colorSpace": "oklch", "components": [0.52, 0.01, 155] }, "$description": "Labels, inactive tabs, table header, dates. The prototype also used 0.5 lightness for some of these; unified." },
       "muted-2": { "$value": { "colorSpace": "oklch", "components": [0.55, 0.01, 155] }, "$description": "Raw bank description, captions" },
       "placeholder": { "$value": { "colorSpace": "oklch", "components": [0.62, 0.01, 155] }, "$description": "Input placeholder" },
-      "pill": { "$value": { "colorSpace": "oklch", "components": [0.32, 0.01, 155] }, "$description": "Budget line pill text, and the items of an open card bill. The prototype used 0.35 lightness for the latter; unified." },
+      "pill": { "$value": { "colorSpace": "oklch", "components": [0.32, 0.01, 155] }, "$description": "Budget line pill text, the paragraphs of the month report, the dark button's hover, the name of a line in the closing table and the items of an open card bill. The prototype used 0.35 lightness for the last two; unified." },
       "on-accent": { "$value": "{color.surface.card}", "$description": "Text over the accent or over the toast" }
     },
     "accent": {
@@ -53,7 +55,8 @@
       "sync-dot": { "$value": { "colorSpace": "oklch", "components": [0.6, 0.1, 155] }, "$description": "Sync indicator dot" },
       "ink": { "$value": { "colorSpace": "oklch", "components": [0.3, 0.06, 155] }, "$description": "Text over the accent tint: a toggle that is on, a filter chip. The prototype used 0.04 chroma for the chip; unified." },
       "card-label": { "$value": { "colorSpace": "oklch", "components": [0.42, 0.06, 155] }, "$description": "Label on the pay-ahead card, and the tax rate under a scenario's name. The prototype used 0.03 chroma for the latter; unified." },
-      "card-hover": { "$value": { "colorSpace": "oklch", "components": [0.96, 0.018, 155] }, "$description": "Hover of the pay-ahead card" }
+      "card-hover": { "$value": { "colorSpace": "oklch", "components": [0.96, 0.018, 155] }, "$description": "Hover of the pay-ahead card" },
+      "step-done": { "$value": { "colorSpace": "oklch", "components": [0.94, 0.04, 155] }, "$description": "Number of a finished step of the month closing" }
     },
     "chart": {
       "1": { "$value": { "colorSpace": "oklch", "components": [0.84, 0.06, 155] }, "$description": "Chart: available" },

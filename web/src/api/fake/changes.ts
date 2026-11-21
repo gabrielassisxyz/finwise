@@ -1,8 +1,10 @@
 import type { ChangesApi } from '../types';
+import type { FakeReview } from './review-model';
 import { syncCurrentBudget } from './budget-versions';
 import type {
   FakeBudgetVersion,
   FakeEstablishment,
+  FakePlannedContribution,
   FakeScenario,
   FakeState,
   FakeSubscription,
@@ -25,6 +27,10 @@ interface RecordedRecords {
   establishments: Record<string, FakeEstablishment>;
   subscriptions: FakeSubscription[];
   subscriptionSuggestion: FakeSubscriptionSuggestion | null;
+  plannedContributions: FakePlannedContribution[];
+  review: FakeReview;
+  /** Closing a month is a write that reaches the shell's list of closed months. */
+  shell: FakeState['shell'];
   savingsPots: FakeSavingsPot[];
   settings: FakeSettings;
   confidenceThreshold: number;
@@ -35,7 +41,7 @@ interface RecordedBudget {
   scenarios: FakeScenario[];
 }
 
-/** A change takes back the records it touched or the budget it replaced, never both. */
+/** A change takes back the records it touched or the budget it replaced; one that touched both says so. */
 interface RecordedChange {
   records?: RecordedRecords;
   budget?: RecordedBudget;
@@ -47,9 +53,28 @@ export interface ChangeLog {
   begin(origin?: LineChangeOrigin): string;
   /** Snapshots the budget versions and the saved scenarios; the records are left as they are. */
   beginBudget(): string;
+  /** Snapshots the records and the budget together, for a write that reaches both. */
+  beginWithBudget(): string;
   originOf(changeId: string): LineChangeOrigin;
   api: ChangesApi;
 }
+
+const snapshotRecords = (state: FakeState): RecordedRecords =>
+  structuredClone({
+    transactions: state.transactions,
+    establishments: state.establishments,
+    subscriptions: state.subscriptions,
+    subscriptionSuggestion: state.subscriptionSuggestion,
+    plannedContributions: state.plannedContributions,
+    review: state.review,
+    shell: state.shell,
+    savingsPots: state.savingsPots,
+    settings: state.settings,
+    confidenceThreshold: state.confidenceThreshold,
+  });
+
+const snapshotBudget = (state: FakeState): RecordedBudget =>
+  structuredClone({ versions: state.budgetVersions, scenarios: state.scenarios });
 
 /**
  * A snapshot per change is all the stand-in needs to take a write back. The
@@ -68,24 +93,13 @@ export function createChangeLog(state: FakeState): ChangeLog {
 
   return {
     begin(origin) {
-      return remember({
-        records: structuredClone({
-          transactions: state.transactions,
-          establishments: state.establishments,
-          subscriptions: state.subscriptions,
-          subscriptionSuggestion: state.subscriptionSuggestion,
-          savingsPots: state.savingsPots,
-          settings: state.settings,
-          confidenceThreshold: state.confidenceThreshold,
-        }),
-        origin: origin ?? null,
-      });
+      return remember({ records: snapshotRecords(state), origin: origin ?? null });
     },
     beginBudget() {
-      return remember({
-        budget: structuredClone({ versions: state.budgetVersions, scenarios: state.scenarios }),
-        origin: null,
-      });
+      return remember({ budget: snapshotBudget(state), origin: null });
+    },
+    beginWithBudget() {
+      return remember({ records: snapshotRecords(state), budget: snapshotBudget(state), origin: null });
     },
     originOf(changeId) {
       const origin = recorded.get(changeId)?.origin;

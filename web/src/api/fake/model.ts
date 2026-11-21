@@ -1,5 +1,6 @@
 import type { Bucket, Classifier, ClosingMode, Moment, IsoDay, PendingReview, ShellOverview, TransactionKind, WeekGuide, YearMonth } from '../types';
 import type { CadenceUnit, SubscriptionCycle, SubscriptionStatus } from '../types';
+import type { FakeReview } from './review-model';
 
 // What the stand-in keeps in memory. It is wider than the contract: the
 // contract is what a screen needs, this is what the rules are computed from.
@@ -131,6 +132,8 @@ export interface FakePlannedContribution {
   amount: number;
   state: 'on-target' | 'done' | 'pending';
   doneOn: IsoDay | null;
+  /** True when the person marked it, not the sync that found the transfer. */
+  markedByHand?: boolean;
 }
 
 export interface FakeAccount {
@@ -198,6 +201,7 @@ export interface FakeState {
   subscriptions: FakeSubscription[];
   recurringPurchases: FakeRecurringPurchase[];
   subscriptionSuggestion: FakeSubscriptionSuggestion | null;
+  review: FakeReview;
   card: FakeCard;
   settings: FakeSettings;
 }

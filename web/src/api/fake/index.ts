@@ -5,6 +5,7 @@ import { createFakeCard } from './card';
 import { createFakeHome } from './home';
 import { createChangeLog } from './changes';
 import { createFakeNetWorth } from './net-worth';
+import { createFakeReview } from './review';
 import { createFakeSavingsPots } from './savings-pots';
 import { createFakeSettings } from './settings';
 import { createFakeSubscriptions } from './subscriptions';
@@ -95,6 +96,7 @@ export function createFakeApi(options: FakeApiOptions = {}): FinwiseApi {
     netWorth: createFakeNetWorth(state),
     budget: createFakeBudget(state, original, log),
     subscriptions: createFakeSubscriptions(state, log),
+    review: createFakeReview(state, original, log),
     accounts: createFakeAccounts(state),
     card: createFakeCard(state),
     settings: createFakeSettings(state, log),

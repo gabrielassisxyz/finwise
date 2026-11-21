@@ -11,6 +11,7 @@ import type {
   FakeSubscription,
   FakeTransaction,
 } from './model';
+import { prototypeReview } from './review-data';
 
 // The dataset of the design prototype. Every figure and name in it is
 // invented. The parity check renders these exact values against the
@@ -557,6 +558,7 @@ export function prototypeState(): FakeState {
     subscriptions: SUBSCRIPTIONS,
     recurringPurchases: RECURRING_PURCHASES,
     subscriptionSuggestion: { transactionId: 't7', dismissed: false },
+    review: prototypeReview(),
     card: CARD_STATE,
     settings: SETTINGS_STATE,
   } satisfies FakeState);
