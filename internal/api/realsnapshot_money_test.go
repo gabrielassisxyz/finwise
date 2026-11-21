@@ -11,9 +11,9 @@ import (
 	"github.com/gabrielassisxyz/finwise/internal/potrules"
 )
 
-// recentBillDays is how far back a card's bill still counts as the card being in
-// use.
-const recentBillDays = 60
+// recentDays is how far back a purchase makes a card the one in use. A bank
+// keeps issuing bills for a card nobody uses, so a bill is only counted beside it.
+const recentDays = 60
 
 // The card, the pots, the net worth and the home summary over a real snapshot,
 // opt-in. Only counts are logged, on the same terms as the test beside it.
@@ -25,7 +25,8 @@ func TestTheCardPotsNetWorthAndHomeOverARealSnapshot(t *testing.T) {
 	run := &realRun{t: t, env: &readEnv{testEnv: env, cookie: env.unlock()}}
 	calls := countingYields(t)
 
-	recent := cardsWithARecentBill(t, reader, brday.DayOf(now))
+	cards, withBill, withPurchase, err := cardCounts(ctx, reader, brday.DayOf(now))
+	withoutValues(t, "card counts", err)
 	run.answer("card.overview", `[]`)
 	calls.Store(0)
 	run.answer("savingsPots.list", includeClosed)
@@ -40,8 +41,9 @@ func TestTheCardPotsNetWorthAndHomeOverARealSnapshot(t *testing.T) {
 	}
 
 	known, unknown := yieldMonthCounts(t, reader, view)
-	t.Logf("answers_validated=%d answers_not_conforming=%d card_accounts_with_a_bill_in_the_last_%d_days=%d",
-		run.answers, run.nonConforming, recentBillDays, recent)
+	t.Logf("answers_validated=%d answers_not_conforming=%d", run.answers, run.nonConforming)
+	t.Logf("card_accounts=%d with_a_bill_due_in_the_last_%d_days=%d with_a_purchase_in_the_last_%d_days=%d",
+		cards, recentDays, withBill, recentDays, withPurchase)
 	t.Logf("pots_per_bucket=%s pots_per_yield_base=%s", render(potsPerBucket(view)), render(potsPerBase(view)))
 	t.Logf("months_of_known_yield=%d months_of_unknown_yield=%d", known, unknown)
 	attributed, unattributed := movementCounts(view)
@@ -49,8 +51,8 @@ func TestTheCardPotsNetWorthAndHomeOverARealSnapshot(t *testing.T) {
 	t.Logf("investments_beside_reserve_entries=%d investments_left_out_of_the_total=%d yield_statement_calls_for_one_list=%d",
 		view.onReserveAccounts, view.leftOut, yieldCallsForOneList)
 
-	if recent != 1 {
-		t.Errorf("%d card accounts have a bill due in the last %d days or later, want exactly one", recent, recentBillDays)
+	if withPurchase != 1 {
+		t.Errorf("%d card accounts have a purchase in the last %d days, want exactly one", withPurchase, recentDays)
 	}
 	if run.nonConforming != 0 {
 		t.Error("an answer does not conform")
@@ -76,31 +78,39 @@ func someDetails(view *potsView) []string {
 	return ids
 }
 
-func cardsWithARecentBill(t *testing.T, reader *ledger.Reader, today brday.Day) int {
-	t.Helper()
-	accounts, err := reader.Accounts(t.Context())
-	withoutValues(t, "accounts", err)
-	bills, err := reader.Bills(t.Context())
-	withoutValues(t, "bills", err)
-	since, _ := shiftedDay(today, -recentBillDays)
-	cards := map[string]bool{}
-	for _, account := range accounts {
-		if account.Type == ledger.AccountCredit {
-			cards[account.ID] = false
-		}
+// cardCounts counts the card accounts, those with a bill due in the last
+// recentDays days or later, and those with a purchase in the last recentDays days.
+func cardCounts(ctx context.Context, reader *ledger.Reader, today brday.Day) (cards, withBill, withPurchase int, err error) {
+	around, err := loadContext(ctx, reader)
+	if err != nil {
+		return 0, 0, 0, err
 	}
+	bills, err := reader.Bills(ctx)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	lastPurchase, err := lastPurchaseDays(ctx, reader, around, today)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	since, _ := shiftedDay(today, -recentDays)
+	billed := map[string]bool{}
 	for _, bill := range bills {
-		if _, isCard := cards[bill.AccountID]; isCard && bill.DueDate >= since {
-			cards[bill.AccountID] = true
+		billed[bill.AccountID] = billed[bill.AccountID] || bill.DueDate >= since
+	}
+	for _, account := range around.accounts {
+		if account.Type != ledger.AccountCredit {
+			continue
+		}
+		cards++
+		if billed[account.ID] {
+			withBill++
+		}
+		if lastPurchase[account.ID] >= since && lastPurchase[account.ID] != "" {
+			withPurchase++
 		}
 	}
-	recent := 0
-	for _, hasOne := range cards {
-		if hasOne {
-			recent++
-		}
-	}
-	return recent
+	return cards, withBill, withPurchase, nil
 }
 
 func potsPerBucket(view *potsView) map[string]int {
@@ -178,4 +188,17 @@ func monthsOfDays(days []brday.Day) []brday.Month {
 	}
 	sort.Slice(months, func(a, b int) bool { return months[a] < months[b] })
 	return months
+}
+
+// The counting is checked over invented cards, so that it is known to count a
+// purchase and to leave out one older than the window.
+func TestTheCardCountsSeparateABillFromAPurchase(t *testing.T) {
+	f := cardLedgerWith(t, "card-a", "2026-04-05", "card-b", "2026-05-05")
+	addPurchaseOn(f, "card-a", "tx-recent", utc(2026, time.March, 10, 15, 0), 10, "")
+	addPurchaseOn(f, "card-b", "tx-older", utc(2025, time.December, 1, 15, 0), 10, "")
+
+	cards, withBill, withPurchase, err := cardCounts(t.Context(), ledgerOf(f), "2026-03-20")
+	if err != nil || cards != 2 || withBill != 2 || withPurchase != 1 {
+		t.Errorf("cards %d with a bill %d with a purchase %d (%v), want 2, 2 and 1", cards, withBill, withPurchase, err)
+	}
 }
