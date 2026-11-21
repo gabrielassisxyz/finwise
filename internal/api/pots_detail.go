@@ -26,7 +26,7 @@ type potInvestmentWire struct {
 
 type potYieldDayWire struct {
 	Day    string `json:"day"`
-	Amount Reais  `json:"amount"`
+	Amount *Reais `json:"amount"`
 }
 
 type potYieldWire struct {
@@ -93,18 +93,16 @@ func (view *potsView) detailOf(entry potEntry) potDetailWire {
 	return detail
 }
 
-// yieldDaysOf lists the rows behind the month's yield, oldest first. The contract
-// has no null for a day's amount, so a day the ledger cannot support is left out
-// and never shown as a zero; the month's total is then null as well.
+// yieldDaysOf lists the rows behind the month's yield, oldest first. A day the
+// ledger cannot support is listed with a null amount, never a zero, so the
+// page can say which day broke the month; the month's total is then null too.
 func yieldDaysOf(entry potEntry) []potYieldDayWire {
 	days := []potYieldDayWire{}
 	if !entry.yieldAsked {
 		return days
 	}
 	for _, row := range entry.yield.Days {
-		if row.Yield != nil {
-			days = append(days, potYieldDayWire{Day: string(row.To), Amount: Reais(*row.Yield)})
-		}
+		days = append(days, potYieldDayWire{Day: string(row.To), Amount: reaisPointer(row.Yield)})
 	}
 	return days
 }

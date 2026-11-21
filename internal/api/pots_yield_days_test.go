@@ -9,8 +9,9 @@ import (
 )
 
 type yieldDayAnswer struct {
-	day    string
-	amount int64
+	day string
+	// amount is nil for a day the ledger cannot support.
+	amount *int64
 }
 
 // yieldOfDetail is the yield block of a pot's detail: its total in cents, nil
@@ -24,9 +25,23 @@ func yieldOfDetail(t *testing.T, env *readEnv, id string) (total *int64, days []
 	}
 	for _, day := range block["days"].([]any) {
 		entry := day.(map[string]any)
-		days = append(days, yieldDayAnswer{day: entry["day"].(string), amount: int64(math.Round(entry["amount"].(float64) * 100))})
+		answer := yieldDayAnswer{day: entry["day"].(string)}
+		if figure, ok := entry["amount"].(float64); ok {
+			cents := int64(math.Round(figure * 100))
+			answer.amount = &cents
+		}
+		days = append(days, answer)
 	}
 	return total, days
+}
+
+func centsOf(value int64) *int64 { return &value }
+
+func sameDay(left, right yieldDayAnswer) bool {
+	if left.day != right.day || (left.amount == nil) != (right.amount == nil) {
+		return false
+	}
+	return left.amount == nil || *left.amount == *right.amount
 }
 
 func TestAPotsMonthOpensIntoOneRowPerPairOfSightingsOldestFirst(t *testing.T) {
@@ -47,7 +62,7 @@ func TestAPotsMonthOpensIntoOneRowPerPairOfSightingsOldestFirst(t *testing.T) {
 	}
 	var sum int64
 	for _, day := range days {
-		sum += day.amount
+		sum += *day.amount
 	}
 	if sum != *total {
 		t.Errorf("the rows add up to %d cents, the month says %d", sum, *total)
@@ -77,8 +92,8 @@ func TestADayWithADepositAndNoYieldIsARowOfZeroNotTheDeposit(t *testing.T) {
 	env := envAt(t, transferLedger(t, "POSTED"), 2026, time.March, 20)
 	total, days := yieldOfDetail(t, env, "reserve:"+accountNubank+"/pot-t")
 
-	want := []yieldDayAnswer{{"2026-03-12", 25}, {"2026-03-15", 0}}
-	if len(days) != 2 || days[0] != want[0] || days[1] != want[1] {
+	want := []yieldDayAnswer{{"2026-03-12", centsOf(25)}, {"2026-03-15", centsOf(0)}}
+	if len(days) != 2 || !sameDay(days[0], want[0]) || !sameDay(days[1], want[1]) {
 		t.Fatalf("rows = %v, want %v: the first earned 25 cents beside a deposit of 50 and the second only received one", days, want)
 	}
 	if total == nil || *total != 25 {
@@ -93,8 +108,11 @@ func TestADayTheLedgerCannotSupportMakesTheMonthUnknownAndIsNotShownAsZero(t *te
 	if total != nil {
 		t.Errorf("the month's yield is %d cents, want unknown: one of its days is", *total)
 	}
-	if len(days) != 1 || days[0].day != "2026-03-12" {
-		t.Errorf("rows = %v, want only the day the ledger can support", days)
+	if len(days) != 2 || days[0].day != "2026-03-12" || days[0].amount == nil || *days[0].amount != 25 {
+		t.Fatalf("rows = %v, want the known 12th and then the 15th", days)
+	}
+	if days[1].day != "2026-03-15" || days[1].amount != nil {
+		t.Errorf("the day the ledger cannot support is %v, want the 15th with a null amount and not a zero", days[1])
 	}
 }
 
@@ -117,7 +135,7 @@ func TestEveryKnownMonthIsTheSumOfItsRowsOverTheFullLedger(t *testing.T) {
 		checked++
 		var sum int64
 		for _, day := range days {
-			sum += day.amount
+			sum += *day.amount
 		}
 		if sum != *total {
 			t.Errorf("%s: rows add up to %d, the month says %d", id, sum, *total)

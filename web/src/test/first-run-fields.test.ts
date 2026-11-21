@@ -71,6 +71,20 @@ describe('an unknown figure is a dash and never a zero', () => {
     expect(plain(page.wrapper.find('.total').text())).toBe('R$ 0,00');
   });
 
+  it('lists a day whose yield is unknown with a dash, beside the days that are known, and never as a zero', async () => {
+    const state = prototypeState();
+    state.savingsPots.find((pot) => pot.id === 'rfs')!.unknownYieldDays = [25];
+    const { wrapper } = await mountScreen(CofrinhoScreen, '/cofrinhos/rfs', state);
+    expect(plain(wrapper.find('.total').text())).toBe('—');
+    await wrapper.find('.month').trigger('click');
+    const days = wrapper.findAll('.yield-day').map((day) => plain(day.text()));
+    expect(days).toHaveLength(18);
+    expect(days.filter((day) => day.endsWith('—'))).toHaveLength(1);
+    expect(days.find((day) => day.endsWith('—'))).toContain('25');
+    expect(days.filter((day) => day.includes('R$'))).toHaveLength(17);
+    expect(days.join(' ')).not.toContain('R$ 0,00');
+  });
+
   it('shows a dash for the total yield when no pot has a known one', async () => {
     const state = freshInstallState();
     state.savingsPots = state.savingsPots.filter((pot) => pot.cdiPercent === null);
