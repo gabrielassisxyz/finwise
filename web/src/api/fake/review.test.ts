@@ -85,6 +85,21 @@ describe('the queue of pending reviews', () => {
     const second = await api.transactions.detail('t12');
     expect(first?.history.at(0)?.text).toBe('Você aceitou Restaurantes e bares');
     expect(second?.history.at(0)).toMatchObject({ text: 'Você alterou para Transporte para o trabalho', reason: 'vai ao escritório' });
+    expect(second?.reason).toBe('vai ao escritório');
+    expect(first?.reason).toBe('');
+  });
+
+  it('never hands out the same history step id twice for one transaction, whichever writer added the step', async () => {
+    const api = createFakeApi();
+    await api.review.acceptPending('t5', answer('Restaurantes e bares', { always: true }));
+    await api.transactions.setRefund('t5', true);
+    const steps = (await api.transactions.detail('t5'))!.history;
+    expect(new Set(steps.map((step) => step.id)).size).toBe(steps.length);
+    const refundStep = steps.find((step) => step.text === 'Você marcou como estorno')!;
+    await api.transactions.undoHistoryStep('t5', refundStep.id);
+    const after = (await api.transactions.detail('t5'))!.history.map((step) => step.text);
+    expect(after).toContain('Você aceitou Restaurantes e bares');
+    expect(after).not.toContain('Você marcou como estorno');
   });
 
   it('moves the spending of the line the transaction was put on', async () => {
@@ -202,6 +217,13 @@ describe('the changes waiting for approval', () => {
     const approved = await api.review.approve('revista');
     expect(approved?.title).toBe('Mudar status de Revista digital para Cancelar');
     expect((await api.subscriptions.detail('rv'))?.status).toBe('Cancelar');
+  });
+
+  it('takes the approved change out of the waiting list', async () => {
+    const api = createFakeApi();
+    await api.review.approve('estorno');
+    expect((await api.review.weekly(MONTH)).approvals.map((approval) => approval.id)).toEqual(['teto', 'revista']);
+    expect(await api.review.approve('estorno')).toBeNull();
   });
 
   it('takes an approval back whole: the effect and the place in the list', async () => {

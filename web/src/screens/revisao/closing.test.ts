@@ -147,6 +147,14 @@ describe('Fechamento, what each step shows', () => {
     );
   });
 
+  it('says "Sobraram R$ 0,00" when the variable lines spent exactly the cap', async () => {
+    const state = prototypeState();
+    state.spentBaseline['2026-11']!['Mercado'] = 1728;
+    const { wrapper } = await mountClosing(state);
+    await open(wrapper, 'Sobra do mês');
+    expect(plain(stepOf(wrapper, 'Sobra do mês').find('.text').text())).toBe('Sobraram R$ 0,00 nas linhas variáveis. Destino: Investimento.');
+  });
+
   it('lists each planned transfer as done, on target or not found', async () => {
     const { wrapper } = await mountClosing();
     await open(wrapper, 'Aportes');

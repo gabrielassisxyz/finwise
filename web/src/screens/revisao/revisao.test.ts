@@ -64,6 +64,14 @@ describe('Revisão, the tabs', () => {
     }
   });
 
+  it('closes an open menu when the tab changes', async () => {
+    const { wrapper, overlay } = await openApp('/revisao');
+    overlay.openMenu(document.body, { items: [{ label: 'Uma linha' }] });
+    expect(overlay.menu).not.toBeNull();
+    await click(tab(wrapper, 'Dia do salário'));
+    expect(overlay.menu).toBeNull();
+  });
+
   it('keeps a toast when the tab changes, and drops it when the screen does', async () => {
     const { wrapper, overlay, router } = await openApp('/revisao');
     await click(wrapper.findAll('.dismiss')[0]!);
