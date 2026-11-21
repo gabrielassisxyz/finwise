@@ -6,6 +6,8 @@ import type {
   FakeScenario,
   FakeState,
   FakeSubscription,
+  FakeSavingsPot,
+  FakeSettings,
   FakeSubscriptionSuggestion,
   FakeTransaction,
 } from './model';
@@ -23,6 +25,9 @@ interface RecordedRecords {
   establishments: Record<string, FakeEstablishment>;
   subscriptions: FakeSubscription[];
   subscriptionSuggestion: FakeSubscriptionSuggestion | null;
+  savingsPots: FakeSavingsPot[];
+  settings: FakeSettings;
+  confidenceThreshold: number;
 }
 
 interface RecordedBudget {
@@ -69,6 +74,9 @@ export function createChangeLog(state: FakeState): ChangeLog {
           establishments: state.establishments,
           subscriptions: state.subscriptions,
           subscriptionSuggestion: state.subscriptionSuggestion,
+          savingsPots: state.savingsPots,
+          settings: state.settings,
+          confidenceThreshold: state.confidenceThreshold,
         }),
         origin: origin ?? null,
       });

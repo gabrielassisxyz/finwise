@@ -48,4 +48,38 @@ describe('fake session', () => {
     await api.session.lock();
     expect(await api.session.unlock('000000')).toEqual({ ok: false, reason: 'wrong-pin' });
   });
+
+  describe('changing the PIN', () => {
+    it('opens with the new PIN afterwards and no longer with the old one', async () => {
+      const { api } = lockedApi();
+      expect(await api.session.changePin('424242', '135790', '135790')).toEqual({ ok: true });
+      await api.session.lock();
+      expect(await api.session.unlock('424242')).toEqual({ ok: false, reason: 'wrong-pin' });
+      expect(await api.session.unlock('135790')).toEqual({ ok: true });
+    });
+
+    it('refuses a wrong current PIN and leaves the PIN as it was', async () => {
+      const { api } = lockedApi();
+      expect(await api.session.changePin('000000', '135790', '135790')).toEqual({ ok: false, reason: 'wrong-current' });
+      expect(await api.session.unlock('424242')).toEqual({ ok: true });
+    });
+
+    it('refuses a new PIN that is not six digits', async () => {
+      const { api } = lockedApi();
+      for (const bad of ['12345', '1234567', '12345a', '']) {
+        expect(await api.session.changePin('424242', bad, bad)).toEqual({ ok: false, reason: 'invalid-new' });
+      }
+    });
+
+    it('refuses two new PINs that differ', async () => {
+      const { api } = lockedApi();
+      expect(await api.session.changePin('424242', '135790', '135791')).toEqual({ ok: false, reason: 'mismatch' });
+    });
+
+    it('reports the wrong current PIN before the other two faults', async () => {
+      const { api } = lockedApi();
+      expect(await api.session.changePin('000000', '12', '34')).toEqual({ ok: false, reason: 'wrong-current' });
+      expect(await api.session.changePin('424242', '12', '34')).toEqual({ ok: false, reason: 'invalid-new' });
+    });
+  });
 });
