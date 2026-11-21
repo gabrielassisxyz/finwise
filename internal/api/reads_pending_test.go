@@ -21,10 +21,6 @@ var pendingReads = []string{
 	"savingsPots.detail",
 	"savingsPots.list",
 	"settings.overview",
-	"subscriptions.candidates",
-	"subscriptions.detail",
-	"subscriptions.list",
-	"subscriptions.recurring",
 }
 
 // readCoverageProblems names every disagreement between the manifest's reads
