@@ -119,7 +119,7 @@ export const STATES = [
   })),
   { name: 'revisao-semanal', prototype: unlocked('revisao', { revTab: 'semanal' }), app: null },
   { name: 'revisao-fechamento', prototype: unlocked('revisao', { revTab: 'fech' }), app: null },
-  { name: 'revisao-salario', prototype: unlocked('revisao', { revTab: 'sal' }), app: null },
+  { name: 'revisao-salario', prototype: unlocked('revisao', { revTab: 'sal' }), app: { path: '/revisao/salario' } },
   { name: 'budget', prototype: unlocked('budget'), app: { path: '/budget' } },
   { name: 'cofrinhos', prototype: unlocked('cofrinhos'), app: { path: '/cofrinhos' } },
   { name: 'assinaturas', prototype: unlocked('assinaturas'), app: { path: '/assinaturas' } },

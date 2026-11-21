@@ -47,6 +47,7 @@
   --color-accent-ink: oklch(0.3000 0.0600 155.00); /** Text over the accent tint: a toggle that is on, a filter chip. The prototype used 0.04 chroma for the chip; unified. */
   --color-accent-card-label: oklch(0.4200 0.0600 155.00); /** Label on the pay-ahead card, and the tax rate under a scenario's name. The prototype used 0.03 chroma for the latter; unified. */
   --color-accent-card-hover: oklch(0.9600 0.0180 155.00); /** Hover of the pay-ahead card */
+  --color-accent-step-done: oklch(0.9400 0.0400 155.00); /** Number of a finished step of the month closing */
   --color-chart-1: oklch(0.8400 0.0600 155.00); /** Chart: available */
   --color-chart-2: oklch(0.6800 0.0900 155.00); /** Chart: reserved, and the border of a scenario value that changed. The prototype used 0.7 lightness and 0.08 chroma for the latter; unified. */
   --color-chart-plan: oklch(0.8400 0.0300 155.00); /** Bar of a planned amount, behind the done one */
@@ -103,6 +104,8 @@
   --duration-switch: 0.15s; /** Switch thumb */
   --duration-shake: 0.4s; /** PIN dots after a wrong PIN */
   --color-surface-toast: var(--color-text-ink); /** Toast */
+  --color-surface-action-dark: var(--color-text-ink); /** Dark button that approves or marks a step as done */
+  --color-surface-action-dark-hover: var(--color-text-pill); /** Hover of the dark button */
   --color-text-on-accent: var(--color-surface-card); /** Text over the accent or over the toast */
   --color-chart-3: var(--color-accent-base); /** Chart: invested */
 }
