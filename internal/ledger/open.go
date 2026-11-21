@@ -12,7 +12,7 @@ import (
 	"net/url"
 	"os"
 
-	_ "modernc.org/sqlite"
+	"modernc.org/sqlite"
 )
 
 // supportedUserVersion is the only schema version the queries were written
@@ -29,6 +29,46 @@ type UnsupportedVersionError struct {
 func (err *UnsupportedVersionError) Error() string {
 	return fmt.Sprintf("ledger: snapshot has user_version %d, this reader supports only %d",
 		err.Found, supportedUserVersion)
+}
+
+// UnreadableSnapshotError means the snapshot file is there but SQLite cannot
+// read it as a database: it is not one, or it is damaged. It is not an absent
+// file and not another schema version, which have their own errors, and its text
+// says nothing about the file's content.
+type UnreadableSnapshotError struct {
+	cause error
+}
+
+func (err *UnreadableSnapshotError) Error() string {
+	return "ledger: snapshot is not a readable SQLite database"
+}
+
+func (err *UnreadableSnapshotError) Unwrap() error { return err.cause }
+
+// The primary result codes of SQLite that mean a file is not usable as a
+// database: SQLITE_CORRUPT and SQLITE_NOTADB.
+const (
+	sqliteCorrupt = 11
+	sqliteNotADB  = 26
+)
+
+// asUnreadable turns SQLite's refusal of a file into the typed error and leaves
+// every other error as it was.
+func asUnreadable(err error) error {
+	var refusal *sqlite.Error
+	if !errors.As(err, &refusal) {
+		return err
+	}
+	if code := refusal.Code() & 0xff; code == sqliteCorrupt || code == sqliteNotADB {
+		return &UnreadableSnapshotError{cause: err}
+	}
+	return err
+}
+
+// IsUnreadableSnapshot reports whether err is an UnreadableSnapshotError.
+func IsUnreadableSnapshot(err error) bool {
+	var target *UnreadableSnapshotError
+	return errors.As(err, &target)
 }
 
 // Reader answers queries over one snapshot file.
@@ -77,9 +117,9 @@ func (reader *Reader) read(ctx context.Context, fn func(*sql.Tx) error) error {
 	defer tx.Rollback()
 
 	if err := requireSupportedVersion(ctx, tx); err != nil {
-		return err
+		return asUnreadable(err)
 	}
-	return fn(tx)
+	return asUnreadable(fn(tx))
 }
 
 func requireSupportedVersion(ctx context.Context, tx *sql.Tx) error {

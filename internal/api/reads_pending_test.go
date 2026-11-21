@@ -12,8 +12,6 @@ import (
 // fails on a name that is both, on one that is neither, and on one that is not
 // a read method at all.
 var pendingReads = []string{
-	"accounts.detail",
-	"accounts.list",
 	"budget.document",
 	"budget.establishments",
 	"budget.scenarios",
@@ -27,14 +25,10 @@ var pendingReads = []string{
 	"savingsPots.detail",
 	"savingsPots.list",
 	"settings.overview",
-	"shell.overview",
 	"subscriptions.candidates",
 	"subscriptions.detail",
 	"subscriptions.list",
 	"subscriptions.recurring",
-	"transactions.detail",
-	"transactions.filterOptions",
-	"transactions.list",
 }
 
 // readCoverageProblems names every disagreement between the manifest's reads
@@ -90,17 +84,17 @@ func TestEveryReadMethodHasAHandlerOrIsPending(t *testing.T) {
 }
 
 func TestTheCoverageCheckFailsWhenAPendingNameIsRemovedOrInvented(t *testing.T) {
-	reads := manifestReadNames(t)
-	if len(readCoverageProblems(reads, nil, pendingReads[1:])) == 0 {
+	reads, handled := manifestReadNames(t), NewReadRegistry().Names()
+	if len(readCoverageProblems(reads, handled, pendingReads[1:])) == 0 {
 		t.Error("dropping a name from the pending list went unnoticed")
 	}
-	if len(readCoverageProblems(reads, nil, append([]string{"made.up"}, pendingReads...))) == 0 {
+	if len(readCoverageProblems(reads, handled, append([]string{"made.up"}, pendingReads...))) == 0 {
 		t.Error("an invented pending name went unnoticed")
 	}
-	if len(readCoverageProblems(reads, []string{pendingReads[0]}, pendingReads)) == 0 {
+	if len(readCoverageProblems(reads, append([]string{pendingReads[0]}, handled...), pendingReads)) == 0 {
 		t.Error("a name both registered and pending went unnoticed")
 	}
-	if len(readCoverageProblems(reads, []string{pendingReads[0]}, pendingReads[1:])) != 0 {
+	if len(readCoverageProblems(reads, append([]string{pendingReads[0]}, handled...), pendingReads[1:])) != 0 {
 		t.Error("moving a name from pending to registered was reported as a problem")
 	}
 }

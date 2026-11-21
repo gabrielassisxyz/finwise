@@ -36,6 +36,7 @@ type router struct {
 	reads    *Registry
 	reader   *ledger.Reader
 	sessions *sessionService
+	now      func() time.Time
 }
 
 // NewHandler builds the router from the manifest. A write or an evaluation has
@@ -52,6 +53,7 @@ func NewHandler(config Config) (http.Handler, error) {
 		reads:    config.Reads,
 		reader:   config.Ledger,
 		sessions: newSessionService(config),
+		now:      config.Now,
 	}
 	mux := http.NewServeMux()
 	known := map[string]bool{"/healthz": true}
@@ -193,7 +195,7 @@ func (found *router) serveRead(w http.ResponseWriter, r *http.Request, method co
 		writeError(w, r, kindInternal)
 		return
 	}
-	result, err := handler(r.Context(), arguments, found.reader)
+	result, err := handler(withNow(r.Context(), found.now), arguments, found.reader)
 	if err != nil {
 		writeError(w, r, kindOfReadError(err))
 		return

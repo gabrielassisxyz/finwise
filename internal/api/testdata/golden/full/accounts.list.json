@@ -1,0 +1,42 @@
+[
+  {
+    "id": "acc-other",
+    "bank": "Banco não identificado",
+    "name": "Conta Digital",
+    "kind": "Conta",
+    "amount": 0.00,
+    "idle": true
+  },
+  {
+    "id": "acc-stale",
+    "bank": "C6",
+    "name": "Conta C6",
+    "kind": "Conta",
+    "amount": 25.00,
+    "idle": true
+  },
+  {
+    "id": "acc-itau",
+    "bank": "Itaú",
+    "name": "Conta Corrente",
+    "kind": "Conta",
+    "amount": 1234.56,
+    "idle": false
+  },
+  {
+    "id": "acc-pots",
+    "bank": "Mercado Pago",
+    "name": "Mercado Pago",
+    "kind": "Conta",
+    "amount": 300.10,
+    "idle": false
+  },
+  {
+    "id": "card-itau",
+    "bank": "Itaú",
+    "name": "Platinum Visa",
+    "kind": "Cartão",
+    "amount": 1500.00,
+    "idle": false
+  }
+]

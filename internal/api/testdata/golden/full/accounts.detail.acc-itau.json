@@ -1,0 +1,8 @@
+{
+  "id": "acc-itau",
+  "bank": "Itaú",
+  "name": "Conta Corrente",
+  "ledgerAccount": "acc-itau",
+  "bucket": "Disponível",
+  "balance": 1234.56
+}

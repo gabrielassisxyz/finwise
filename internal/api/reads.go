@@ -53,7 +53,11 @@ func (registry *Registry) lookup(method string) (ReadHandler, bool) {
 // domainRegistrations has one line per domain. A domain's handlers live in a
 // file of their own with a function `func registerX(*Registry)` that calls
 // Register once per method, so two domains never edit the same lines.
-var domainRegistrations = []func(*Registry){}
+var domainRegistrations = []func(*Registry){
+	registerShell,
+	registerAccounts,
+	registerTransactions,
+}
 
 // NewReadRegistry returns the registry every domain's handlers are in.
 func NewReadRegistry() *Registry {
