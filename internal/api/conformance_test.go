@@ -42,6 +42,13 @@ var readCases = []readCase{
 	{"transactions.detail", `["tx-salary"]`},
 	{"transactions.detail", `["tx-unconverted"]`},
 	{"transactions.detail", `["no-such-transaction"]`},
+	{"card.overview", `[]`},
+	{"savingsPots.list", `[{"includeClosed":false}]`},
+	{"savingsPots.list", `[{"includeClosed":true}]`},
+	{"savingsPots.detail", `["reserve:acc-pots/pot-1"]`},
+	{"savingsPots.detail", `["no-such-pot"]`},
+	{"netWorth.overview", `[]`},
+	{"home.summary", `["2026-03"]`},
 }
 
 // manifestSchemas compiles each read method's result schema once. The manifest is

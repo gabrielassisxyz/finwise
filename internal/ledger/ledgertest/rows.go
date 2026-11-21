@@ -73,6 +73,7 @@ func (f *Fixture) AddIdentity(identity Identity) {
 }
 
 // Bill is a card bill; its dates are YYYY-MM-DD and are stored as midnight UTC.
+// An empty ClosingDate is a bill the provider gives no closing date for.
 type Bill struct {
 	ID          string
 	AccountID   string
@@ -86,8 +87,12 @@ type Bill struct {
 func (f *Fixture) AddBill(bill Bill) {
 	f.t.Helper()
 	body := map[string]any{
-		"id": bill.ID, "dueDate": bill.DueDate + "T00:00:00.000Z",
-		"billClosingDate": bill.ClosingDate + "T00:00:00.000Z", "totalAmount": bill.Total,
+		"id": bill.ID, "dueDate": bill.DueDate + "T00:00:00.000Z", "totalAmount": bill.Total,
+	}
+	var closing any
+	if bill.ClosingDate != "" {
+		closing = bill.ClosingDate + "T00:00:00.000Z"
+		body["billClosingDate"] = closing
 	}
 	var minimum any
 	if bill.Minimum != nil {
@@ -96,8 +101,7 @@ func (f *Fixture) AddBill(bill Bill) {
 	f.put(document{
 		kind: "bills", id: bill.ID, parent: bill.AccountID, body: body, table: "bills",
 		columns: []string{"account_id", "due_date", "closing_date", "total_amount", "minimum_payment"},
-		values: []any{bill.AccountID, bill.DueDate + "T00:00:00.000Z",
-			bill.ClosingDate + "T00:00:00.000Z", bill.Total, minimum},
+		values:  []any{bill.AccountID, bill.DueDate + "T00:00:00.000Z", closing, bill.Total, minimum},
 	})
 }
 

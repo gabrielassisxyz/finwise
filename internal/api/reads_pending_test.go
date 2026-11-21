@@ -12,12 +12,7 @@ import (
 // fails on a name that is both, on one that is neither, and on one that is not
 // a read method at all.
 var pendingReads = []string{
-	"card.overview",
-	"home.summary",
-	"netWorth.overview",
 	"review.closing",
-	"savingsPots.detail",
-	"savingsPots.list",
 	"settings.overview",
 }
 

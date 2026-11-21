@@ -1,0 +1,14 @@
+{
+  "limit": {
+    "cap": 0.00,
+    "spent": 0.00
+  },
+  "weeks": [],
+  "netWorth": {
+    "available": 0.00,
+    "reserved": 0.00,
+    "invested": 0.00
+  },
+  "pendingCount": 0,
+  "payAhead": null
+}

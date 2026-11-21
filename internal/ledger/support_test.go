@@ -48,14 +48,17 @@ func everyQuery(reader *ledger.Reader) map[string]error {
 	period := brday.Period{First: "2026-02-01", Last: "2026-02-28"}
 	failure := func(_ any, err error) error { return err }
 	return map[string]error{
-		"Accounts":          failure(reader.Accounts(ctx)),
-		"CleanTransactions": failure(reader.CleanTransactions(ctx, period)),
-		"Bills":             failure(reader.Bills(ctx)),
-		"Pots":              failure(reader.Pots(ctx, "2026-03-15")),
-		"Investments":       failure(reader.Investments(ctx)),
-		"InvestmentHistory": failure(reader.InvestmentHistory(ctx, "inv-1")),
-		"Identities":        failure(reader.Identities(ctx)),
-		"SyncState":         failure(reader.SyncState(ctx)),
+		"Accounts":             failure(reader.Accounts(ctx)),
+		"CleanTransactions":    failure(reader.CleanTransactions(ctx, period)),
+		"Bills":                failure(reader.Bills(ctx)),
+		"Pots":                 failure(reader.Pots(ctx, "2026-03-15")),
+		"BalanceHistory":       failure(reader.BalanceHistory(ctx)),
+		"ReserveHistory":       failure(reader.ReserveHistory(ctx)),
+		"InvestmentPrincipals": failure(reader.InvestmentPrincipals(ctx)),
+		"Investments":          failure(reader.Investments(ctx)),
+		"InvestmentHistory":    failure(reader.InvestmentHistory(ctx, "inv-1")),
+		"Identities":           failure(reader.Identities(ctx)),
+		"SyncState":            failure(reader.SyncState(ctx)),
 	}
 }
 

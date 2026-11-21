@@ -19,6 +19,13 @@ const (
 	unnamedCard    = "Cartão"
 
 	awaitingFirstSync = "Aguardando a primeira sincronização"
+
+	potDepositDescription    = "Depósito"
+	potWithdrawalDescription = "Retirada"
+
+	// bankAccountItemDetail is the second line of a bank account among the
+	// parts of the net worth; a pot's second line is its bank.
+	bankAccountItemDetail = "conta"
 )
 
 func consentExpiredMessage(bank string) string {
