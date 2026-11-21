@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { MIN_EXAMPLES_RANGE, THRESHOLD_RANGE } from '@/api/contract/settings';
 import type { CategorizationSettings } from '@/api/types';
 import TitledCard from '@/components/ui/TitledCard.vue';
+import { orUnknown } from '@/lib/format';
 import CalibrationChart from './CalibrationChart.vue';
 import { useSettingsWrites } from './useSettingsWrites';
 
@@ -21,8 +22,11 @@ function commitThreshold(): Promise<void> {
   return write(() => api.settings.setThreshold(threshold.value));
 }
 
+const suggestedText = computed(() => orUnknown(props.categorization.suggestedThreshold, (percent) => `${percent}%`));
+
 function useSuggested(): Promise<void> {
   const suggested = props.categorization.suggestedThreshold;
+  if (suggested === null) return Promise.resolve();
   return write(() => api.settings.setThreshold(suggested), `Limite alterado para ${suggested}% de confiança.`);
 }
 
@@ -68,8 +72,8 @@ function commitMinExamples(event: Event): Promise<void> {
         />
         <div class="legend">
           <span class="key"><span class="line current" /><span>Limite atual:</span><span>{{ threshold }}</span><span>%</span></span>
-          <span class="key"><span class="line suggested" />Sugerido: {{ categorization.suggestedThreshold }}%</span>
-          <button class="use" @click="useSuggested">Usar o sugerido</button>
+          <span class="key"><span class="line suggested" />Sugerido: {{ suggestedText }}</span>
+          <button v-if="categorization.suggestedThreshold !== null" class="use" @click="useSuggested">Usar o sugerido</button>
         </div>
       </div>
     </div>

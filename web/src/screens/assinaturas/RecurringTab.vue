@@ -3,10 +3,11 @@ import { ref } from 'vue';
 import { useApi } from '@/api/context';
 import type { RecurringPurchase } from '@/api/types';
 import MarkBadge from '@/components/transactions/MarkBadge.vue';
+import EmptyBlock from '@/components/ui/EmptyBlock.vue';
 import { brl, longDay } from '@/lib/format';
 import { cadenceText } from './subscriptionText';
 
-const purchases = ref<RecurringPurchase[]>([]);
+const purchases = ref<RecurringPurchase[] | null>(null);
 void useApi()
   .subscriptions.recurring()
   .then((loaded) => {
@@ -24,6 +25,11 @@ void useApi()
       <span>Próxima esperada</span>
       <span class="right">Valor médio</span>
     </div>
+    <EmptyBlock
+      v-if="purchases && purchases.length === 0"
+      title="Nenhuma compra recorrente ainda"
+      hint="Elas aparecem aqui quando o app vê uma compra se repetir."
+    />
     <div v-for="purchase in purchases" :key="purchase.name" class="row stack-row">
       <span class="name-cell stack-full">
         <span class="name">{{ purchase.name }}</span>

@@ -8,6 +8,9 @@ import Ajv from 'ajv';
 import type { ValidateFunction } from 'ajv';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createFakeApi } from '../fake';
+import type { FakeState } from '../fake/model';
+import { emptyLedgerState, freshInstallState } from '../fake/first-run-data';
+import { prototypeState } from '../fake/prototype-data';
 import type { FinwiseApi } from '../types';
 import { API_ERROR_KINDS } from './errors';
 import { METHOD_CLASSES } from './classification';
@@ -113,18 +116,24 @@ function withContractRefs<T>(schema: T): T {
   return JSON.parse(JSON.stringify(schema).replaceAll('"#/definitions/', '"contract#/definitions/')) as T;
 }
 
-describe('the stand-in against the schemas', () => {
-  // An optional trailing argument makes minItems differ from the tuple's length, which strictTuples dislikes.
-  const ajv = new Ajv({ strict: true, strictTuples: false });
-  ajv.addSchema({ definitions: manifest.definitions }, 'contract');
-  const validators = new Map<string, { args: ValidateFunction; result: ValidateFunction }>();
-  for (const method of manifest.methods) {
-    validators.set(key(method), {
-      args: ajv.compile(withContractRefs(method.arguments)),
-      result: ajv.compile(withContractRefs(method.result)),
-    });
-  }
+// An optional trailing argument makes minItems differ from the tuple's length, which strictTuples dislikes.
+const ajv = new Ajv({ strict: true, strictTuples: false });
+ajv.addSchema({ definitions: manifest.definitions }, 'contract');
+const validators = new Map<string, { args: ValidateFunction; result: ValidateFunction }>();
+for (const method of manifest.methods) {
+  validators.set(key(method), {
+    args: ajv.compile(withContractRefs(method.arguments)),
+    result: ajv.compile(withContractRefs(method.result)),
+  });
+}
 
+const STATES: { name: string; build: () => FakeState; minimumAnswers: number }[] = [
+  { name: 'the prototype dataset', build: prototypeState, minimumAnswers: 100 },
+  { name: 'a fresh install', build: freshInstallState, minimumAnswers: 30 },
+  { name: 'an empty ledger', build: emptyLedgerState, minimumAnswers: 20 },
+];
+
+describe.each(STATES)('the stand-in over $name against the schemas', ({ name, build, minimumAnswers }) => {
   const NOV = '2026-11';
   const CLOSED = '2026-10';
   type Calls = Record<string, unknown[][]>;
@@ -133,7 +142,7 @@ describe('the stand-in against the schemas', () => {
   const answers: { method: string; args: unknown[]; answer: unknown }[] = [];
 
   beforeAll(async () => {
-    api = createFakeApi({ startLocked: false });
+    api = createFakeApi({ startLocked: false, state: build() });
     const transactions = await api.transactions.list({ month: NOV, period: 'year' });
     const pots = (await api.savingsPots.list({ includeClosed: true })).flatMap((group) => group.pots);
     const subscriptions = (await api.subscriptions.list({ grouped: true })).groups.flatMap((group) => group.subscriptions);
@@ -191,7 +200,7 @@ describe('the stand-in against the schemas', () => {
   });
 
   it('validates every answer of every read method', () => {
-    expect(answers.length).toBeGreaterThan(100);
+    expect(answers.length).toBeGreaterThan(minimumAnswers);
     for (const { method, args, answer } of answers) {
       const valid = validators.get(method)!.result;
       const where = `${method} ${JSON.stringify(args)}`;
@@ -212,7 +221,7 @@ describe('the stand-in against the schemas', () => {
     expect(list([{ includeClosed: true, extra: 1 }])).toBe(false);
   });
 
-  describe('a broken answer is rejected', () => {
+  describe.runIf(name === 'the prototype dataset')('a broken answer is rejected', () => {
     const answerOf = (method: string, index = 0) => structuredClone(answers.filter((entry) => entry.method === method)[index]!.answer);
     const rejects = (method: string, answer: unknown) => validators.get(method)!.result(answer);
 

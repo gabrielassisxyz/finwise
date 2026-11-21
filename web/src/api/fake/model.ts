@@ -41,7 +41,7 @@ export interface FakeTransaction {
   account: string;
   amount: number;
   line: string | null;
-  by: Classifier;
+  by: Classifier | null;
   confidence: number | null;
   pending: PendingReview | null;
   posted: boolean;
@@ -108,8 +108,8 @@ export interface FakeSavingsPot {
   bank: string;
   bucket: Bucket | null;
   balance: number;
-  /** Rate the pot pays, as a percent of the CDI. */
-  cdiPercent: number;
+  /** Rate the pot pays, as a percent of the CDI; null when the bank does not say. */
+  cdiPercent: number | null;
   target: number | null;
   /** Budget lines the pot feeds. */
   linkedLines: string[];
@@ -202,7 +202,8 @@ export interface FakeState {
   recurringPurchases: FakeRecurringPurchase[];
   subscriptionSuggestion: FakeSubscriptionSuggestion | null;
   review: FakeReview;
-  card: FakeCard;
+  /** Null when the ledger holds no card. */
+  card: FakeCard | null;
   settings: FakeSettings;
 }
 
@@ -232,11 +233,11 @@ export interface FakeConnection {
 export interface FakeSettings {
   minExamples: number;
   /** Percent of corrections in each band of confidence, from 50-59 up to 90-100. */
-  calibration: number[];
+  calibration: (number | null)[];
   cardLabel: string;
   closingMode: ClosingMode;
   manualClosingDay: number;
   connections: FakeConnection[];
-  lastSync: Moment;
-  lastBackup: Moment;
+  lastSync: Moment | null;
+  lastBackup: Moment | null;
 }

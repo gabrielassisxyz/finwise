@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { SettingsEstablishment, SettingsOverview } from '@/api/types';
+import EmptyBlock from '@/components/ui/EmptyBlock.vue';
 import TitledCard from '@/components/ui/TitledCard.vue';
 import NicknameInput from './NicknameInput.vue';
 import { useSettingsWrites } from './useSettingsWrites';
@@ -16,6 +17,11 @@ function pickLine(anchor: HTMLElement, establishment: SettingsEstablishment): vo
 <template>
   <TitledCard title="Apelidos">
     <div class="subhead first">Estabelecimentos</div>
+    <EmptyBlock
+      v-if="settings.establishments.length === 0"
+      title="Nenhum estabelecimento ainda"
+      hint="Eles aparecem aqui quando chegarem transações dos bancos."
+    />
     <div v-for="row in settings.establishments" :key="row.key" class="row stack-row">
       <span class="raw stack-full">{{ row.rawText }}</span>
       <span data-label="Apelido">
@@ -34,6 +40,11 @@ function pickLine(anchor: HTMLElement, establishment: SettingsEstablishment): vo
     </div>
 
     <div class="subhead">Pessoas</div>
+    <EmptyBlock
+      v-if="settings.people.length === 0"
+      title="Nenhuma pessoa ainda"
+      hint="Quem enviar ou receber um PIX seu aparece aqui."
+    />
     <div v-for="person in settings.people" :key="person.key" class="person">
       <span class="full">{{ person.fullName }}</span>
       <NicknameInput
@@ -46,7 +57,12 @@ function pickLine(anchor: HTMLElement, establishment: SettingsEstablishment): vo
     </div>
 
     <div class="subhead">Cartões</div>
-    <div class="person last">
+    <EmptyBlock
+      v-if="settings.cardTitle === null"
+      title="Nenhum cartão encontrado"
+      hint="O cartão aparece aqui depois que o banco enviar a fatura."
+    />
+    <div v-else class="person last">
       <span class="full">{{ settings.cardTitle }}</span>
       <NicknameInput
         class="short"

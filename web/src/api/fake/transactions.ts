@@ -57,11 +57,11 @@ export function createFakeTransactions(state: FakeState, log: ChangeLog): Transa
     },
     async filterOptions(): Promise<TransactionFilterOptions> {
       const banks = state.accounts.filter((account) => account.kind === 'Conta').map((account) => account.bank);
+      const card = state.accounts.some((account) => account.kind === 'Cartão')
+        ? [{ value: PROTOTYPE_CARD_ACCOUNT, label: PROTOTYPE_CARD_LABEL }]
+        : [];
       return {
-        accounts: [
-          ...banks.map((bank) => ({ value: bank, label: bank })),
-          { value: PROTOTYPE_CARD_ACCOUNT, label: PROTOTYPE_CARD_LABEL },
-        ],
+        accounts: [...banks.map((bank) => ({ value: bank, label: bank })), ...card],
         tags: [...state.tags],
         lines: lineOptions(state),
       };

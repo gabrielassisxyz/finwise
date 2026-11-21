@@ -3,6 +3,7 @@ import { ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useApi } from '@/api/context';
 import type { SubscriptionList } from '@/api/types';
+import EmptyBlock from '@/components/ui/EmptyBlock.vue';
 import ToggleButton from '@/components/ui/ToggleButton.vue';
 import { brl } from '@/lib/format';
 import { useRevisionStore } from '@/stores/revision';
@@ -59,6 +60,11 @@ watch(
             <span>Status</span>
             <span>Revisar em</span>
           </div>
+          <EmptyBlock
+            v-if="list.groups.every((group) => group.subscriptions.length === 0)"
+            title="Nenhuma assinatura ainda"
+            hint="Use Nova assinatura para marcar uma compra do cartão como assinatura."
+          />
           <template v-for="group in list.groups" :key="group.status ?? 'all'">
             <div v-if="group.status" class="group-head">
               <span class="group-name">{{ group.status }}</span>

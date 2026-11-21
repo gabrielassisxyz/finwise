@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Bucket, SettingsPot } from '@/api/types';
+import EmptyBlock from '@/components/ui/EmptyBlock.vue';
 import TitledCard from '@/components/ui/TitledCard.vue';
 import { useSettingsWrites } from './useSettingsWrites';
 
@@ -27,10 +28,15 @@ function editLines(anchor: HTMLElement, pot: SettingsPot): void {
 
 <template>
   <TitledCard title="Cofrinhos">
+    <EmptyBlock
+      v-if="pots.length === 0"
+      title="Nenhum cofrinho ainda"
+      hint="Os cofrinhos dos seus bancos aparecem aqui depois da sincronização."
+    />
     <div v-for="pot in pots" :key="pot.id" class="row stack-row">
       <span class="who stack-full">
         <span class="name" :class="{ unnamed: pot.name === null }">{{ pot.name ?? 'Sem nome' }}</span>
-        <span class="bank">{{ pot.bank }} · {{ pot.cdiPercent }}% do CDI</span>
+        <span class="bank">{{ pot.cdiPercent === null ? pot.bank : `${pot.bank} · ${pot.cdiPercent}% do CDI` }}</span>
       </span>
       <span data-label="Balde">
         <button

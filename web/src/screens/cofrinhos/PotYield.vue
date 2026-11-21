@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import type { SavingsPotDetail } from '@/api/types';
 import TitledCard from '@/components/ui/TitledCard.vue';
-import { monthInSentence, shortDay, signedBrl } from '@/lib/format';
+import { monthInSentence, orUnknown, shortDay, signedBrl } from '@/lib/format';
 
 const props = defineProps<{ pot: SavingsPotDetail }>();
 
@@ -21,7 +21,7 @@ const monthName = computed(() => {
   <TitledCard title="Rendimento">
     <button class="month" @click="open = !open">
       <span class="month-name"><span class="chevron">{{ expanded ? '▾' : '▸' }}</span>{{ monthName }}</span>
-      <span class="total">{{ signedBrl(pot.yield.total) }}</span>
+      <span class="total">{{ orUnknown(pot.yield.total, signedBrl) }}</span>
     </button>
     <template v-if="expanded">
       <div v-for="day in pot.yield.days" :key="day.day" class="yield-day">

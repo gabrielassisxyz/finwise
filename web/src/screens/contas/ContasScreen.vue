@@ -3,12 +3,13 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useApi } from '@/api/context';
 import type { AccountRow } from '@/api/types';
+import EmptyBlock from '@/components/ui/EmptyBlock.vue';
 import { brl } from '@/lib/format';
 
 const api = useApi();
 const router = useRouter();
 
-const accounts = ref<AccountRow[]>([]);
+const accounts = ref<AccountRow[] | null>(null);
 
 void api.accounts.list().then((loaded) => (accounts.value = loaded));
 
@@ -27,6 +28,11 @@ function open(account: AccountRow): void {
         <span>Tipo</span>
         <span class="right">Saldo ou fatura atual</span>
       </div>
+      <EmptyBlock
+        v-if="accounts && accounts.length === 0"
+        title="Nenhuma conta ainda"
+        hint="As contas dos seus bancos aparecem aqui depois da primeira sincronização."
+      />
       <div
         v-for="account in accounts"
         :key="account.id"

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { NetWorthOverview } from '@/api/types';
 import TitledCard from '@/components/ui/TitledCard.vue';
-import { signedBrl } from '@/lib/format';
+import { orUnknown, signedBrl } from '@/lib/format';
 
 defineProps<{ yields: NetWorthOverview['yields'] }>();
 </script>
@@ -9,12 +9,12 @@ defineProps<{ yields: NetWorthOverview['yields'] }>();
 <template>
   <TitledCard title="Rendimento do mês">
     <div v-for="pot in yields.pots" :key="pot.name ?? 'unnamed'" class="row">
-      <span>{{ pot.name ?? 'Sem nome' }} <span class="cdi">· {{ pot.cdiPercent }}% do CDI</span></span>
-      <span>{{ signedBrl(pot.amount) }}</span>
+      <span>{{ pot.name ?? 'Sem nome' }} <span v-if="pot.cdiPercent !== null" class="cdi">· {{ pot.cdiPercent }}% do CDI</span></span>
+      <span>{{ orUnknown(pot.amount, signedBrl) }}</span>
     </div>
     <div class="sum">
       <span>Total</span>
-      <span class="sum-amount">{{ signedBrl(yields.total) }}</span>
+      <span class="sum-amount">{{ orUnknown(yields.total, signedBrl) }}</span>
     </div>
   </TitledCard>
 </template>

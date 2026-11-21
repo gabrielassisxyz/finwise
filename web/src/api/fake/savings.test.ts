@@ -220,10 +220,10 @@ describe('net worth overview', () => {
     expect((await createFakeApi({ state }).netWorth.overview()).investmentRate.actual).toBe(32);
   });
 
-  it('has a rate of zero when the budget plans no income', async () => {
+  it('has no rate, rather than a zero, when the budget plans no income', async () => {
     const state = prototypeState();
     state.budget.find((group) => group.key === 'rec')!.lines = [];
-    expect((await createFakeApi({ state }).netWorth.overview()).investmentRate.planned).toBe(0);
+    expect((await createFakeApi({ state }).netWorth.overview()).investmentRate).toMatchObject({ planned: null, actual: null });
   });
 
   it('lists the yield of every open pot and totals it', async () => {

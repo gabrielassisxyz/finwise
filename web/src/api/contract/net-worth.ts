@@ -34,16 +34,17 @@ export interface MonthContribution {
 
 export interface InvestmentRate {
   month: YearMonth;
-  /** Percent of the income the budget plans to invest. */
-  planned: number;
-  /** Percent of the income actually invested so far. */
-  actual: number;
+  /** Percent of the income the budget plans to invest; null when the budget has no income. */
+  planned: number | null;
+  /** Percent of the income actually invested so far; null when the budget has no income. */
+  actual: number | null;
 }
 
 export interface PotYield {
   name: string | null;
-  cdiPercent: number;
-  amount: number;
+  cdiPercent: number | null;
+  /** Null when the pot's rate is not known. */
+  amount: number | null;
 }
 
 export interface NetWorthOverview {
@@ -60,7 +61,8 @@ export interface NetWorthOverview {
   historyStart: YearMonth;
   contribution: MonthContribution;
   investmentRate: InvestmentRate;
-  yields: { pots: PotYield[]; total: number };
+  /** `total` is null when no pot has a known yield. */
+  yields: { pots: PotYield[]; total: number | null };
 }
 
 export interface NetWorthApi {

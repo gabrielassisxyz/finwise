@@ -37,7 +37,8 @@ export interface Transaction {
   /** False for a movement between own accounts and for one marked as not counting. */
   countsInTotals: boolean;
   line: string | null;
-  classifiedBy: Classifier;
+  /** Null while nobody has put the transaction on a line. */
+  classifiedBy: Classifier | null;
   /** Set when the classifier was the model. */
   confidence: number | null;
   /** True when the model's confidence is under the configured threshold. */

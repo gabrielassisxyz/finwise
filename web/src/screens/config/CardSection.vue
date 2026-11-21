@@ -2,10 +2,11 @@
 import { ref, watch } from 'vue';
 import { CLOSING_DAY_RANGE } from '@/api/contract/settings';
 import type { CardClosing, ClosingMode } from '@/api/types';
+import EmptyBlock from '@/components/ui/EmptyBlock.vue';
 import TitledCard from '@/components/ui/TitledCard.vue';
 import { useSettingsWrites } from './useSettingsWrites';
 
-const props = defineProps<{ title: string; closing: CardClosing }>();
+const props = defineProps<{ title: string | null; closing: CardClosing }>();
 
 const { api, write } = useSettingsWrites();
 
@@ -26,7 +27,12 @@ function commitDay(event: Event): Promise<void> {
 
 <template>
   <TitledCard title="Cartão">
-    <div class="body">
+    <EmptyBlock
+      v-if="title === null"
+      title="Nenhum cartão encontrado"
+      hint="O dia de fechamento aparece aqui depois que o banco enviar a fatura."
+    />
+    <div v-else class="body">
       <span class="caption">Dia de fechamento · {{ title }}</span>
       <label class="option">
         <input class="radio" type="radio" name="closing" :checked="closing.mode === 'auto'" @change="choose('auto')" />

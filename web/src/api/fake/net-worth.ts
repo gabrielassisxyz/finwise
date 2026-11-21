@@ -46,11 +46,12 @@ export function createFakeNetWorth(state: FakeState): NetWorthApi {
       }));
       const total = cents(available + reserved + invested);
       const openPots = state.savingsPots.filter((pot) => !pot.closed);
+      const knownYields = openPots.map(monthlyYield).filter((amount): amount is number => amount !== null);
       return {
         total,
         buckets,
         chart: {
-          max: CHART_MAX,
+          max: total === 0 ? 0 : CHART_MAX,
           months: Array.from({ length: CHART_MONTHS }, (_, index) => addMonths(state.currentMonth, index - 1)),
           points: [{ month: state.currentMonth, available, reserved, invested, total }],
         },
@@ -63,7 +64,7 @@ export function createFakeNetWorth(state: FakeState): NetWorthApi {
             cdiPercent: pot.cdiPercent,
             amount: monthlyYield(pot),
           })),
-          total: cents(sum(openPots.map(monthlyYield))),
+          total: knownYields.length ? cents(sum(knownYields)) : null,
         },
       };
     },

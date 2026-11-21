@@ -1720,7 +1720,14 @@
         "maxItems": 0
       },
       "result": {
-        "$ref": "#/definitions/CardOverview"
+        "anyOf": [
+          {
+            "$ref": "#/definitions/CardOverview"
+          },
+          {
+            "type": "null"
+          }
+        ]
       }
     },
     {
@@ -2116,7 +2123,10 @@
               "const": "percent"
             },
             "value": {
-              "type": "number"
+              "type": [
+                "number",
+                "null"
+              ]
             }
           },
           "required": [
@@ -2414,7 +2424,10 @@
           "type": "number"
         },
         "investmentRate": {
-          "type": "number",
+          "type": [
+            "number",
+            "null"
+          ],
           "description": "Planned investment, as a percent of the income. Negative when the budget outgrows the income."
         },
         "groups": {
@@ -2452,7 +2465,11 @@
           "type": "number"
         },
         "correctionPercent": {
-          "type": "number"
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Null for a band no classification has fallen in."
         }
       },
       "required": [
@@ -2550,8 +2567,11 @@
           "$ref": "#/definitions/ClosingMode"
         },
         "bankDay": {
-          "type": "number",
-          "description": "The day the bank's own rule closes the bill on."
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "The day the bank's own rule closes the bill on; null when the ledger holds no card."
         },
         "manualDay": {
           "type": "number",
@@ -2682,7 +2702,11 @@
           }
         },
         "suggestedThreshold": {
-          "type": "number"
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Null while no band has classifications to judge it by."
         }
       },
       "required": [
@@ -3057,10 +3081,26 @@
           }
         },
         "lastSync": {
-          "$ref": "#/definitions/Moment"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Moment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null before the first synchronisation."
         },
         "lastBackup": {
-          "$ref": "#/definitions/Moment"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Moment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null when no backup has run."
         }
       },
       "required": [
@@ -3189,7 +3229,11 @@
           "type": "number"
         },
         "rate": {
-          "type": "number"
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Percent of the income; null when the budget has none."
         }
       },
       "required": [
@@ -3205,12 +3249,18 @@
           "$ref": "#/definitions/YearMonth"
         },
         "planned": {
-          "type": "number",
-          "description": "Percent of the income the budget plans to invest."
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Percent of the income the budget plans to invest; null when the budget has no income."
         },
         "actual": {
-          "type": "number",
-          "description": "Percent of the income actually invested so far."
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Percent of the income actually invested so far; null when the budget has no income."
         }
       },
       "required": [
@@ -3445,14 +3495,18 @@
               }
             },
             "total": {
-              "type": "number"
+              "type": [
+                "number",
+                "null"
+              ]
             }
           },
           "required": [
             "pots",
             "total"
           ],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "description": "`total` is null when no pot has a known yield."
         }
       },
       "required": [
@@ -3604,17 +3658,30 @@
           "description": "Fixed and essential lines plus the variable ones: what the account must hold before the salary is set aside."
         },
         "balance": {
-          "type": "number"
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Null when no account receives the salary."
         },
         "balanceLabel": {
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "difference": {
-          "type": "number",
-          "description": "Balance minus cushion."
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Balance minus cushion; null with no balance."
         },
         "covered": {
-          "type": "boolean"
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "transfers": {
           "type": "array",
@@ -3958,10 +4025,17 @@
           ]
         },
         "cdiPercent": {
-          "type": "number"
+          "type": [
+            "number",
+            "null"
+          ]
         },
         "amount": {
-          "type": "number"
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Null when the pot's rate is not known."
         }
       },
       "required": [
@@ -4305,7 +4379,10 @@
           ]
         },
         "cdiPercent": {
-          "type": "number"
+          "type": [
+            "number",
+            "null"
+          ]
         },
         "balance": {
           "type": "number"
@@ -4354,7 +4431,10 @@
               "$ref": "#/definitions/YearMonth"
             },
             "total": {
-              "type": "number"
+              "type": [
+                "number",
+                "null"
+              ]
             },
             "days": {
               "type": "array",
@@ -4451,11 +4531,18 @@
           "type": "number"
         },
         "cdiPercent": {
-          "type": "number"
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Null when the bank does not say what the pot pays."
         },
         "monthlyYield": {
-          "type": "number",
-          "description": "What the pot earned this month; zero for a closed pot."
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "What the pot earned this month; zero for a closed pot, null when its rate is not known."
         },
         "maturity": {
           "anyOf": [
@@ -4623,7 +4710,11 @@
           }
         },
         "cardTitle": {
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Null when the ledger holds no card."
         },
         "cardLabel": {
           "type": "string"
@@ -4689,7 +4780,11 @@
           "type": "string"
         },
         "cdiPercent": {
-          "type": "number"
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Null when the bank does not say what the pot pays."
         },
         "bucket": {
           "anyOf": [
@@ -5217,7 +5312,15 @@
           ]
         },
         "classifiedBy": {
-          "$ref": "#/definitions/Classifier"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Classifier"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null while nobody has put the transaction on a line."
         },
         "confidence": {
           "type": [
@@ -5395,7 +5498,15 @@
           ]
         },
         "classifiedBy": {
-          "$ref": "#/definitions/Classifier"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Classifier"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null while nobody has put the transaction on a line."
         },
         "confidence": {
           "type": [

@@ -29,7 +29,8 @@ export type BudgetCell =
   | { type: 'money'; amount: number }
   /** Money with a sign: what is left of a cap, or what a line went over. */
   | { type: 'difference'; amount: number }
-  | { type: 'percent'; value: number }
+  /** Null when there is no income to take a share of. */
+  | { type: 'percent'; value: number | null }
   | { type: 'next-charge'; charge: { description: string; day: IsoDay } | null }
   /** A rainy fund's deposit: switched off at its target, switched on again below it. */
   | { type: 'rainy-deposit'; switchedOn: boolean };
@@ -70,7 +71,7 @@ export interface BudgetView {
   income: number;
   allocated: number;
   /** Planned investment, as a percent of the income. Negative when the budget outgrows the income. */
-  investmentRate: number;
+  investmentRate: number | null;
   groups: BudgetGroupView[];
 }
 
@@ -89,7 +90,8 @@ export interface SavedScenario {
 
 export interface InvestmentFigures {
   investment: number;
-  rate: number;
+  /** Percent of the income; null when the budget has none. */
+  rate: number | null;
 }
 
 /** A scenario weighed against the budget of the month. */

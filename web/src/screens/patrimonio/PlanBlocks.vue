@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { InvestmentRate, MonthContribution } from '@/api/types';
-import { brl, monthLabel } from '@/lib/format';
+import { brl, monthLabel, percentText } from '@/lib/format';
 import ComparisonBars, { type ComparisonBar } from './ComparisonBars.vue';
 
 const props = defineProps<{ contribution: MonthContribution; rate: InvestmentRate }>();
@@ -13,8 +13,8 @@ const contributionBars = computed<ComparisonBar[]>(() => [
 
 // A negative plan has nothing to draw.
 const rateBars = computed<ComparisonBar[]>(() => [
-  { label: 'Planejada', value: `${props.rate.planned}%`, percent: Math.max(0, props.rate.planned), tone: 'plan' },
-  { label: 'Real até agora', value: `${props.rate.actual}%`, percent: props.rate.actual, tone: 'done' },
+  { label: 'Planejada', value: percentText(props.rate.planned), percent: Math.max(0, props.rate.planned ?? 0), tone: 'plan' },
+  { label: 'Real até agora', value: percentText(props.rate.actual), percent: props.rate.actual ?? 0, tone: 'done' },
 ]);
 </script>
 

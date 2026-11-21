@@ -298,7 +298,7 @@ describe('Cartão section', () => {
     expect(day.attributes()).toMatchObject({ min: '1', max: '28' });
     expect((day.element as HTMLInputElement).value).toBe('28');
     await type(mounted.wrapper, '[aria-label="Dia de fechamento"]', '20');
-    expect((await mounted.api.card.overview()).closesOn).toBe('2026-12-20');
+    expect((await mounted.api.card.overview())!.closesOn).toBe('2026-12-20');
   });
 
   it('shows the day the backend kept when the one typed is out of bounds', async () => {

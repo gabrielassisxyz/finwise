@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import { useApi } from '@/api/context';
 import type { BudgetEstablishment, BudgetView, EditableGroupKey } from '@/api/types';
 import ActionButton from '@/components/ui/ActionButton.vue';
-import { brl, monthInSentence } from '@/lib/format';
+import { brl, monthInSentence, percentText } from '@/lib/format';
 import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
 import { useRevisionStore } from '@/stores/revision';
@@ -77,6 +77,12 @@ function showEstablishment(establishment: BudgetEstablishment): void {
   void router.push({ path: '/', query: { establishment: establishment.key } });
 }
 
+// The groups below the editable ones are derived, so they are never empty of a budget by themselves.
+const EDITABLE_KEYS: string[] = ['rec', 'fix', 'var', 'prov', 'res'];
+const noLines = computed(
+  () => view.value?.groups.filter((group) => EDITABLE_KEYS.includes(group.key)).every((group) => group.lines.length === 0) ?? false,
+);
+
 const figures = computed(() => {
   const current = view.value;
   if (!current) return [];
@@ -84,7 +90,7 @@ const figures = computed(() => {
   return [
     { label: 'Receita', text: brl(current.income), tone: '' },
     { label: 'Destinado', text: brl(current.allocated), tone: '' },
-    { label: 'Taxa de investimento', text: `${current.investmentRate}%`, tone: inv?.over ? 'bad' : 'positive' },
+    { label: 'Taxa de investimento', text: percentText(current.investmentRate), tone: inv?.over ? 'bad' : 'positive' },
   ];
 });
 </script>
@@ -106,6 +112,9 @@ const figures = computed(() => {
         </div>
       </div>
       <div v-if="month.isClosed" class="notice">Budget de {{ monthInSentence(month.selected) }} · fechado</div>
+      <div v-if="noLines && !month.isClosed && !editing" class="notice">
+        Nenhuma linha no budget ainda. Use Editar budget para montar o seu.
+      </div>
       <div class="cell-strip figures">
         <div v-for="figure in figures" :key="figure.label" class="cell fig">
           <span class="label">{{ figure.label }}</span>

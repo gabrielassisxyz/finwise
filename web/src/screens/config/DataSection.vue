@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import type { DataSettings, Moment } from '@/api/types';
 import TitledCard from '@/components/ui/TitledCard.vue';
-import { shortDay } from '@/lib/format';
+import { shortDay, UNKNOWN } from '@/lib/format';
 import { useShellStore } from '@/stores/shell';
 
 defineProps<{ data: DataSettings }>();
 
 const shell = useShellStore();
 
-/** "hoje às 02:00", or the date when it was not today. */
-function when(moment: Moment): string {
+/** "hoje às 02:00", or the date when it was not today; a dash for a moment that never happened. */
+function when(moment: Moment | null): string {
+  if (moment === null) return UNKNOWN;
   return moment.day === shell.overview?.today ? `hoje às ${moment.time}` : `em ${shortDay(moment.day)} às ${moment.time}`;
 }
 </script>

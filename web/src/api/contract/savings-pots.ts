@@ -16,9 +16,10 @@ export interface SavingsPotRow {
   bank: string;
   bucket: Bucket | null;
   balance: number;
-  cdiPercent: number;
-  /** What the pot earned this month; zero for a closed pot. */
-  monthlyYield: number;
+  /** Null when the bank does not say what the pot pays. */
+  cdiPercent: number | null;
+  /** What the pot earned this month; zero for a closed pot, null when its rate is not known. */
+  monthlyYield: number | null;
   maturity: IsoDay | null;
   target: PotTarget | null;
   closed: boolean;
@@ -77,7 +78,7 @@ export interface SavingsPotDetail {
   name: string | null;
   bank: string;
   bucket: Bucket | null;
-  cdiPercent: number;
+  cdiPercent: number | null;
   balance: number;
   /** Present only while the pot has a target and sits under it. */
   belowTarget: PotBelowTarget | null;
@@ -86,7 +87,7 @@ export interface SavingsPotDetail {
   /** Present for an investment only. */
   investment: PotInvestment | null;
   movements: PotMovement[];
-  yield: { month: YearMonth; total: number; days: PotYieldDay[] };
+  yield: { month: YearMonth; total: number | null; days: PotYieldDay[] };
   /** The first month the ledger has data for; nothing earlier can appear. */
   historyStart: YearMonth;
 }

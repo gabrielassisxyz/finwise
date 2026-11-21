@@ -22,7 +22,7 @@ export const clampThreshold = (value: number): number => clamp(value, THRESHOLD_
 export const clampMinExamples = (value: number): number => clamp(value, MIN_EXAMPLES_RANGE);
 export const clampClosingDay = (value: number): number => clamp(value, CLOSING_DAY_RANGE);
 
-export function calibrationBands(percents: number[]): CalibrationBand[] {
+export function calibrationBands(percents: (number | null)[]): CalibrationBand[] {
   return percents.map((correctionPercent, index) => {
     const from = THRESHOLD_RANGE.min + index * BAND_WIDTH;
     return { from, to: index === percents.length - 1 ? 100 : from + BAND_WIDTH - 1, correctionPercent };
@@ -33,12 +33,15 @@ export function calibrationBands(percents: number[]): CalibrationBand[] {
  * The lowest threshold from which the model was corrected seldom in every
  * band above it. When even the top band is corrected too often, nothing is
  * safe to apply by itself and the highest allowed threshold is suggested.
+ * A band nobody was classified in has no evidence, so it ends the climb, and
+ * with no evidence anywhere there is no suggestion.
  */
-export function suggestedThreshold(bands: CalibrationBand[]): number {
+export function suggestedThreshold(bands: CalibrationBand[]): number | null {
+  if (bands.every((band) => band.correctionPercent === null)) return null;
   let suggestion: number = THRESHOLD_RANGE.max;
   for (let index = bands.length - 1; index >= 0; index -= 1) {
     const band = bands[index];
-    if (!band || band.correctionPercent > MAX_TRUSTED_CORRECTION_PERCENT) break;
+    if (!band || band.correctionPercent === null || band.correctionPercent > MAX_TRUSTED_CORRECTION_PERCENT) break;
     suggestion = band.from;
   }
   return suggestion;

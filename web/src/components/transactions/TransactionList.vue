@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue';
+import EmptyBlock from '@/components/ui/EmptyBlock.vue';
 import { monthInSentence } from '@/lib/format';
 import { useMonthStore } from '@/stores/month';
 import { usePanelStore } from '@/stores/panel';
@@ -113,10 +114,7 @@ const empty = computed(() => {
               @toggle-iof="toggle(iofOpen, transaction.id)"
               @pick-line="actions.pickLine($event, transaction)"
             />
-            <div v-if="rows.length === 0" class="empty">
-              <span class="empty-title">{{ empty.title }}</span>
-              <span class="empty-hint">{{ empty.hint }}</span>
-            </div>
+            <EmptyBlock v-if="rows.length === 0" :title="empty.title" :hint="empty.hint" />
           </template>
         </div>
       </div>
@@ -310,27 +308,6 @@ const empty = computed(() => {
 
 .bone-amount {
   width: 80px;
-}
-
-.empty {
-  padding: 44px var(--space-20);
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  align-items: center;
-}
-
-.empty-title {
-  font-size: var(--font-size-body);
-  font-weight: var(--font-weight-medium);
-}
-
-.empty-hint {
-  font-size: var(--font-size-secondary);
-  color: var(--color-text-muted);
-  max-width: 420px;
-  text-wrap: pretty;
 }
 
 .foot {

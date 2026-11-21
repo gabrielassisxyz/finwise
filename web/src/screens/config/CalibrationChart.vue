@@ -2,8 +2,9 @@
 import { computed } from 'vue';
 import type { CalibrationBand } from '@/api/types';
 import { THRESHOLD_RANGE } from '@/api/contract/settings';
+import { UNKNOWN } from '@/lib/format';
 
-const props = defineProps<{ bands: CalibrationBand[]; threshold: number; suggested: number }>();
+const props = defineProps<{ bands: CalibrationBand[]; threshold: number; suggested: number | null }>();
 
 // The tallest bar the design draws is a share of the chart, not the whole of it.
 const BAR_SCALE = 1.6;
@@ -16,7 +17,7 @@ const positionOf = (percent: number): string => `${((percent - THRESHOLD_RANGE.m
 const bandLabel = (band: CalibrationBand): string => `${band.from}–${band.to}`;
 
 const thresholdAt = computed(() => positionOf(props.threshold));
-const suggestedAt = computed(() => positionOf(props.suggested));
+const suggestedAt = computed(() => (props.suggested === null ? null : positionOf(props.suggested)));
 </script>
 
 <template>
@@ -29,11 +30,11 @@ const suggestedAt = computed(() => positionOf(props.suggested));
     <div class="plot">
       <div class="bars">
         <div v-for="band in bands" :key="band.from" class="band">
-          <span class="value">{{ band.correctionPercent }}%</span>
-          <span class="bar" :style="{ height: `${band.correctionPercent * BAR_SCALE}%` }" />
+          <span class="value">{{ band.correctionPercent === null ? UNKNOWN : `${band.correctionPercent}%` }}</span>
+          <span class="bar" :style="{ height: `${(band.correctionPercent ?? 0) * BAR_SCALE}%` }" />
         </div>
         <span class="marker current" :style="{ left: thresholdAt }" />
-        <span class="marker suggested" :style="{ left: suggestedAt }" />
+        <span v-if="suggestedAt" class="marker suggested" :style="{ left: suggestedAt }" />
       </div>
       <div class="ranges">
         <span v-for="band in bands" :key="band.from">{{ bandLabel(band) }}</span>
