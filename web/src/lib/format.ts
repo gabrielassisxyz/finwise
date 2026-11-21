@@ -57,6 +57,11 @@ export function brl(amount: number): string {
   return `R$${NBSP}${digits}`;
 }
 
+/** "R$ 500", for a figure where cents would be noise. */
+export function brlWhole(amount: number): string {
+  return `R$${NBSP}${Math.abs(amount).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
+}
+
 /** "+ R$ 10,00" for money in, "− R$ 10,00" for money out. */
 export function signedBrl(amount: number): string {
   if (amount === 0) return brl(amount);

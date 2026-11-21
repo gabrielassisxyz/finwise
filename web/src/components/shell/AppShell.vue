@@ -1,10 +1,25 @@
 <script setup lang="ts">
+import { watch } from 'vue';
+import { useRoute } from 'vue-router';
 import type { ShellOverview } from '@/api/types';
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
+import PopoverMenu from '@/components/ui/PopoverMenu.vue';
+import ToastHost from '@/components/ui/ToastHost.vue';
+import { useOverlayStore } from '@/stores/overlay';
 import AppHeader from './AppHeader.vue';
 import PhoneNav from './PhoneNav.vue';
 import SidebarNav from './SidebarNav.vue';
 
 defineProps<{ overview: ShellOverview }>();
+
+const route = useRoute();
+const overlay = useOverlayStore();
+
+// Whatever was floating belongs to the screen that was left.
+watch(
+  () => route.fullPath,
+  () => overlay.closeAll(),
+);
 </script>
 
 <template>
@@ -19,6 +34,9 @@ defineProps<{ overview: ShellOverview }>();
     <div class="phone-only">
       <PhoneNav :pending-count="overview.pendingCount" />
     </div>
+    <ToastHost />
+    <PopoverMenu />
+    <ConfirmDialog />
   </div>
 </template>
 

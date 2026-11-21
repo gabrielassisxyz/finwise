@@ -23,7 +23,8 @@ const referenceDir = join(repoRoot, 'design/reference');
 const outDir = join(repoRoot, 'work/parity');
 const only = process.argv.slice(2);
 
-async function reach(page, baseUrl, app) {
+async function reach(page, baseUrl, state, viewportName) {
+  const { app } = state;
   await page.goto(baseUrl + app.path, { waitUntil: 'networkidle' });
   if (app.locked) {
     await page.waitForSelector('[data-screen-label="PIN"]');
@@ -31,7 +32,7 @@ async function reach(page, baseUrl, app) {
     await page.keyboard.type(PROTOTYPE_PIN);
     await page.waitForSelector('main');
   }
-  for (const step of app.steps ?? []) await step(page);
+  for (const step of state.steps ?? []) await step(page, viewportName);
   await settle(page);
 }
 
@@ -73,7 +74,7 @@ for (const [viewportName, viewport] of Object.entries(VIEWPORTS)) {
     }
     const context = await newContext(browser, viewport);
     const page = await context.newPage();
-    await reach(page, baseUrl, state.app);
+    await reach(page, baseUrl, state, viewportName);
     const candidatePath = join(outDir, `${viewportName}-${state.name}.png`);
     await page.screenshot({ path: candidatePath, fullPage: true });
     await context.close();

@@ -64,6 +64,21 @@ npm --prefix web run parity:reference
 
 The prototype loads its runtime and its fonts from the network.
 
+### Where the port departs from the prototype on purpose
+
+The prototype is the reference, and in a few places it contradicts its own handoff notes. The app
+follows the notes there, and the measurement pays for it:
+
+- **A currency amount never breaks after `R$`.** The notes ask for a non-breaking space. The
+  prototype's "Esta semana" card has the text typed in with an ordinary one, so its second line
+  breaks inside an amount. The app keeps the amount whole. This costs 0.04% on every wide state of
+  the home screen, which is nearly all of the limit; a state there that fails by a hair is this
+  plus something real.
+- **The pending counter is in the mono font at weight 600.** The prototype asks for 600 and loads
+  that font only up to 500, so it draws the counter lighter than it specifies.
+- **Near-identical colors are one token.** Each token that absorbed a variant says so in its
+  description.
+
 ### A state that covers part of a screen
 
 A state may carry a `clip` rectangle and borrow another state's reference. That is how the frame

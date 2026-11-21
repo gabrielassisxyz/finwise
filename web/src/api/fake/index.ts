@@ -1,5 +1,9 @@
 import type { FinwiseApi, SessionStatus, ShellOverview, UnlockResult } from '../types';
-import { PROTOTYPE_PIN, PROTOTYPE_SHELL } from './prototype-data';
+import { createFakeHome } from './home';
+import type { FakeState } from './model';
+import { PROTOTYPE_PIN, prototypeState } from './prototype-data';
+import { pendingCount } from './rules';
+import { createFakeTransactions } from './transactions';
 
 const MAX_WRONG_PINS = 3;
 
@@ -7,7 +11,7 @@ export interface FakeApiOptions {
   pin?: string;
   lockoutSeconds?: number;
   startLocked?: boolean;
-  shell?: ShellOverview;
+  state?: FakeState;
   /** Seconds since an arbitrary origin; injected so tests can move time. */
   now?: () => number;
 }
@@ -21,7 +25,9 @@ export function createFakeApi(options: FakeApiOptions = {}): FinwiseApi {
   const pin = options.pin ?? PROTOTYPE_PIN;
   const lockoutSeconds = options.lockoutSeconds ?? 300;
   const now = options.now ?? (() => Date.now() / 1000);
-  const shell = options.shell ?? PROTOTYPE_SHELL;
+  const state = options.state ?? prototypeState();
+  // Spending is a baseline plus what changed since; this is the "since".
+  const original = structuredClone(state.transactions);
 
   let locked = options.startLocked ?? true;
   let wrongPins = 0;
@@ -56,8 +62,10 @@ export function createFakeApi(options: FakeApiOptions = {}): FinwiseApi {
     },
     shell: {
       async overview(): Promise<ShellOverview> {
-        return structuredClone(shell);
+        return { ...structuredClone(state.shell), pendingCount: pendingCount(state) };
       },
     },
+    home: createFakeHome(state, original),
+    transactions: createFakeTransactions(state),
   };
 }

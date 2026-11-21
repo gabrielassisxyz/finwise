@@ -3,14 +3,14 @@
     "$type": "color",
     "surface": {
       "page": { "$value": { "colorSpace": "oklch", "components": [0.982, 0.004, 150] }, "$description": "Page background" },
-      "nav": { "$value": { "colorSpace": "oklch", "components": [0.995, 0.002, 150] }, "$description": "Sidebar, header, bottom bar" },
+      "nav": { "$value": { "colorSpace": "oklch", "components": [0.995, 0.002, 150] }, "$description": "Sidebar, header, bottom bar, table footer. The prototype used 0.99 lightness for the footer; unified." },
       "card": { "$value": { "colorSpace": "oklch", "components": [1, 0, 0] }, "$description": "Cards, tables, inputs, menus" },
       "head": { "$value": { "colorSpace": "oklch", "components": [0.985, 0.003, 150] }, "$description": "Table header, tax sub-row" },
       "hover-row": { "$value": { "colorSpace": "oklch", "components": [0.985, 0.004, 150] }, "$description": "Hover of a table row and of a clickable card" },
       "hover-nav": { "$value": { "colorSpace": "oklch", "components": [0.955, 0.008, 150] }, "$description": "Hover of a navigation item and of an icon button" },
-      "hover-item": { "$value": { "colorSpace": "oklch", "components": [0.965, 0.006, 150] }, "$description": "Hover of a keypad key and of a menu item" },
-      "pressed": { "$value": { "colorSpace": "oklch", "components": [0.94, 0.012, 155] }, "$description": "Keypad key while pressed" },
-      "track": { "$value": { "colorSpace": "oklch", "components": [0.95, 0.005, 150] }, "$description": "Progress bar track, skeleton" },
+      "hover-item": { "$value": { "colorSpace": "oklch", "components": [0.965, 0.006, 150] }, "$description": "Hover of a keypad key, a menu item and a filter button. The prototype used 0.97 0.004 for the last; unified." },
+      "pressed": { "$value": { "colorSpace": "oklch", "components": [0.94, 0.012, 155] }, "$description": "Keypad key while pressed, hover of a budget line pill" },
+      "track": { "$value": { "colorSpace": "oklch", "components": [0.95, 0.005, 150] }, "$description": "Progress bar track, skeleton. The prototype used 0.96 lightness for one skeleton bar; unified." },
       "pill": { "$value": { "colorSpace": "oklch", "components": [0.965, 0.004, 150] }, "$description": "Budget line pill" },
       "count": { "$value": { "colorSpace": "oklch", "components": [0.955, 0.005, 150] }, "$description": "Tab counter, tag" },
       "toast": { "$value": "{color.text.ink}", "$description": "Toast" },
@@ -23,16 +23,17 @@
       "button": { "$value": { "colorSpace": "oklch", "components": [0.91, 0.006, 150] }, "$description": "Secondary button, badge, menu" },
       "divider": { "$value": { "colorSpace": "oklch", "components": [0.94, 0.005, 150] }, "$description": "Divider inside a card" },
       "row": { "$value": { "colorSpace": "oklch", "components": [0.95, 0.004, 150] }, "$description": "Table row separator" },
-      "strong": { "$value": { "colorSpace": "oklch", "components": [0.88, 0.008, 150] }, "$description": "Floating bar, checkbox" },
+      "strong": { "$value": { "colorSpace": "oklch", "components": [0.88, 0.008, 150] }, "$description": "Floating bar, pill border, dot of an unset line. The prototype used 0.85 lightness for the dot; unified." },
       "dot": { "$value": { "colorSpace": "oklch", "components": [0.75, 0.01, 155] }, "$description": "Empty PIN dot" }
     },
     "text": {
       "ink": { "$value": { "colorSpace": "oklch", "components": [0.24, 0.012, 155] }, "$description": "Main text" },
-      "ink-2": { "$value": { "colorSpace": "oklch", "components": [0.45, 0.01, 155] }, "$description": "Secondary text, inactive navigation" },
-      "ink-3": { "$value": { "colorSpace": "oklch", "components": [0.4, 0.01, 155] }, "$description": "Secondary button label" },
-      "muted": { "$value": { "colorSpace": "oklch", "components": [0.52, 0.01, 155] }, "$description": "Labels, inactive tabs" },
+      "ink-2": { "$value": { "colorSpace": "oklch", "components": [0.45, 0.01, 155] }, "$description": "Secondary text, inactive navigation, an unset budget line. The prototype used 0.48 lightness for the last; unified." },
+      "ink-3": { "$value": { "colorSpace": "oklch", "components": [0.4, 0.01, 155] }, "$description": "Secondary button label, tag text. The prototype used 0.38 lightness for the tag; unified." },
+      "muted": { "$value": { "colorSpace": "oklch", "components": [0.52, 0.01, 155] }, "$description": "Labels, inactive tabs, table header, dates. The prototype also used 0.5 lightness for some of these; unified." },
       "muted-2": { "$value": { "colorSpace": "oklch", "components": [0.55, 0.01, 155] }, "$description": "Raw bank description, captions" },
       "placeholder": { "$value": { "colorSpace": "oklch", "components": [0.62, 0.01, 155] }, "$description": "Input placeholder" },
+      "pill": { "$value": { "colorSpace": "oklch", "components": [0.32, 0.01, 155] }, "$description": "Budget line pill text" },
       "on-accent": { "$value": "{color.surface.card}", "$description": "Text over the accent or over the toast" }
     },
     "accent": {
@@ -47,7 +48,10 @@
       "card": { "$value": { "colorSpace": "oklch", "components": [0.975, 0.012, 155] }, "$description": "Pay-ahead card" },
       "badge-bg": { "$value": { "colorSpace": "oklch", "components": [0.96, 0.02, 155] }, "$description": "Green badge background" },
       "badge-border": { "$value": { "colorSpace": "oklch", "components": [0.9, 0.04, 155] }, "$description": "Green badge border" },
-      "sync-dot": { "$value": { "colorSpace": "oklch", "components": [0.6, 0.1, 155] }, "$description": "Sync indicator dot" }
+      "sync-dot": { "$value": { "colorSpace": "oklch", "components": [0.6, 0.1, 155] }, "$description": "Sync indicator dot" },
+      "ink": { "$value": { "colorSpace": "oklch", "components": [0.3, 0.06, 155] }, "$description": "Text over the accent tint: a toggle that is on, a filter chip. The prototype used 0.04 chroma for the chip; unified." },
+      "card-label": { "$value": { "colorSpace": "oklch", "components": [0.42, 0.06, 155] }, "$description": "Label on the pay-ahead card" },
+      "card-hover": { "$value": { "colorSpace": "oklch", "components": [0.96, 0.018, 155] }, "$description": "Hover of the pay-ahead card" }
     },
     "chart": {
       "1": { "$value": { "colorSpace": "oklch", "components": [0.84, 0.06, 155] }, "$description": "Chart: available" },
@@ -101,6 +105,7 @@
   },
   "radius": {
     "$type": "dimension",
+    "bar": { "$value": { "value": 4, "unit": "px" }, "$description": "Progress bar" },
     "badge": { "$value": { "value": 5, "unit": "px" }, "$description": "Rectangular badges, closed-month seal" },
     "item": { "$value": { "value": 6, "unit": "px" }, "$description": "Menu item" },
     "nav": { "$value": { "value": 7, "unit": "px" }, "$description": "Navigation item, small logo, sync notice" },
