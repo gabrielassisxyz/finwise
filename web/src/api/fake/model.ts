@@ -89,6 +89,17 @@ export interface FakeBudgetGroup {
   lines: FakeBudgetLine[];
 }
 
+/** A budget that holds from a month until the next version takes over. */
+export interface FakeBudgetVersion {
+  from: YearMonth;
+  groups: FakeBudgetGroup[];
+}
+
+export interface FakeScenario {
+  name: string;
+  groups: FakeBudgetGroup[];
+}
+
 export interface FakeSavingsPot {
   id: string;
   name: string;
@@ -106,6 +117,8 @@ export interface FakeSavingsPot {
   closed: boolean;
   /** Present for an investment. */
   investment: { applied: number; tax: number } | null;
+  /** The next bill a provision is saving for, when one is known. */
+  nextCharge?: { description: string; day: IsoDay } | null;
   /** Deposits and withdrawals the ledger already holds, besides the month's planned deposit. */
   movements: { day: IsoDay; description: string; amount: number }[];
 }
@@ -134,7 +147,11 @@ export interface FakeState {
   confidenceThreshold: number;
   transactions: FakeTransaction[];
   establishments: Record<string, FakeEstablishment>;
+  /** The budget of the current month: what the other screens read. It follows `budgetVersions`. */
   budget: FakeBudgetGroup[];
+  /** Oldest first. A month uses the latest version that starts on or before it. */
+  budgetVersions: FakeBudgetVersion[];
+  scenarios: FakeScenario[];
   /** What each line had spent per month before any change made in this session. */
   spentBaseline: Record<YearMonth, Record<string, number>>;
   savingsPots: FakeSavingsPot[];

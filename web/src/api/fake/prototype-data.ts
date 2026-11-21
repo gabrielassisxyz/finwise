@@ -345,13 +345,17 @@ const SAVINGS_POTS: FakeSavingsPot[] = [
   pot('rfc', 'RF Casa', MERCADO_PAGO, 'Reservado', 3000, 120, { target: 3000, linkedLines: ['Rainy Fund · Casa'] }),
   pot('rft', 'RF Tech', MERCADO_PAGO, 'Reservado', 2000, 120, { target: 2000, linkedLines: ['Rainy Fund · Tech'] }),
   pot('gas', 'Gás e IPTU', MERCADO_PAGO, 'Reservado', 600, 120, {
+    nextCharge: { description: 'IPTU', day: '2027-01-10' },
     linkedLines: ['Gás', 'IPTU'],
     lineShares: [
       { line: 'Gás', amount: 240 },
       { line: 'IPTU', amount: 360 },
     ],
   }),
-  pot('asa', 'Assinaturas anuais', MERCADO_PAGO, 'Reservado', 310, 120, { linkedLines: ['Assinaturas anuais'] }),
+  pot('asa', 'Assinaturas anuais', MERCADO_PAGO, 'Reservado', 310, 120, {
+    linkedLines: ['Assinaturas anuais'],
+    nextCharge: { description: 'Amazon Prime', day: '2026-12-07' },
+  }),
   pot('rem', 'Remédios', MERCADO_PAGO, 'Reservado', 450, 120, { linkedLines: ['Remédios'] }),
   pot('com', 'Compras', MERCADO_PAGO, 'Reservado', 1240, 120, { linkedLines: ['Compras'] }),
   pot('via', 'Viagens', MERCADO_PAGO, 'Reservado', 2350, 120, {
@@ -418,6 +422,8 @@ export function prototypeState(): FakeState {
     transactions: TRANSACTIONS,
     establishments: ESTABLISHMENTS,
     budget: BUDGET,
+    budgetVersions: [{ from: '2026-10', groups: structuredClone(BUDGET) }],
+    scenarios: [],
     spentBaseline: SPENT_BASELINE,
     savingsPots: SAVINGS_POTS,
     accounts: ACCOUNTS,

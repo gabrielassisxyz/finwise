@@ -10,7 +10,7 @@ import type {
   PotYieldDay,
 } from '../types';
 import type { FakePlannedContribution, FakeSavingsPot, FakeState } from './model';
-import { groupTotal } from './rules';
+import { groupTotal, percentOfIncome, plannedInvestmentOf } from './rules';
 
 // The rules behind the pots and the net-worth screens. The server will own
 // these; the stand-in applies the same ones.
@@ -101,10 +101,8 @@ export function groupByBucket(pots: FakeSavingsPot[]): { bucket: Bucket | null; 
   }).filter((group) => group.pots.length > 0);
 }
 
-/** Income minus every planned outgoing: what the budget sets aside to invest. */
 export function plannedInvestment(state: FakeState): number {
-  const out = groupTotal(state, 'fix') + groupTotal(state, 'var') + groupTotal(state, 'prov') + groupTotal(state, 'res');
-  return groupTotal(state, 'rec') - out;
+  return plannedInvestmentOf(state.budget);
 }
 
 export function monthContribution(state: FakeState): MonthContribution {
@@ -117,10 +115,9 @@ export function investmentRate(state: FakeState): InvestmentRate {
   const income = groupTotal(state, 'rec');
   const planned = plannedInvestment(state);
   const invested = state.plannedContributions.find((item) => item.name === 'Investimento')?.state === 'done';
-  const percentOfIncome = (amount: number) => (income ? Math.round((amount / income) * 100) : 0);
   return {
     month: state.currentMonth,
-    planned: percentOfIncome(planned),
-    actual: percentOfIncome(invested ? planned : 0),
+    planned: percentOfIncome(income, planned),
+    actual: percentOfIncome(income, invested ? planned : 0),
   };
 }
