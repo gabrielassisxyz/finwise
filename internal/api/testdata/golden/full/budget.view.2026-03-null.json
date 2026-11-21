@@ -4,5 +4,112 @@
   "income": 0.00,
   "allocated": 0.00,
   "investmentRate": null,
-  "groups": []
+  "groups": [
+    {
+      "key": "rec",
+      "name": "Receita",
+      "subtotal": 0.00,
+      "subtotalSpent": null,
+      "over": false,
+      "lines": []
+    },
+    {
+      "key": "fix",
+      "name": "Fixos e essenciais",
+      "subtotal": 0.00,
+      "subtotalSpent": 0.00,
+      "over": false,
+      "lines": []
+    },
+    {
+      "key": "var",
+      "name": "Variáveis",
+      "subtotal": 0.00,
+      "subtotalSpent": 0.00,
+      "over": false,
+      "lines": []
+    },
+    {
+      "key": "prov",
+      "name": "Provisões",
+      "subtotal": 0.00,
+      "subtotalSpent": null,
+      "over": false,
+      "lines": []
+    },
+    {
+      "key": "res",
+      "name": "Reservas de desejo",
+      "subtotal": 0.00,
+      "subtotalSpent": null,
+      "over": false,
+      "lines": []
+    },
+    {
+      "key": "rf",
+      "name": "Rainy Funds",
+      "subtotal": 0.00,
+      "subtotalSpent": null,
+      "over": false,
+      "lines": []
+    },
+    {
+      "key": "tar",
+      "name": "Tarifas e juros",
+      "subtotal": 25.00,
+      "subtotalSpent": null,
+      "over": false,
+      "lines": [
+        {
+          "name": "Tarifas e juros",
+          "cells": [
+            {
+              "type": "money",
+              "amount": 25.00
+            },
+            {
+              "type": "none"
+            },
+            {
+              "type": "none"
+            }
+          ],
+          "marks": [],
+          "over": false,
+          "bar": null,
+          "expandable": true
+        }
+      ]
+    },
+    {
+      "key": "inv",
+      "name": "Investimento",
+      "subtotal": 0.00,
+      "subtotalSpent": null,
+      "over": false,
+      "lines": [
+        {
+          "name": "Investimento",
+          "cells": [
+            {
+              "type": "money",
+              "amount": 0.00
+            },
+            {
+              "type": "money",
+              "amount": 0.00
+            },
+            {
+              "type": "percent",
+              "value": null
+            }
+          ],
+          "marks": [],
+          "over": false,
+          "bar": null,
+          "expandable": false
+        }
+      ]
+    }
+  ]
 }

@@ -11,17 +11,17 @@ import (
 
 // The budget is something the person builds inside the app, and the backend has
 // nowhere to keep it yet, so every method answers what a fresh install would:
-// no lines, no scenarios, nothing spent against them.
+// the groups with no lines, no scenarios, nothing planned.
 
-// budgetView is the screen's figures. The groups and the rate are not worked
-// out until a budget exists: the rate is unknown, not zero.
+// budgetView is the screen's figures. The rate is not worked out until a budget
+// exists: it is unknown, not zero.
 type budgetView struct {
-	Month          brday.Month `json:"month"`
-	Closed         bool        `json:"closed"`
-	Income         Reais       `json:"income"`
-	Allocated      Reais       `json:"allocated"`
-	InvestmentRate any         `json:"investmentRate"`
-	Groups         []any       `json:"groups"`
+	Month          brday.Month       `json:"month"`
+	Closed         bool              `json:"closed"`
+	Income         Reais             `json:"income"`
+	Allocated      Reais             `json:"allocated"`
+	InvestmentRate any               `json:"investmentRate"`
+	Groups         []budgetGroupView `json:"groups"`
 }
 
 func registerBudget(registry *Registry) {
@@ -38,7 +38,7 @@ func readBudgetDocument(ctx context.Context, args []json.RawMessage, reader *led
 	if err := requireReadableLedger(ctx, reader); err != nil {
 		return nil, err
 	}
-	return []any{}, nil
+	return emptyBudgetDocument(), nil
 }
 
 // readBudgetView refuses a draft: evaluating one is the budget's arithmetic,
@@ -54,10 +54,11 @@ func readBudgetView(ctx context.Context, args []json.RawMessage, reader *ledger.
 	if len(args) > 1 && !isNull(args[1]) {
 		return nil, &readOnlyError{}
 	}
-	if err := requireReadableLedger(ctx, reader); err != nil {
+	fees, err := feesOfMonth(ctx, reader, month)
+	if err != nil {
 		return nil, err
 	}
-	return budgetView{Month: month, Groups: []any{}}, nil
+	return budgetView{Month: month, Groups: emptyBudgetGroups(fees)}, nil
 }
 
 func readBudgetEstablishments(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
