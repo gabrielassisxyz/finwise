@@ -1,0 +1,12 @@
+{
+  "today": "2026-03-20",
+  "pendingCount": 0,
+  "sync": {
+    "state": "ok",
+    "lastSyncDay": "2026-03-15",
+    "lastSyncTime": "00:00"
+  },
+  "firstMonth": "2026-03",
+  "lastMonth": "2026-03",
+  "closedMonths": []
+}
