@@ -243,6 +243,28 @@ FROM investment_history
 WHERE investment_id = :investment_id
 ORDER BY day`
 
+// queryBalanceHistory is one row per account per day it was sighted, the same
+// sightings the pot and yield statements above start from.
+const queryBalanceHistory = `
+SELECT account_id, day, balance
+FROM account_balance_history
+ORDER BY account_id, day`
+
+// queryReserveHistory is the README's reserve history over every day, without the
+// account's latest-sighting cut that queryPotsAsOf applies.
+const queryReserveHistory = `
+SELECT account_id, day, position, reserve_id, reserve_name, stable_identity,
+       currency, amount, cdi_percentage, amount_status
+FROM reserved_balance_history
+ORDER BY account_id, day, position`
+
+// queryInvestmentPrincipals reads amountOriginal from the investment's own body.
+const queryInvestmentPrincipals = `
+SELECT id, json_extract(raw, '$.amountOriginal')
+FROM investments
+WHERE ` + currentRows + `
+ORDER BY id`
+
 const queryIdentities = `
 SELECT id, item_id, document, full_name
 FROM identities
@@ -267,17 +289,20 @@ SELECT id, outcome, finished_at FROM runs ORDER BY id DESC LIMIT 1`
 // allQueries lists every statement above by name so the schema test can prepare
 // them all; a test fails if a query constant is missing from it.
 var allQueries = map[string]string{
-	"queryAccounts":            queryAccounts,
-	"queryCleanTransactions":   queryCleanTransactions,
-	"queryBills":               queryBills,
-	"queryPotsAsOf":            queryPotsAsOf,
-	"queryPotYieldReserves":    queryPotYieldReserves,
-	"queryPotYieldUnstable":    queryPotYieldUnstable,
-	"queryPotYieldTransfers":   queryPotYieldTransfers,
-	"queryInvestments":         queryInvestments,
-	"queryInvestmentHistory":   queryInvestmentHistory,
-	"queryIdentities":          queryIdentities,
-	"queryConnections":         queryConnections,
-	"queryCompleteRunFinishes": queryCompleteRunFinishes,
-	"queryLatestRun":           queryLatestRun,
+	"queryAccounts":             queryAccounts,
+	"queryCleanTransactions":    queryCleanTransactions,
+	"queryBills":                queryBills,
+	"queryPotsAsOf":             queryPotsAsOf,
+	"queryPotYieldReserves":     queryPotYieldReserves,
+	"queryPotYieldUnstable":     queryPotYieldUnstable,
+	"queryPotYieldTransfers":    queryPotYieldTransfers,
+	"queryInvestments":          queryInvestments,
+	"queryInvestmentHistory":    queryInvestmentHistory,
+	"queryBalanceHistory":       queryBalanceHistory,
+	"queryReserveHistory":       queryReserveHistory,
+	"queryInvestmentPrincipals": queryInvestmentPrincipals,
+	"queryIdentities":           queryIdentities,
+	"queryConnections":          queryConnections,
+	"queryCompleteRunFinishes":  queryCompleteRunFinishes,
+	"queryLatestRun":            queryLatestRun,
 }
