@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { useApi } from '@/api/context';
+import type { UnlockResult } from '@/api/types';
 
 const PIN_LENGTH = 6;
 
@@ -45,9 +46,14 @@ export const useSessionStore = defineStore('session', () => {
   }
 
   async function submit(): Promise<void> {
-    const result = await api.session.unlock(pin.value);
-    checking = false;
-    pin.value = '';
+    let result: UnlockResult;
+    try {
+      result = await api.session.unlock(pin.value);
+    } finally {
+      // A failed call must free the keypad too, or the PIN could never be typed again.
+      checking = false;
+      pin.value = '';
+    }
     if (result.ok) {
       locked.value = false;
       return;
@@ -76,10 +82,15 @@ export const useSessionStore = defineStore('session', () => {
 
   async function lock(): Promise<void> {
     await api.session.lock();
+    markLocked();
+  }
+
+  /** The server says the session is gone: no call has to be made to put the PIN screen back. */
+  function markLocked(): void {
     locked.value = true;
     pin.value = '';
     message.value = '';
   }
 
-  return { ready, locked, pin, message, shakeCount, keypadOnHold, load, pressDigit, eraseDigit, lock };
+  return { ready, locked, pin, message, shakeCount, keypadOnHold, load, pressDigit, eraseDigit, lock, markLocked };
 });
