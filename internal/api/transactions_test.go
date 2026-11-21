@@ -412,3 +412,16 @@ func TestNewestFirstOrdersByDayAndKeepsTheOrderOfTheDay(t *testing.T) {
 		t.Errorf("order %v", order)
 	}
 }
+
+// The interface opens the panel of every transaction a month lists, so each one needs a recorded answer.
+func init() {
+	readCases = append(readCases,
+		readCase{"transactions.detail", `["tx-card-payment"]`},
+		readCase{"transactions.detail", `["tx-bank-bill"]`},
+		readCase{"transactions.detail", `["tx-refund"]`},
+		readCase{"transactions.detail", `["tx-pix-out"]`},
+		readCase{"transactions.detail", `["tx-boleto"]`},
+		readCase{"transactions.detail", `["tx-fee"]`},
+		readCase{"transactions.detail", `["tx-first-of-march"]`},
+	)
+}

@@ -1,0 +1,27 @@
+{
+  "id": "investment:inv-nu-1",
+  "name": "CDB Exemplo",
+  "bank": "Nubank",
+  "bucket": "Investido",
+  "cdiPercent": 115.00,
+  "balance": 3000.00,
+  "belowTarget": null,
+  "contribution": {
+    "state": "none-planned"
+  },
+  "linkedLines": [],
+  "investment": {
+    "applied": 2800.00,
+    "gross": 3100.00,
+    "tax": 100.00,
+    "net": 3000.00,
+    "redeemableOn": "2028-03-15"
+  },
+  "movements": [],
+  "yield": {
+    "month": "2026-03",
+    "total": null,
+    "days": []
+  },
+  "historyStart": "2026-03"
+}

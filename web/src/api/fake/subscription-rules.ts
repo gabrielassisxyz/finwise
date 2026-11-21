@@ -108,6 +108,7 @@ export function toRow(subscription: FakeSubscription, today: IsoDay): Subscripti
 /** The subscriptions in the order they were added, or one group per status that has any. */
 export function groupRows(subscriptions: FakeSubscription[], today: IsoDay, grouped: boolean): SubscriptionGroup[] {
   if (!grouped) {
+    if (subscriptions.length === 0) return [];
     return [{ status: null, monthlyTotal: monthlyTotal(subscriptions), subscriptions: subscriptions.map((s) => toRow(s, today)) }];
   }
   return STATUS_ORDER.map((status) => ({ status, members: subscriptions.filter((candidate) => candidate.status === status) }))

@@ -246,3 +246,15 @@ func decodeList(t *testing.T, body []byte) []map[string]any {
 	}
 	return list
 }
+
+// The interface opens a page for every pot the list names, so each one needs a recorded answer.
+func init() {
+	readCases = append(readCases,
+		readCase{"savingsPots.detail", `["reserve:acc-nu/pot-nu-old"]`},
+		readCase{"savingsPots.detail", `["reserve:acc-nu/pot-nu-1"]`},
+		readCase{"savingsPots.detail", `["slot:acc-nu/1"]`},
+		readCase{"savingsPots.detail", `["investment:inv-it-1"]`},
+		readCase{"savingsPots.detail", `["investment:inv-nu-1"]`},
+		readCase{"savingsPots.detail", `["investment:inv-nu-2"]`},
+	)
+}
