@@ -56,7 +56,7 @@ for (const [viewportName, viewport] of Object.entries(VIEWPORTS)) {
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(`${baseUrl}/${PROTOTYPE_FILE}`, { waitUntil: 'networkidle' });
     await page.waitForSelector('[data-screen-label]');
-    for (const step of state.prototype.steps ?? []) await step(page);
+    for (const step of state.steps ?? []) await step(page, viewportName);
     await settle(page);
     await page.screenshot({ path: join(referenceDir, `${viewportName}-${state.name}.png`), fullPage: true });
     console.log(`${viewportName}-${state.name}${errors.length ? `  page errors: ${errors.join('; ')}` : ''}`);
