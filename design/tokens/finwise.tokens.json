@@ -59,7 +59,8 @@
       "1": { "$value": { "colorSpace": "oklch", "components": [0.84, 0.06, 155] }, "$description": "Chart: available" },
       "2": { "$value": { "colorSpace": "oklch", "components": [0.68, 0.09, 155] }, "$description": "Chart: reserved, and the border of a scenario value that changed. The prototype used 0.7 lightness and 0.08 chroma for the latter; unified." },
       "3": { "$value": "{color.accent.base}", "$description": "Chart: invested" },
-      "plan": { "$value": { "colorSpace": "oklch", "components": [0.84, 0.03, 155] }, "$description": "Bar of a planned amount, behind the done one" }
+      "plan": { "$value": { "colorSpace": "oklch", "components": [0.84, 0.03, 155] }, "$description": "Bar of a planned amount, behind the done one" },
+      "calibration": { "$value": { "colorSpace": "oklch", "components": [0.72, 0.07, 155] }, "$description": "Bar of the calibration chart. Measured 24 per channel away from chart.2, past what the parity check forgives, so it is not folded into it." }
     },
     "warn": {
       "text": { "$value": { "colorSpace": "oklch", "components": [0.5, 0.1, 70] }, "$description": "Warning text, pending state" },
