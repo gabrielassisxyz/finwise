@@ -61,6 +61,25 @@ step "types (vue-tsc)" npm --prefix web run --silent typecheck
 step "tests (vitest)" npm --prefix web run --silent test
 step "build (vite)" npm --prefix web run --silent build
 
+# gofmt -l exits 0 whatever it finds, so the gate is its output being empty.
+go_is_formatted() {
+  local dirs unformatted
+  mapfile -t dirs < <(go list -f '{{.Dir}}' ./...)
+  unformatted=$(gofmt -l "${dirs[@]}")
+  if [ -n "$unformatted" ]; then
+    echo "  gofmt would change:"
+    echo "$unformatted"
+    return 1
+  fi
+}
+
+if need go "https://go.dev/doc/install"; then
+  step "go formatting (gofmt)" go_is_formatted
+  step "go vet" go vet ./...
+  step "go tests" go test ./...
+  step "go build" go build ./...
+fi
+
 if [ "$fail" -ne 0 ]; then
   echo "bin/ci FAILED"
   exit 1

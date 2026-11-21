@@ -20,6 +20,9 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
       - name: Install the gate's tools
         env:
           GITLEAKS_VERSION: 8.30.1

@@ -33,6 +33,12 @@
 - **Parity:** `npm --prefix web run parity` measures every ported screen against the design. It is
   not part of `bin/ci` because the measurement depends on the browser build; run it for any change
   that touches a screen and put its output in the pull request body.
+- **Backend:** Go, one module at the repository root (`github.com/gabrielassisxyz/finwise`, version in
+  `go.mod`), driver `modernc.org/sqlite`. `internal/ledger` reads pluggy-sync's `pluggy-snapshot.db`
+  read-only, reopening it on every call; `ledgertest` beside it builds invented snapshots for tests.
+  `internal/money` holds amounts as integer cents and `internal/brday` turns Brazil days into UTC
+  bounds. `go test ./...` is the test command and `bin/ci` runs it with `gofmt`, `go vet` and
+  `go build`. A query that mirrors one in pluggy-sync's README cites its lines in a comment.
 
 ## Design
 - The design arrives as an HTML prototype. It is a reference, never code to copy: `design/README.md`
@@ -51,6 +57,12 @@
 - Tests run with one command, no manual setup, no credential.
 - The backend is faked at the API boundary with `createFakeApi`, not with an inline stub.
 - Fixtures are invented. Nothing derived from a real account is committed.
+- A real ledger is a person's whole financial history and this repository is public. A real snapshot
+  may be opened read-only to check a schema, the keys of a JSON column or a count; no value from it
+  (amount, description, name, document, id) is ever printed, logged, copied, committed or pasted, and
+  a row count, though it may be shown to the person running the test, goes into no file and no pull
+  request. The one test that touches it runs only when `FINWISE_LEDGER_SNAPSHOT` names a file, and
+  logs counts only.
 
 ## Common hurdles
 
