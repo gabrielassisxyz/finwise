@@ -148,6 +148,7 @@ describe('Assinaturas, the status menu', () => {
   it('offers the four statuses with the current one marked, and does not open the page', async () => {
     const { wrapper, overlay, router } = await mountList();
     await rowOf(wrapper, 'Spotify').find('.pill').trigger('click');
+    await flushPromises();
     expect(overlay.menu?.title).toBe('Status');
     expect(overlay.menu?.items.map((item) => [item.label, item.current])).toEqual([
       ['Manter', true],

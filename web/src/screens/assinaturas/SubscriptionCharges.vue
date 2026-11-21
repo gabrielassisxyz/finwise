@@ -8,8 +8,7 @@ defineProps<{ charges: SubscriptionCharge[] }>();
 
 const openIndex = ref<number | null>(null);
 
-function toggle(index: number, charge: SubscriptionCharge): void {
-  if (!charge.foreign) return;
+function toggle(index: number): void {
   openIndex.value = openIndex.value === index ? null : index;
 }
 </script>
@@ -21,7 +20,7 @@ function toggle(index: number, charge: SubscriptionCharge): void {
         class="charge"
         :class="{ foreign: charge.foreign }"
         :aria-expanded="charge.foreign ? openIndex === index : undefined"
-        @click="toggle(index, charge)"
+        @click="toggle(index)"
       >
         <span class="when">
           <span class="chevron">{{ charge.foreign ? (openIndex === index ? '▾' : '▸') : '' }}</span>

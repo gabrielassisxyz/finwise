@@ -198,7 +198,10 @@ describe('purchases a subscription can be created from', () => {
   });
 
   it('leaves out what is already a subscription, a credit, and anything that is not a card purchase', async () => {
-    const names = (await createFakeApi().subscriptions.candidates()).map((candidate) => candidate.name);
+    const state = prototypeState();
+    // The pix and boleto go first so the twelve-item cut cannot hide them.
+    state.transactions = [...state.transactions.filter((t) => t.kind !== 'cartao'), ...state.transactions.filter((t) => t.kind === 'cartao')];
+    const names = (await createFakeApi({ state }).subscriptions.candidates()).map((candidate) => candidate.name);
     expect(names).not.toContain('Spotify');
     expect(names).not.toContain('Assistente de IA');
     expect(names).not.toContain('Estorno de anuidade');
