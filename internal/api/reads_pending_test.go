@@ -21,8 +21,6 @@ var pendingReads = []string{
 	"review.closing",
 	"review.payday",
 	"review.weekly",
-	"savingsPots.detail",
-	"savingsPots.list",
 	"settings.overview",
 	"subscriptions.candidates",
 	"subscriptions.detail",

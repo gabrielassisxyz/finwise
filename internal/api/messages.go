@@ -19,6 +19,9 @@ const (
 	unnamedCard    = "Cartão"
 
 	awaitingFirstSync = "Aguardando a primeira sincronização"
+
+	potDepositDescription    = "Depósito"
+	potWithdrawalDescription = "Retirada"
 )
 
 func consentExpiredMessage(bank string) string {

@@ -1,0 +1,74 @@
+[
+  {
+    "bucket": "Reservado",
+    "subtotal": 2075.80,
+    "pots": [
+      {
+        "id": "reserve:acc-pots/pot-1",
+        "name": "Caixinha da casa",
+        "bank": "Mercado Pago",
+        "bucket": "Reservado",
+        "balance": 800.00,
+        "cdiPercent": 110.00,
+        "monthlyYield": 10.00,
+        "maturity": null,
+        "target": null,
+        "closed": false
+      },
+      {
+        "id": "reserve:acc-nu/pot-nu-1",
+        "name": "Reserva",
+        "bank": "Nubank",
+        "bucket": "Reservado",
+        "balance": 1225.80,
+        "cdiPercent": 100.00,
+        "monthlyYield": 0.80,
+        "maturity": null,
+        "target": null,
+        "closed": false
+      },
+      {
+        "id": "slot:acc-nu/1",
+        "name": "Sem identidade",
+        "bank": "Nubank",
+        "bucket": "Reservado",
+        "balance": 50.00,
+        "cdiPercent": 100.00,
+        "monthlyYield": null,
+        "maturity": null,
+        "target": null,
+        "closed": false
+      }
+    ]
+  },
+  {
+    "bucket": "Investido",
+    "subtotal": 10000.00,
+    "pots": [
+      {
+        "id": "investment:inv-it-1",
+        "name": "LCI Exemplo",
+        "bank": "Itaú",
+        "bucket": "Investido",
+        "balance": 7000.00,
+        "cdiPercent": 95.00,
+        "monthlyYield": null,
+        "maturity": "2027-01-15",
+        "target": null,
+        "closed": false
+      },
+      {
+        "id": "investment:inv-nu-1",
+        "name": "CDB Exemplo",
+        "bank": "Nubank",
+        "bucket": "Investido",
+        "balance": 3000.00,
+        "cdiPercent": 115.00,
+        "monthlyYield": null,
+        "maturity": "2028-03-15",
+        "target": null,
+        "closed": false
+      }
+    ]
+  }
+]
