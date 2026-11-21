@@ -1,4 +1,4 @@
-import type { ClosingStepId, SubscriptionStatus, WarningActionId, YearMonth } from '../types';
+import type { ClosingStepId, ReportSection, SubscriptionStatus, WarningActionId, YearMonth } from '../types';
 
 // What the review screens keep besides the transactions, the budget and the
 // subscriptions they act on.
@@ -37,4 +37,6 @@ export interface FakeReview {
   resolved: number;
   /** The closing steps marked by hand, per month. */
   stepsDone: Record<YearMonth, ClosingStepId[]>;
+  /** The report the model wrote for any month; absent, the prototype's sentences stand in for it. */
+  report?: ReportSection[];
 }

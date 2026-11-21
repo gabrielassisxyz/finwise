@@ -182,7 +182,8 @@ const FRESH_SETTINGS: FakeSettings = {
 };
 
 function noReview(): FakeState['review'] {
-  return { proposals: [], awaiting: [], warnings: [], resolved: 0, stepsDone: {} };
+  // The prototype's report is sentences about invented spending; over a real ledger they would be false statements.
+  return { proposals: [], awaiting: [], warnings: [], resolved: 0, stepsDone: {}, report: [] };
 }
 
 /** The part of the state no bank record fills in. */

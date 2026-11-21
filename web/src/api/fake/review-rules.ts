@@ -161,6 +161,7 @@ export function closingSteps(state: FakeState, month: YearMonth): ClosingStep[] 
 
 /** The text the model wrote about the month. Figures in it come from the same rules as the tables above. */
 export function monthReport(state: FakeState, original: FakeTransaction[], month: YearMonth): ReportSection[] {
+  if (state.review.report) return structuredClone(state.review.report);
   const cap = groupTotalOf(budgetFor(state, month), 'var');
   const spent = variableSpent(state, original, month);
   const sent = (id: string | null) => !!id && state.review.awaiting.includes(id);
