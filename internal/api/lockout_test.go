@@ -55,6 +55,18 @@ func TestTheHoldEndsAfterThreeHundredSeconds(t *testing.T) {
 	}
 }
 
+func TestAfterAHoldEndsTheCountStartsFromZero(t *testing.T) {
+	clock := newFakeClock()
+	lockout := newLockout(clock.Now)
+	tripLockout(t, lockout)
+	clock.Advance(lockoutDuration)
+	for range maxWrongPINs - 1 {
+		if outcome, _ := attemptWith(lockout, false); outcome != OutcomeWrongPIN {
+			t.Fatalf("a wrong PIN right after a hold gave outcome %d: the old count was kept", outcome)
+		}
+	}
+}
+
 func TestACorrectAttemptResetsTheCount(t *testing.T) {
 	lockout := newLockout(newFakeClock().Now)
 	attemptWith(lockout, false)

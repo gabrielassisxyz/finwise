@@ -1,6 +1,7 @@
 package api
 
 import (
+	"net/http"
 	"testing"
 	"time"
 )
@@ -45,6 +46,38 @@ func TestAnUnknownOrRemovedTokenIsRefused(t *testing.T) {
 	store.Remove(token)
 	if store.Touch(token) {
 		t.Error("a removed session was accepted")
+	}
+}
+
+// With nobody unlocked every token is unknown, so a store that confused one
+// token with another would still pass a forged-token check. The case that
+// matters is a forged token while the owner is unlocked.
+func TestAForgedTokenIsRefusedWhileAnotherSessionIsLive(t *testing.T) {
+	store := newSessionStore(newFakeClock().Now, defaultSessionIdle)
+	live, _ := store.Create()
+	if store.Touch("made-up") {
+		t.Error("a token that was never issued was accepted because another session was live")
+	}
+	if !store.Touch(live) {
+		t.Error("the live session was refused")
+	}
+}
+
+func TestAForgedCookieIsLockedWhileAnotherSessionIsLive(t *testing.T) {
+	env := newTestEnv(t)
+	env.unlock()
+	forged := &http.Cookie{Name: hostCookieName, Value: "not-a-session"}
+	expectError(t, "forged beside a live session",
+		env.call("/api/shell/overview", `[]`, forged), http.StatusUnauthorized, "locked")
+}
+
+func TestRemovingOneSessionLeavesTheOthersLive(t *testing.T) {
+	store := newSessionStore(newFakeClock().Now, defaultSessionIdle)
+	first, _ := store.Create()
+	second, _ := store.Create()
+	store.Remove(first)
+	if !store.Touch(second) {
+		t.Error("locking one device ended the session of another")
 	}
 }
 
