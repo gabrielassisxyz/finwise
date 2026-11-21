@@ -33,7 +33,7 @@ npm --prefix web run parity              # every ported state
 npm --prefix web run parity -- inicio    # one state
 ```
 
-builds the app, renders each state in `web/scripts/parity/states.mjs` at 1440 and 390 pixels wide,
+builds the app in prototype mode (`vite build --mode prototype`, the stand-in with the prototype's dataset), renders each state in `web/scripts/parity/states.mjs` at 1440 and 390 pixels wide,
 and counts the pixels that differ from the reference by more than 16 per channel. A state can also
 ask for a 1024 pixel `tablet` viewport (`viewports: ['tablet']`), because the layout between the two
 breakpoints, 820 and 1200 pixels, is reached by neither of the default two; a state that does not

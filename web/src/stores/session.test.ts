@@ -35,6 +35,19 @@ describe('session store', () => {
     expect(session.pin).toBe('');
   });
 
+  it('is locked from outside, without a call to the server, and forgets what was typed', async () => {
+    const { result: session, api } = withStores(() => useSessionStore(), { pin: '424242', startLocked: false });
+    const status = vi.spyOn(api.session, 'status');
+    await session.load();
+    type(session, '42');
+
+    session.markLocked();
+
+    expect(session.locked).toBe(true);
+    expect(session.pin).toBe('');
+    expect(status).toHaveBeenCalledTimes(1);
+  });
+
   it('clears the digits, shakes and says so on a wrong PIN', async () => {
     const session = setup();
     type(session, '000000');
