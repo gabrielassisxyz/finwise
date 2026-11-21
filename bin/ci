@@ -41,9 +41,17 @@ if [ ! -d web/node_modules ]; then
 fi
 
 # The built variables are versioned so the app builds without a token step; this
-# is what keeps them from drifting away from the token source.
+# is what keeps them from drifting away from the token source. The comparison is
+# against the file as it was on disk, not against git, so a token change that is
+# built but not yet committed passes.
 tokens_are_current() {
-  npm --prefix web run --silent tokens >/dev/null && git diff --exit-code -- web/src/styles/tokens.css
+  local built=web/src/styles/tokens.css before
+  before=$(cat "$built")
+  npm --prefix web run --silent tokens >/dev/null || return 1
+  if [ "$before" != "$(cat "$built")" ]; then
+    echo "  $built was stale and has been rebuilt; commit it"
+    return 1
+  fi
 }
 
 step "design tokens are built and current" tokens_are_current
