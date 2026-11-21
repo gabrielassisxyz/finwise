@@ -49,8 +49,8 @@ func (f *Fixture) observe(kind, id, parent, day string, body map[string]any) str
 		f.t.Fatalf("ledgertest: document lookup: %v", err)
 	}
 	f.exec(`INSERT INTO observations (run_id, scope_id, document_id, parent, sha256, observed_at, observed_day)
-	        VALUES (1, ?, ?, ?, ?, ?, ?)`,
-		f.ensureScope(kind, parent), documentID, parent, sha, day+"T03:00:00.000Z", day)
+	        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		f.currentRun(), f.ensureScope(kind, parent), documentID, parent, sha, day+"T03:00:00.000Z", day)
 	return sha
 }
 

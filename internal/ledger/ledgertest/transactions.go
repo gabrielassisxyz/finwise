@@ -21,6 +21,8 @@ type Transaction struct {
 	State string
 	// Ambiguous sets ambiguous_run on the row.
 	Ambiguous bool
+	// Day is the day the transaction is first observed, DefaultDay when empty.
+	Day string
 }
 
 // AddTransaction adds a transaction observed on DefaultDay.
@@ -42,9 +44,16 @@ func (f *Fixture) AddTransaction(transaction Transaction) {
 	}
 	f.put(document{
 		kind: "transactions", id: transaction.ID, parent: transaction.AccountID, body: body,
-		state: transaction.State, ambiguous: transaction.Ambiguous, table: "transactions",
+		state: transaction.State, ambiguous: transaction.Ambiguous, day: transaction.Day, table: "transactions",
 		columns: []string{"account_id", "date", "description", "amount", "currency", "type", "category"},
 		values: []any{transaction.AccountID, date, transaction.Description, transaction.Amount,
 			transaction.Currency, transaction.Type, category},
 	})
+}
+
+// ObserveTransaction records a further version of a transaction on another day,
+// with overrides merged over its body. It adds history only.
+func (f *Fixture) ObserveTransaction(id, day string, overrides map[string]any) {
+	f.t.Helper()
+	f.observeAgain("transactions", id, day, overrides)
 }

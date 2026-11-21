@@ -228,6 +228,96 @@ FROM (
 const queryPotYieldTransfers = potYieldCTEs + `SELECT NULL, reserve_name, NULL, NULL, cents, NULL, reason
 FROM resolved WHERE reserve_id IS NULL`
 
+// The statements below give the yield of every pair of sightings without the
+// collector's one above, whose cost is the same however narrow the window. They
+// read what that statement reads (its CTE names are in the comments), once for
+// the whole ledger, and leave the arithmetic to internal/potrules. A time is
+// handed over as datetime() of it, as the statement compares it, so a
+// sub-second difference and an offset weigh exactly as they do there.
+
+// queryYieldSightings is "cutoffs": the account's unambiguous sightings whose
+// reservedBalances is an array.
+const queryYieldSightings = `
+SELECT a.account_id, a.day, a.run_id, datetime(a.provider_updated_at)
+FROM account_balance_history a
+JOIN observations o ON o.id = a.observation_id
+JOIN versions v ON v.sha256 = o.sha256
+WHERE json_type(v.body, '$.bankData.reservedBalances') = 'array'
+  AND NOT EXISTS (SELECT 1 FROM ambiguities am
+                  WHERE am.run_id = o.run_id AND am.document_id = o.document_id)
+ORDER BY a.account_id, a.day`
+
+// queryYieldEntries is the reserve entries of every sighting, with the checks
+// "decided" makes on an amount done here, in the same SQL, so that a value the
+// statement would call unreadable is one here too.
+const queryYieldEntries = `
+SELECT account_id, day, reserve_id, reserve_name, stable_identity, currency IS 'BRL',
+       amount_status = 'ok' AND typeof(amount) IN ('integer', 'real') AND abs(amount) < 1e12
+         AND abs(amount * 100 - round(amount * 100)) <= 1e-7,
+       CAST(round(amount * 100) AS INTEGER)
+FROM reserved_balance_history
+ORDER BY account_id, day, position`
+
+// queryYieldTransfers is every unambiguous version of every document that was
+// ever a reserve transfer ("latest_tx", "transfers" and "judged" without the
+// parts that depend on the window), so the version a window sees is chosen from
+// them. fault is the first of "judged"'s reasons that depends on the row alone.
+const queryYieldTransfers = `
+SELECT document_id, provider_id, id, run_id, parent, observed_day,
+       operation_type IS 'TRANSFERENCIA_SALDO_RESERVADO', date, datetime(date), status IS NOT 'POSTED',
+       CASE WHEN description LIKE 'Dinheiro reservado %' THEN substr(description, 20)
+            WHEN description LIKE 'Dinheiro retirado %' THEN substr(description, 19) END,
+       CASE
+         WHEN description NOT LIKE 'Dinheiro reservado %' AND description NOT LIKE 'Dinheiro retirado %'
+           THEN 'unmatched transfer'
+         WHEN (description LIKE 'Dinheiro reservado %' AND NOT amount < 0)
+           OR (description LIKE 'Dinheiro retirado %' AND NOT amount > 0) THEN 'transfer sign'
+         WHEN currency IS NOT 'BRL' THEN 'currency'
+         WHEN typeof(amount) NOT IN ('integer', 'real') OR abs(amount) >= 1e12
+           OR abs(amount * 100 - round(amount * 100)) > 1e-7 THEN 'amount'
+       END,
+       CAST(round(amount * 100) AS INTEGER)
+FROM (
+  SELECT o.document_id, d.provider_id, o.id, o.run_id, o.parent, o.observed_day,
+         json_extract(v.body, '$.operationType') AS operation_type,
+         json_extract(v.body, '$.date') AS date,
+         json_extract(v.body, '$.amount') AS amount,
+         json_extract(v.body, '$.currencyCode') AS currency,
+         json_extract(v.body, '$.description') AS description,
+         json_extract(v.body, '$.status') AS status
+  FROM observations o
+  JOIN documents d ON d.id = o.document_id AND d.kind = 'transactions'
+  JOIN versions v ON v.sha256 = o.sha256
+  WHERE o.document_id IN (` + reserveTransferDocuments + `)
+    AND NOT EXISTS (SELECT 1 FROM ambiguities am
+                    WHERE am.run_id = o.run_id AND am.document_id = o.document_id)
+)
+ORDER BY document_id, id`
+
+const reserveTransferDocuments = `
+  SELECT o.document_id FROM observations o
+  JOIN documents d ON d.id = o.document_id AND d.kind = 'transactions'
+  JOIN versions v ON v.sha256 = o.sha256
+  WHERE json_extract(v.body, '$.operationType') = 'TRANSFERENCIA_SALDO_RESERVADO'`
+
+// queryYieldRemovals is the events "transfers" counts as gone.
+const queryYieldRemovals = `
+SELECT document_id, run_id, effective_day FROM events
+WHERE event IN ('removed', 'parent_gone') AND document_id IN (` + reserveTransferDocuments + `)
+ORDER BY document_id, run_id`
+
+// queryYieldWalks is "account_reason"'s scopes: the walks that went back far
+// enough to be trusted to hold every transfer, by the run they belong to.
+const queryYieldWalks = `
+SELECT parent, run_id, datetime(min_instant) FROM scopes
+WHERE kind = 'transactions' AND outcome = 'complete' AND infer_absence = 1 AND min_instant IS NOT NULL
+ORDER BY parent, run_id`
+
+// queryYieldUnresolved is the ids "judged" calls unresolved.
+const queryYieldUnresolved = `
+SELECT pending_id FROM pending_posted_candidates
+UNION SELECT posted_id FROM pending_posted_candidates`
+
 const queryInvestments = `
 SELECT id, item_id, type, subtype, name, balance, currency
 FROM investments
@@ -296,6 +386,12 @@ var allQueries = map[string]string{
 	"queryPotYieldReserves":     queryPotYieldReserves,
 	"queryPotYieldUnstable":     queryPotYieldUnstable,
 	"queryPotYieldTransfers":    queryPotYieldTransfers,
+	"queryYieldSightings":       queryYieldSightings,
+	"queryYieldEntries":         queryYieldEntries,
+	"queryYieldTransfers":       queryYieldTransfers,
+	"queryYieldRemovals":        queryYieldRemovals,
+	"queryYieldWalks":           queryYieldWalks,
+	"queryYieldUnresolved":      queryYieldUnresolved,
 	"queryInvestments":          queryInvestments,
 	"queryInvestmentHistory":    queryInvestmentHistory,
 	"queryBalanceHistory":       queryBalanceHistory,
