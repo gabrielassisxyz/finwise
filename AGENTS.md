@@ -50,6 +50,22 @@
   `internal/money` holds amounts as integer cents and `internal/brday` turns Brazil days into UTC
   bounds. `go test ./...` is the test command and `bin/ci` runs it with `gofmt`, `go vet` and
   `go build`. A query that mirrors one in pluggy-sync's README cites its lines in a comment.
+- **Serve:** `finwise serve` is the HTTP backend over the ledger snapshot. It is read-only: every write
+  and evaluation of the contract is refused with `read_only`, and every method except `session.status`
+  and `session.unlock` needs the session cookie. The PIN is never stored; make its hash and start:
+
+  ```
+  printf '%s\n' 123456 | go run ./cmd/finwise hash-pin          # prints pbkdf2-sha256$...
+  FINWISE_PIN_HASH='<that string>' go run ./cmd/finwise serve --ledger <snapshot.db> --dev-insecure-cookie
+  ```
+
+  Settings: `--listen` / `FINWISE_LISTEN` (default `127.0.0.1:8080`), `--ledger` / `FINWISE_LEDGER`,
+  `FINWISE_PIN_HASH` (required), `FINWISE_SESSION_TTL` (idle expiry, default `12h`).
+  `--dev-insecure-cookie` is for plain HTTP only: without it the cookie is `__Host-` prefixed and
+  `Secure`, which a browser may refuse over HTTP. A missing snapshot does not stop the server; reads
+  answer `ledger_unavailable`. A read handler is registered in `internal/api` with
+  `Registry.Register("domain.name", handler)`, one `register<Domain>` function per domain listed in
+  `domainRegistrations`; `pendingReads` in `reads_pending_test.go` lists the reads still without one.
 
 ## Design
 - The design arrives as an HTML prototype. It is a reference, never code to copy: `design/README.md`

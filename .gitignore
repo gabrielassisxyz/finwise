@@ -5,6 +5,9 @@ web/dist/
 # screenshots and diff heatmaps. Only the reference screenshots are versioned.
 work/
 
+# The binary `go build ./cmd/finwise` leaves in the working directory.
+/finwise
+
 # Databases hold personal financial data.
 *.db
 *.db-*
