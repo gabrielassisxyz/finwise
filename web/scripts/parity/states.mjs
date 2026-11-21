@@ -33,6 +33,19 @@ const menuOption = (label, hint) => (page) =>
 const selectRow = (index) => (page) =>
   page.getByRole('checkbox', { name: 'Selecionar', exact: true }).nth(index).check();
 
+const panelOf = (page) => page.locator('aside[data-screen-label="Painel da transação"]');
+
+const openTransaction = (label, which = 'first') => async (page) => {
+  const rows = page.getByText(label, { exact: true }).filter({ visible: true });
+  await (which === 'last' ? rows.last() : rows.first()).click();
+  await panelOf(page).waitFor();
+};
+
+const inPanel = {
+  button: (name) => (page) => panelOf(page).getByRole('button', { name, exact: true }).click(),
+  switch: (name) => (page) => panelOf(page).getByRole('switch', { name }).click(),
+};
+
 export const STATES = [
   { name: 'pin', prototype: { seed: { locked: true, screen: 'inicio' } }, app: { path: '/', locked: true } },
   { name: 'inicio', prototype: unlocked('inicio'), app: { path: '/' } },
@@ -58,6 +71,24 @@ export const STATES = [
     app: { path: '/' },
     viewports: ['desktop'],
     steps,
+  })),
+  // The transaction panel opens over the home screen from a row (a card on a phone), found by the
+  // name it shows. Inside it a target is found by role and name, the same on both sides.
+  ...[
+    ['painel-compra-cartao', 'Posto Shell'],
+    ['painel-ia', 'Pão de Açúcar'],
+    ['painel-pendente', 'Bar do Zé'],
+    ['painel-internacional', 'Serviço de nuvem'],
+    ['painel-estorno', 'Estorno de anuidade'],
+    ['painel-pix-pessoa', 'Marcos A. Lima'],
+    ['painel-pix-recebido', 'Ana'],
+    ['painel-movimentacao', 'Pagamento da fatura'],
+    ['painel-historico', 'Hortifruti', 'last'],
+  ].map(([name, label, which]) => ({
+    name,
+    prototype: unlocked('inicio'),
+    app: { path: '/' },
+    steps: [openTransaction(label, which)],
   })),
   { name: 'revisao-semanal', prototype: unlocked('revisao', { revTab: 'semanal' }), app: null },
   { name: 'revisao-fechamento', prototype: unlocked('revisao', { revTab: 'fech' }), app: null },
