@@ -41,19 +41,19 @@ type cardBillWire struct {
 }
 
 type payAheadWire struct {
-	Amount    Reais              `json:"amount"`
+	Amount    *Reais             `json:"amount"`
 	Purchases []cardPurchaseWire `json:"purchases"`
 }
 
-// cardOverviewWire is the contract's CardOverview. A date the ledger cannot
-// support is the empty string, which no day is; the contract has no null for
-// it.
+// cardOverviewWire is the contract's CardOverview. The closing, the best
+// purchase day and the next-bill amount are null for a card whose closing is not
+// known, and so is the due date of the open bill, which is placed by the closing.
 type cardOverviewWire struct {
 	Title             string             `json:"title"`
 	OpenBill          Reais              `json:"openBill"`
-	ClosesOn          string             `json:"closesOn"`
-	DueOn             string             `json:"dueOn"`
-	BestPurchaseDay   string             `json:"bestPurchaseDay"`
+	ClosesOn          *string            `json:"closesOn"`
+	DueOn             *string            `json:"dueOn"`
+	BestPurchaseDay   *string            `json:"bestPurchaseDay"`
 	Limit             Reais              `json:"limit"`
 	AvailableLimit    Reais              `json:"availableLimit"`
 	PayAhead          payAheadWire       `json:"payAhead"`
@@ -323,7 +323,8 @@ func (card *cardView) overview() cardOverviewWire {
 		wire.AvailableLimit = optionalReais(card.account.Credit.AvailableCreditLimit)
 	}
 	if open.known {
-		wire.ClosesOn, wire.DueOn, wire.BestPurchaseDay = string(open.closing), string(open.due), string(open.closing)
+		closing, due := string(open.closing), string(open.due)
+		wire.ClosesOn, wire.DueOn, wire.BestPurchaseDay = &closing, &due, &closing
 		wire.MayFallOnNextBill = card.mayFallBefore(open.closing)
 	}
 	if next := card.nextBill(brday.Month(card.today[:7])); next.Known {
@@ -339,7 +340,8 @@ func (card *cardView) nextBill(month brday.Month) cardrules.NextBillAmount {
 }
 
 func (card *cardView) payAheadOf(next cardrules.NextBillAmount) payAheadWire {
-	wire := payAheadWire{Amount: Reais(-next.Total), Purchases: []cardPurchaseWire{}}
+	amount := Reais(-next.Total)
+	wire := payAheadWire{Amount: &amount, Purchases: []cardPurchaseWire{}}
 	included := map[string]bool{}
 	for _, purchase := range next.Included {
 		included[purchase.ID] = true

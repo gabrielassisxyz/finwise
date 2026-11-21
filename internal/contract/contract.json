@@ -2595,13 +2595,36 @@
           "type": "number"
         },
         "closesOn": {
-          "$ref": "#/definitions/IsoDay"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IsoDay"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null when the bank's closing rule is not known."
         },
         "dueOn": {
-          "$ref": "#/definitions/IsoDay"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IsoDay"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null when the open bill cannot be placed, which takes the closing rule."
         },
         "bestPurchaseDay": {
-          "$ref": "#/definitions/IsoDay",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IsoDay"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "The first day whose purchases land on the bill after the open one."
         },
         "limit": {
@@ -2614,7 +2637,10 @@
           "type": "object",
           "properties": {
             "amount": {
-              "type": "number"
+              "type": [
+                "number",
+                "null"
+              ]
             },
             "purchases": {
               "type": "array",
@@ -2628,7 +2654,7 @@
             "purchases"
           ],
           "additionalProperties": false,
-          "description": "What the purchases since the closing add up to; zero before the month's closing day."
+          "description": "What the purchases since the closing add up to; zero before the month's closing day, null when the closing is not known."
         },
         "mayFallOnNextBill": {
           "type": "array",
