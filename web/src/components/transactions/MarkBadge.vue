@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { Mark } from './marks';
 
-defineProps<{ mark: Mark }>();
+defineProps<{ mark: Mark; large?: boolean }>();
 </script>
 
 <template>
-  <span class="mark" :class="mark.tone">{{ mark.text }}</span>
+  <span class="mark" :class="[mark.tone, { large }]">{{ mark.text }}</span>
 </template>
 
 <style scoped>
@@ -45,5 +45,12 @@ defineProps<{ mark: Mark }>();
 .tag {
   color: var(--color-text-ink-3);
   background: var(--color-surface-count);
+}
+
+/* The badge at the head of a page, a step larger than the one in a table row. */
+.large {
+  font-size: var(--font-size-caption);
+  line-height: 1.6;
+  padding: 0 7px; /* token-exempt: between two steps of the spacing scale */
 }
 </style>

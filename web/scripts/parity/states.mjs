@@ -43,6 +43,9 @@ const menuOption = (label, hint) => (page) =>
 // A pot's row on the list, opened by clicking its name.
 const openPot = (name) => (page) => page.getByText(name, { exact: true }).first().click();
 
+// A subscription's row on the list, opened by clicking its name.
+const openSubscription = (name) => (page) => page.getByText(name, { exact: true }).first().click();
+
 const selectRow = (index) => (page) =>
   page.getByRole('checkbox', { name: 'Selecionar', exact: true }).nth(index).check();
 
@@ -119,7 +122,7 @@ export const STATES = [
   { name: 'revisao-salario', prototype: unlocked('revisao', { revTab: 'sal' }), app: null },
   { name: 'budget', prototype: unlocked('budget'), app: { path: '/budget' } },
   { name: 'cofrinhos', prototype: unlocked('cofrinhos'), app: { path: '/cofrinhos' } },
-  { name: 'assinaturas', prototype: unlocked('assinaturas'), app: null },
+  { name: 'assinaturas', prototype: unlocked('assinaturas'), app: { path: '/assinaturas' } },
   { name: 'patrimonio', prototype: unlocked('patrimonio'), app: { path: '/patrimonio' } },
   { name: 'contas', prototype: unlocked('contas'), app: null },
   { name: 'config', prototype: unlocked('config'), app: null },
@@ -175,4 +178,16 @@ export const STATES = [
     ['budget-mes-fechado', [click.button('Mês anterior')]],
     ['budget-estabelecimento-no-inicio', [(page) => page.getByText('Delivery', { exact: true }).first().click(), click.button(/^iFood/)]],
   ].map(([name, steps]) => ({ name, prototype: unlocked('budget'), app: { path: '/budget' }, steps })),
+  // The subscriptions: the list and its menus, the tab of recurring purchases, and a subscription's
+  // page. A pill is found by its status and caret, a row by its name.
+  ...[
+    ['assinaturas-agrupado', [click.button('Agrupar por status')]],
+    ['assinaturas-menu-status', [click.button(/^Manter\s*▾$/)]],
+    ['assinaturas-menu-nova', [click.button('Nova assinatura')]],
+    ['assinaturas-sugestao-aceita', [(page) => page.getByRole('button', { name: 'Sim', exact: true }).click()]],
+    ['assinaturas-recorrentes', [(page) => page.getByRole('button', { name: 'Recorrentes', exact: true }).click()]],
+    ['assinatura-mensal', [openSubscription('Spotify')]],
+    ['assinatura-moeda-estrangeira', [openSubscription('Hospedagem'), click.button(/US\$ 10,50/)]],
+  ].map(([name, steps]) => ({ name, prototype: unlocked('assinaturas'), app: { path: '/assinaturas' }, steps })),
+  { name: 'assinaturas-tablet', prototype: unlocked('assinaturas'), app: { path: '/assinaturas' }, viewports: ['tablet'] },
 ];

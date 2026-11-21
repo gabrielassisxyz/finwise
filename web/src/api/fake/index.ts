@@ -4,6 +4,7 @@ import { createFakeHome } from './home';
 import { createChangeLog } from './changes';
 import { createFakeNetWorth } from './net-worth';
 import { createFakeSavingsPots } from './savings-pots';
+import { createFakeSubscriptions } from './subscriptions';
 import type { FakeState } from './model';
 import { PROTOTYPE_PIN, prototypeState } from './prototype-data';
 import { pendingCount } from './rules';
@@ -77,5 +78,6 @@ export function createFakeApi(options: FakeApiOptions = {}): FinwiseApi {
     savingsPots: createFakeSavingsPots(state),
     netWorth: createFakeNetWorth(state),
     budget: createFakeBudget(state, original, log),
+    subscriptions: createFakeSubscriptions(state, log),
   };
 }
