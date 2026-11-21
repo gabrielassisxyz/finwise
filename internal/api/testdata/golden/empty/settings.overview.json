@@ -1,0 +1,52 @@
+{
+  "pots": [],
+  "establishments": [],
+  "people": [],
+  "cardTitle": null,
+  "cardLabel": "Físico",
+  "categorization": {
+    "threshold": 85,
+    "minExamples": 5,
+    "calibration": [
+      {
+        "from": 50,
+        "to": 59,
+        "correctionPercent": null
+      },
+      {
+        "from": 60,
+        "to": 69,
+        "correctionPercent": null
+      },
+      {
+        "from": 70,
+        "to": 79,
+        "correctionPercent": null
+      },
+      {
+        "from": 80,
+        "to": 89,
+        "correctionPercent": null
+      },
+      {
+        "from": 90,
+        "to": 100,
+        "correctionPercent": null
+      }
+    ],
+    "suggestedThreshold": null
+  },
+  "closing": {
+    "mode": "auto",
+    "bankDay": null,
+    "manualDay": 28
+  },
+  "data": {
+    "connections": [],
+    "lastSync": {
+      "day": "2026-03-15",
+      "time": "00:00"
+    },
+    "lastBackup": null
+  }
+}

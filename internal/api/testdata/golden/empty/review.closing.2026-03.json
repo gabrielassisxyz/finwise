@@ -1,0 +1,96 @@
+{
+  "month": "2026-03",
+  "closed": false,
+  "closedOn": null,
+  "steps": [
+    {
+      "id": "pending",
+      "state": "done",
+      "markable": false
+    },
+    {
+      "id": "planned-actual",
+      "state": "todo",
+      "markable": true
+    },
+    {
+      "id": "leftover",
+      "state": "todo",
+      "markable": true
+    },
+    {
+      "id": "contributions",
+      "state": "todo",
+      "markable": true
+    },
+    {
+      "id": "card-bill",
+      "state": "todo",
+      "markable": true
+    },
+    {
+      "id": "subscriptions",
+      "state": "todo",
+      "markable": true
+    },
+    {
+      "id": "report",
+      "state": "todo",
+      "markable": true
+    },
+    {
+      "id": "close",
+      "state": "todo",
+      "markable": false
+    }
+  ],
+  "pendingCount": 0,
+  "plannedActual": [
+    {
+      "name": "Receita",
+      "planned": 0.00,
+      "actual": 0.00,
+      "difference": 0.00,
+      "contributions": false,
+      "lines": []
+    },
+    {
+      "name": "Fixos e essenciais",
+      "planned": 0.00,
+      "actual": 0.00,
+      "difference": 0.00,
+      "contributions": false,
+      "lines": []
+    },
+    {
+      "name": "Variáveis",
+      "planned": 0.00,
+      "actual": 0.00,
+      "difference": 0.00,
+      "contributions": false,
+      "lines": []
+    },
+    {
+      "name": "Provisões",
+      "planned": 0.00,
+      "actual": 0.00,
+      "difference": 0.00,
+      "contributions": true,
+      "lines": []
+    },
+    {
+      "name": "Reservas de desejo",
+      "planned": 0.00,
+      "actual": 0.00,
+      "difference": 0.00,
+      "contributions": true,
+      "lines": []
+    }
+  ],
+  "leftover": 0.00,
+  "contributions": [],
+  "cardBill": null,
+  "subscriptionsToReview": [],
+  "report": [],
+  "closedMonths": []
+}

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -9,9 +10,10 @@ import (
 )
 
 // freshInstallMethods are the reads that answer a fixed value or, for payday, a
-// balance. Only counts are logged, as everywhere over a real snapshot.
+// balance, and the two that add to it what the bank's records support. Only
+// counts are logged, as everywhere over a real snapshot.
 var freshInstallMethods = []string{
-	"budget.", "subscriptions.", "review.weekly", "review.payday",
+	"budget.", "subscriptions.", "review.weekly", "review.payday", "review.closing", "settings.",
 }
 
 func isFreshInstallRead(method string) bool {
@@ -24,7 +26,7 @@ func isFreshInstallRead(method string) bool {
 }
 
 // TestTheFreshInstallReadsOverARealSnapshot validates every answer of the
-// budget, the subscriptions and the two reviews. A salary can move to another
+// budget, the subscriptions, the three reviews and the settings. A salary can move to another
 // account, so several accounts having received payroll is normal; what must not
 // happen is two accounts sharing the latest payroll instant, which would leave
 // "the account the salary lands on" to a tie rule.
@@ -57,4 +59,26 @@ func TestTheFreshInstallReadsOverARealSnapshot(t *testing.T) {
 	if found.Tied {
 		t.Error("two accounts share the latest payroll credit")
 	}
+	logBankBackedCounts(t, run)
+}
+
+// logBankBackedCounts says how much of the settings and of the closing came
+// from the bank's records: counts and one yes or no, never a value.
+func logBankBackedCounts(t *testing.T, run *realRun) {
+	t.Helper()
+	var settings struct {
+		Pots []json.RawMessage `json:"pots"`
+		Data struct {
+			Connections []json.RawMessage `json:"connections"`
+			LastSync    *json.RawMessage  `json:"lastSync"`
+		} `json:"data"`
+		CardTitle *string `json:"cardTitle"`
+	}
+	var closing struct {
+		CardBill *json.RawMessage `json:"cardBill"`
+	}
+	withoutValues(t, "settings answer", json.Unmarshal(run.answer("settings.overview", `[]`), &settings))
+	withoutValues(t, "closing answer", json.Unmarshal(run.answer("review.closing", `["2026-03"]`), &closing))
+	t.Logf("settings_pots=%d settings_connections=%d settings_has_last_sync=%t settings_has_card=%t closing_shows_card_bill=%t",
+		len(settings.Pots), len(settings.Data.Connections), settings.Data.LastSync != nil, settings.CardTitle != nil, closing.CardBill != nil)
 }

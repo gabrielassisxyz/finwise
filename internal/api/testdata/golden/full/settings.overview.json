@@ -1,0 +1,110 @@
+{
+  "pots": [
+    {
+      "id": "investment:inv-it-1",
+      "name": "LCI Exemplo",
+      "bank": "Itaú",
+      "cdiPercent": 95.00,
+      "bucket": "Investido",
+      "linkedLines": []
+    },
+    {
+      "id": "reserve:acc-pots/pot-1",
+      "name": "Caixinha da casa",
+      "bank": "Mercado Pago",
+      "cdiPercent": 110.00,
+      "bucket": "Reservado",
+      "linkedLines": []
+    },
+    {
+      "id": "investment:inv-nu-1",
+      "name": "CDB Exemplo",
+      "bank": "Nubank",
+      "cdiPercent": 115.00,
+      "bucket": "Investido",
+      "linkedLines": []
+    },
+    {
+      "id": "reserve:acc-nu/pot-nu-1",
+      "name": "Reserva",
+      "bank": "Nubank",
+      "cdiPercent": 100.00,
+      "bucket": "Reservado",
+      "linkedLines": []
+    },
+    {
+      "id": "slot:acc-nu/1",
+      "name": "Sem identidade",
+      "bank": "Nubank",
+      "cdiPercent": 100.00,
+      "bucket": "Reservado",
+      "linkedLines": []
+    }
+  ],
+  "establishments": [],
+  "people": [],
+  "cardTitle": "Platinum Visa · final 1234",
+  "cardLabel": "Físico",
+  "categorization": {
+    "threshold": 85,
+    "minExamples": 5,
+    "calibration": [
+      {
+        "from": 50,
+        "to": 59,
+        "correctionPercent": null
+      },
+      {
+        "from": 60,
+        "to": 69,
+        "correctionPercent": null
+      },
+      {
+        "from": 70,
+        "to": 79,
+        "correctionPercent": null
+      },
+      {
+        "from": 80,
+        "to": 89,
+        "correctionPercent": null
+      },
+      {
+        "from": 90,
+        "to": 100,
+        "correctionPercent": null
+      }
+    ],
+    "suggestedThreshold": null
+  },
+  "closing": {
+    "mode": "auto",
+    "bankDay": 28,
+    "manualDay": 28
+  },
+  "data": {
+    "connections": [
+      {
+        "bank": "Itaú",
+        "status": "ok"
+      },
+      {
+        "bank": "Nubank",
+        "status": "ok"
+      },
+      {
+        "bank": "Mercado Pago",
+        "status": "ok"
+      },
+      {
+        "bank": "C6",
+        "status": "ok"
+      }
+    ],
+    "lastSync": {
+      "day": "2026-03-15",
+      "time": "00:00"
+    },
+    "lastBackup": null
+  }
+}
