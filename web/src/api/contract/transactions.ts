@@ -1,5 +1,6 @@
 import type { ChangeResult } from './changes';
 import type { IsoDay, YearMonth } from './common';
+import type { TransactionDetailApi } from './transaction-detail';
 
 export type TransactionKind = 'cartao' | 'pix' | 'boleto' | 'outros';
 
@@ -92,7 +93,7 @@ export interface LineChangeResult extends ChangeResult {
   establishment: { key: string; name: string } | null;
 }
 
-export interface TransactionsApi {
+export interface TransactionsApi extends TransactionDetailApi {
   /** Newest first. */
   list(query: TransactionQuery): Promise<Transaction[]>;
   filterOptions(): Promise<TransactionFilterOptions>;

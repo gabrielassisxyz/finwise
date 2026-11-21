@@ -9,6 +9,7 @@ export type * from './contract/common';
 export type * from './contract/home';
 export type * from './contract/session';
 export type * from './contract/shell';
+export type * from './contract/transaction-detail';
 export type * from './contract/transactions';
 
 /** Everything the interface asks of the backend. */

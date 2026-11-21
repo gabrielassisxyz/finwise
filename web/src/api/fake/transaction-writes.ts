@@ -1,6 +1,8 @@
 import type { ChangeResult, LineChangeResult } from '../types';
 import type { ChangeLog } from './changes';
+import { createHistoryRecorder } from './history';
 import type { FakeState, FakeTransaction } from './model';
+import { createTransactionEdits } from './transaction-edits';
 
 type Classification = Pick<FakeTransaction, 'line' | 'by' | 'confidence' | 'pending'>;
 
@@ -14,6 +16,7 @@ function nameOf(state: FakeState, transaction: FakeTransaction): string {
 }
 
 export function createTransactionWrites(state: FakeState, log: ChangeLog) {
+  const history = createHistoryRecorder(state);
   const find = (id: string) => state.transactions.find((transaction) => transaction.id === id);
 
   function changeMany(ids: string[], apply: (transaction: FakeTransaction) => void): ChangeResult {
@@ -24,11 +27,18 @@ export function createTransactionWrites(state: FakeState, log: ChangeLog) {
   }
 
   return {
+    ...createTransactionEdits(state, log, history),
     async setLine(id: string, line: string): Promise<LineChangeResult | null> {
       const transaction = find(id);
       if (!transaction || (transaction.line === line && !transaction.pending)) return null;
       const changeId = log.begin({ transactionId: id, line, establishmentKey: transaction.establishmentKey });
-      Object.assign(transaction, decided(line, 'Você'));
+      // The panel asks why only when what is being corrected was the model's.
+      const askReason = transaction.by === 'IA' || !!transaction.pending;
+      history.record(transaction, `Você alterou para ${line}`, ['line', 'by', 'confidence', 'pending'], () => {
+        Object.assign(transaction, decided(line, 'Você'), { askReason });
+      });
+      const restore = transaction.history.at(-1)?.restore;
+      if (restore) restore.askReason = false;
       const askable = !transaction.person && !transaction.movement;
       return {
         changeId,
@@ -43,7 +53,14 @@ export function createTransactionWrites(state: FakeState, log: ChangeLog) {
         (transaction) =>
           transaction.establishmentKey === establishmentKey && transaction.id !== transactionId && transaction.line !== line,
       );
-      others.forEach((transaction) => Object.assign(transaction, decided(line, 'Regra')));
+      const origin = find(transactionId);
+      const name = origin ? nameOf(state, origin) : establishmentKey;
+      const text = `Regra aplicou ${line} (você pediu para todas em ${name})`;
+      others.forEach((transaction) =>
+        history.record(transaction, text, ['line', 'by', 'confidence', 'pending'], () => {
+          Object.assign(transaction, decided(line, 'Regra'));
+        }),
+      );
       return { changeId, changed: others.length };
     },
 
