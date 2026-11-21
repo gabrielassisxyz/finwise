@@ -37,7 +37,7 @@ func readPayday(ctx context.Context, args []json.RawMessage, reader *ledger.Read
 		return nil, err
 	}
 	view := paydayView{Transfers: []any{}}
-	if salary, _ := findSalaryAccount(accounts, rows); salary != nil {
+	if salary := findSalaryAccount(accounts, rows).Account; salary != nil {
 		balance := Reais(salary.Balance)
 		label := bankAccountDescription(bankLabels(accounts)[salary.ID], nameOfAccount(*salary))
 		view.Balance, view.BalanceLabel = &balance, &label
@@ -45,11 +45,21 @@ func readPayday(ctx context.Context, args []json.RawMessage, reader *ledger.Read
 	return view, nil
 }
 
-// findSalaryAccount is the bank account with the latest payroll credit, and how
-// many bank accounts have received one at all. A credit still pending has not
-// landed yet. On a tie of instants the lower account id wins, so the choice does
-// not depend on how the ledger is stored.
-func findSalaryAccount(accounts []ledger.Account, rows []ledger.Transaction) (chosen *ledger.Account, receiving int) {
+// salaryFinding says where the salary lands and how sure that is. Receiving is
+// how many bank accounts have ever received a payroll credit: a salary can move
+// to another account, so more than one is normal. Tied is set when a second
+// account has a credit at the very instant the chosen one's latest does, which
+// leaves "latest" with no single answer.
+type salaryFinding struct {
+	Account   *ledger.Account
+	Receiving int
+	Tied      bool
+}
+
+// findSalaryAccount is the bank account with the latest payroll credit. A credit
+// still pending has not landed yet. On a tie of instants the lower account id
+// wins, so the choice does not depend on how the ledger is stored.
+func findSalaryAccount(accounts []ledger.Account, rows []ledger.Transaction) salaryFinding {
 	bank := map[string]*ledger.Account{}
 	for position := range accounts {
 		if accounts[position].Type == ledger.AccountBank {
@@ -65,14 +75,20 @@ func findSalaryAccount(accounts []ledger.Account, rows []ledger.Transaction) (ch
 			latest[row.AccountID] = row.Date
 		}
 	}
+	found := salaryFinding{Receiving: len(latest)}
 	var chosenAt time.Time
 	for id, at := range latest {
-		receiving++
-		if chosen == nil || at.After(chosenAt) || (at.Equal(chosenAt) && id < chosen.ID) {
-			chosen, chosenAt = bank[id], at
+		switch {
+		case found.Account == nil || at.After(chosenAt):
+			found.Account, chosenAt, found.Tied = bank[id], at, false
+		case at.Equal(chosenAt):
+			found.Tied = true
+			if id < found.Account.ID {
+				found.Account = bank[id]
+			}
 		}
 	}
-	return chosen, receiving
+	return found
 }
 
 func isSalaryCredit(row ledger.Transaction) bool {

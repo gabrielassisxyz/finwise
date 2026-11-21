@@ -24,9 +24,10 @@ func isFreshInstallRead(method string) bool {
 }
 
 // TestTheFreshInstallReadsOverARealSnapshot validates every answer of the
-// budget, the subscriptions and the two reviews, and requires that exactly one
-// bank account has ever received a payroll credit: the payday names one account
-// and a second would make that choice a guess.
+// budget, the subscriptions and the two reviews. A salary can move to another
+// account, so several accounts having received payroll is normal; what must not
+// happen is two accounts sharing the latest payroll instant, which would leave
+// "the account the salary lands on" to a tie rule.
 func TestTheFreshInstallReadsOverARealSnapshot(t *testing.T) {
 	path := realSnapshotPath(t)
 	reader, ctx := ledger.New(path), t.Context()
@@ -45,14 +46,15 @@ func TestTheFreshInstallReadsOverARealSnapshot(t *testing.T) {
 		}
 	}
 
-	chosen, receiving := findSalaryAccount(accounts, rows)
+	found := findSalaryAccount(accounts, rows)
 	t.Logf("fresh_install_calls=%d answers_validated=%d answers_not_conforming=%d", asked, run.answers, run.nonConforming)
-	t.Logf("bank_accounts_with_a_payroll_credit=%d salary_account_found=%t", receiving, chosen != nil)
+	t.Logf("bank_accounts_that_ever_received_payroll=%d salary_account_found=%t latest_credit_untied=%t",
+		found.Receiving, found.Account != nil, !found.Tied)
 
 	if run.answers != asked || run.nonConforming != 0 {
 		t.Error("an answer is missing or does not conform")
 	}
-	if receiving != 1 {
-		t.Errorf("%d bank accounts have received a payroll credit, want exactly 1", receiving)
+	if found.Tied {
+		t.Error("two accounts share the latest payroll credit")
 	}
 }

@@ -89,25 +89,40 @@ func TestTheSalaryAccountIsTheOneWithTheLatestPayrollCredit(t *testing.T) {
 		rowOf("1", "a", 20, salaryOperation, "CREDIT", ""),
 		rowOf("2", "b", 5, salaryOperation, "CREDIT", ""),
 	}
-	chosen, receiving := findSalaryAccount(accounts, rows)
-	if chosen == nil || chosen.ID != "a" || receiving != 2 {
-		t.Errorf("chose %v among %d, want a among 2", chosen, receiving)
+	found := findSalaryAccount(accounts, rows)
+	if found.Account == nil || found.Account.ID != "a" || found.Receiving != 2 || found.Tied {
+		t.Errorf("found %+v, want a among 2, untied", found)
 	}
 	reversed := []ledger.Transaction{rows[1], rows[0]}
-	if chosen, _ = findSalaryAccount(accounts, reversed); chosen == nil || chosen.ID != "a" {
+	if found = findSalaryAccount(accounts, reversed); found.Account == nil || found.Account.ID != "a" {
 		t.Error("the choice depends on the order the rows are read in")
 	}
 }
 
-func TestTheSalaryAccountOfATieIsTheLowerId(t *testing.T) {
+func TestTheSalaryAccountOfATieIsTheLowerIdAndTheTieIsReported(t *testing.T) {
 	accounts := []ledger.Account{bankAccountNamed("b", 2), bankAccountNamed("a", 1)}
 	rows := []ledger.Transaction{
 		rowOf("1", "b", 5, salaryOperation, "CREDIT", ""),
 		rowOf("2", "a", 5, salaryOperation, "CREDIT", ""),
 	}
 	for attempt := 0; attempt < 20; attempt++ {
-		if chosen, _ := findSalaryAccount(accounts, rows); chosen == nil || chosen.ID != "a" {
-			t.Fatal("a tie was not settled by the account id")
+		if found := findSalaryAccount(accounts, rows); found.Account == nil || found.Account.ID != "a" || !found.Tied {
+			t.Fatalf("a tie was not settled by the account id and reported: %+v", found)
+		}
+	}
+}
+
+// A tie among older credits does not matter: only the latest instant decides.
+func TestATieBelowTheLatestCreditIsNotATie(t *testing.T) {
+	accounts := []ledger.Account{bankAccountNamed("a", 1), bankAccountNamed("b", 2), bankAccountNamed("c", 3)}
+	rows := []ledger.Transaction{
+		rowOf("1", "a", 5, salaryOperation, "CREDIT", ""),
+		rowOf("2", "b", 5, salaryOperation, "CREDIT", ""),
+		rowOf("3", "c", 9, salaryOperation, "CREDIT", ""),
+	}
+	for attempt := 0; attempt < 20; attempt++ {
+		if found := findSalaryAccount(accounts, rows); found.Account.ID != "c" || found.Tied || found.Receiving != 3 {
+			t.Fatalf("got %+v, want c among 3, untied", found)
 		}
 	}
 }
@@ -122,8 +137,8 @@ func TestOnlyASettledPayrollCreditOnABankAccountCounts(t *testing.T) {
 		rowOf("5", "elsewhere", 9, salaryOperation, "CREDIT", ""),
 		{ID: "6", AccountID: "bank", Date: utc(2026, time.March, 10, 12, 0), Type: "CREDIT"},
 	}
-	if chosen, receiving := findSalaryAccount(accounts, rows); chosen != nil || receiving != 0 {
-		t.Errorf("found %v among %d with no payroll credit that counts", chosen, receiving)
+	if found := findSalaryAccount(accounts, rows); found.Account != nil || found.Receiving != 0 || found.Tied {
+		t.Errorf("found %+v with no payroll credit that counts", found)
 	}
 }
 
@@ -138,8 +153,8 @@ func TestTheSalariedLedgerHasTwoReceivingAccountsAndOneChosen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	chosen, receiving := findSalaryAccount(accounts, rows)
-	if chosen == nil || chosen.ID != accountSalaryNew || receiving != 2 {
-		t.Errorf("chose %v among %d, want %s among 2", chosen, receiving, accountSalaryNew)
+	found := findSalaryAccount(accounts, rows)
+	if found.Account == nil || found.Account.ID != accountSalaryNew || found.Receiving != 2 || found.Tied {
+		t.Errorf("found %+v, want %s among 2, untied", found, accountSalaryNew)
 	}
 }
