@@ -19,11 +19,14 @@ export const useShellStore = defineStore('shell', () => {
     overview.value = loaded;
   }
 
-  // The pending count moves with a write; the rest of the overview does not, so the month stays where it is.
+  // The pending count and the closed months move with a write; the rest of the overview does not, so the month stays where it is.
   watch(
     () => revision.current,
     async () => {
-      if (overview.value) overview.value = await api.shell.overview();
+      if (!overview.value) return;
+      const loaded = await api.shell.overview();
+      month.configure(loaded);
+      overview.value = loaded;
     },
   );
 

@@ -16,10 +16,17 @@ defineProps<{ overview: ShellOverview }>();
 const route = useRoute();
 const overlay = useOverlayStore();
 
-// Whatever was floating belongs to the screen that was left.
+// Whatever was floating belongs to the screen that was left. A tab of the same screen (a nested route)
+// takes a menu with it but leaves the toast, which is how the design behaves.
+let screen = route.matched[0];
 watch(
   () => route.fullPath,
-  () => overlay.closeAll(),
+  () => {
+    const sameScreenTab = route.matched[0] === screen && route.matched.length > 1;
+    screen = route.matched[0];
+    if (sameScreenTab) overlay.closeMenu();
+    else overlay.closeAll();
+  },
 );
 </script>
 

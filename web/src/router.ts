@@ -8,6 +8,10 @@ import CofrinhoScreen from './screens/cofrinhos/CofrinhoScreen.vue';
 import CofrinhosScreen from './screens/cofrinhos/CofrinhosScreen.vue';
 import InicioScreen from './screens/inicio/InicioScreen.vue';
 import PatrimonioScreen from './screens/patrimonio/PatrimonioScreen.vue';
+import ClosingTab from './screens/revisao/ClosingTab.vue';
+import PaydayTab from './screens/revisao/PaydayTab.vue';
+import RevisaoScreen from './screens/revisao/RevisaoScreen.vue';
+import WeeklyTab from './screens/revisao/WeeklyTab.vue';
 import ScreenPlaceholder from './screens/ScreenPlaceholder.vue';
 
 declare module 'vue-router' {
@@ -18,7 +22,16 @@ declare module 'vue-router' {
 
 const routes: RouteRecordRaw[] = [
   { path: '/', component: InicioScreen, meta: { nav: 'inicio' } },
-  { path: '/revisao', component: ScreenPlaceholder, props: { title: 'Revisão' }, meta: { nav: 'revisao' } },
+  {
+    path: '/revisao',
+    component: RevisaoScreen,
+    meta: { nav: 'revisao' },
+    children: [
+      { path: '', component: WeeklyTab },
+      { path: 'fechamento', component: ClosingTab },
+      { path: 'salario', component: PaydayTab },
+    ],
+  },
   { path: '/budget', component: BudgetScreen, meta: { nav: 'budget' } },
   { path: '/budget/cenarios', component: ScenariosScreen, meta: { nav: 'budget' } },
   { path: '/cofrinhos', component: CofrinhosScreen, meta: { nav: 'cofrinhos' } },

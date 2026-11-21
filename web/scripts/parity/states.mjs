@@ -117,9 +117,9 @@ export const STATES = [
     app: { path: '/' },
     steps: [openTransaction('Posto Shell'), ...steps],
   })),
-  { name: 'revisao-semanal', prototype: unlocked('revisao', { revTab: 'semanal' }), app: null },
-  { name: 'revisao-fechamento', prototype: unlocked('revisao', { revTab: 'fech' }), app: null },
-  { name: 'revisao-salario', prototype: unlocked('revisao', { revTab: 'sal' }), app: null },
+  { name: 'revisao-semanal', prototype: unlocked('revisao', { revTab: 'semanal' }), app: { path: '/revisao' } },
+  { name: 'revisao-fechamento', prototype: unlocked('revisao', { revTab: 'fech' }), app: { path: '/revisao/fechamento' } },
+  { name: 'revisao-salario', prototype: unlocked('revisao', { revTab: 'sal' }), app: { path: '/revisao/salario' } },
   { name: 'budget', prototype: unlocked('budget'), app: { path: '/budget' } },
   { name: 'cofrinhos', prototype: unlocked('cofrinhos'), app: { path: '/cofrinhos' } },
   { name: 'assinaturas', prototype: unlocked('assinaturas'), app: { path: '/assinaturas' } },
@@ -190,4 +190,50 @@ export const STATES = [
     ['assinatura-moeda-estrangeira', [openSubscription('Hospedagem'), click.button(/US\$ 10,50/)]],
   ].map(([name, steps]) => ({ name, prototype: unlocked('assinaturas'), app: { path: '/assinaturas' }, steps })),
   { name: 'assinaturas-tablet', prototype: unlocked('assinaturas'), app: { path: '/assinaturas' }, viewports: ['tablet'] },
+  // The review screen. A button is found by its name, the same text on both sides; the queue is
+  // answered one review at a time, so a state that needs it empty answers all seven.
+  ...(() => {
+    const accept = (page) => page.getByRole('button', { name: 'Aceitar', exact: true }).click();
+    const acceptAll = async (page) => {
+      for (let answered = 0; answered < 7; answered += 1) await accept(page);
+    };
+    const openStep = (title) => click.button(title);
+    const toClosing = [click.button('Fechamento do mês')];
+    const closeButton = (page) => page.getByRole('button', { name: 'Fechar o mês', exact: true }).click();
+    const review = (name, revTab, path, steps, viewports) => ({
+      name,
+      prototype: unlocked('revisao', { revTab }),
+      app: { path },
+      steps,
+      ...(viewports ? { viewports } : {}),
+    });
+    return [
+      review('revisao-pendencia-aceita', 'semanal', '/revisao', [accept]),
+      review('revisao-linha-escolhida', 'semanal', '/revisao', [
+        click.button('Escolher outra linha'),
+        menuOption('Delivery', 'Variáveis'),
+      ]),
+      review('revisao-fila-vazia', 'semanal', '/revisao', [acceptAll]),
+      review('revisao-aprovacao-aprovada', 'semanal', '/revisao', [click.button('Aprovar')]),
+      review('revisao-aviso-dispensado', 'semanal', '/revisao', [click.button('Dispensar aviso')]),
+      review('revisao-semanal-tablet', 'semanal', '/revisao', [], ['tablet']),
+      review('revisao-salario-transferencia-feita', 'sal', '/revisao/salario', [click.button('Marcar como feita')]),
+      review('revisao-fechamento-orcado-realizado', 'fech', '/revisao/fechamento', [openStep(/Orçado × realizado/)]),
+      review('revisao-fechamento-relatorio', 'fech', '/revisao/fechamento', [openStep(/Relatório do mês/)]),
+      review('revisao-fechamento-passo-feito', 'fech', '/revisao/fechamento', [
+        openStep(/Orçado × realizado/),
+        click.button('Marcar como feito e seguir'),
+      ]),
+      review('revisao-fechamento-confirmacao', 'semanal', '/revisao', [acceptAll, ...toClosing, openStep(/Fechar o mês/), closeButton]),
+      review('revisao-fechamento-fechado', 'semanal', '/revisao', [
+        acceptAll,
+        ...toClosing,
+        openStep(/Fechar o mês/),
+        closeButton,
+        (page) => page.getByRole('button', { name: 'Fechar o mês', exact: true }).last().click(),
+      ]),
+      review('revisao-fechamento-mes-fechado', 'fech', '/revisao/fechamento', [click.button(/^Outubro de 2026/)]),
+      review('revisao-fechamento-tablet', 'fech', '/revisao/fechamento', [openStep(/Orçado × realizado/)], ['tablet']),
+    ];
+  })(),
 ];
