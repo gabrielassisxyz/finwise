@@ -1,4 +1,5 @@
-import type { ShellOverview } from '../types';
+import type { PendingReview, TransactionKind } from '../types';
+import type { FakeAccount, FakeBudgetGroup, FakeEstablishment, FakeSavingsPot, FakeState, FakeTransaction } from './model';
 
 // The dataset of the design prototype. Every figure and name in it is
 // invented. The parity check renders these exact values against the
@@ -8,11 +9,323 @@ export const PROTOTYPE_PIN = '123456';
 
 export const PROTOTYPE_TODAY = '2026-11-28';
 
-export const PROTOTYPE_SHELL: ShellOverview = {
-  today: PROTOTYPE_TODAY,
-  pendingCount: 7,
-  sync: { state: 'ok', lastSyncDay: PROTOTYPE_TODAY, lastSyncTime: '02:00' },
-  firstMonth: '2026-10',
-  lastMonth: '2026-12',
-  closedMonths: [{ month: '2026-10', closedOn: '2026-11-02' }],
+const CARD = 'C6 Carbon';
+const MERCADO_PAGO = 'Mercado Pago';
+
+type Extra = Partial<Omit<FakeTransaction, 'id' | 'sequence'>>;
+
+function transaction(
+  sequence: number,
+  day: number,
+  name: string,
+  raw: string,
+  kind: TransactionKind,
+  account: string,
+  amount: number,
+  line: string | null,
+  extra: Extra = {},
+): FakeTransaction {
+  return {
+    id: `t${sequence}`,
+    sequence,
+    day: `2026-11-${String(day).padStart(2, '0')}`,
+    name,
+    establishmentKey: name,
+    raw,
+    kind,
+    subtype: null,
+    account,
+    amount,
+    line,
+    by: 'Regra',
+    confidence: null,
+    pending: null,
+    posted: true,
+    tags: [],
+    movement: false,
+    person: false,
+    refund: false,
+    refundOffsetsLine: null,
+    reimbursementIncome: false,
+    excludedReason: null,
+    split: null,
+    reimbursedAmount: null,
+    installment: null,
+    bill: kind === 'cartao' ? 'Dez/26' : null,
+    originalAmount: null,
+    iof: null,
+    ...extra,
+  };
+}
+
+const card = (sequence: number, day: number, name: string, raw: string, amount: number, line: string | null, extra?: Extra) =>
+  transaction(sequence, day, name, raw, 'cartao', CARD, amount, line, extra);
+
+const pending = (reason: string, suggestion: string, confidence: number, justification: string): PendingReview => ({
+  reason,
+  suggestion,
+  confidence,
+  justification,
+});
+
+const PAO_DE_ACUCAR = 'PAO DE ACUCAR LJ 1187';
+const NEXT_BILL = 'Jan/27';
+
+const TRANSACTIONS: FakeTransaction[] = [
+  card(1, 28, 'Cinema Belas Artes', 'CINE BELAS ARTES SP', -65.1, 'Lazer', { posted: false, bill: NEXT_BILL }),
+  card(2, 28, 'Posto Shell', 'POSTO SHELL AV PAULISTA', -180, 'Transporte', { bill: NEXT_BILL }),
+  card(3, 28, 'iFood', 'IFOOD *IFOOD OSASCO', -54.9, 'Delivery', { bill: NEXT_BILL }),
+  card(4, 28, 'Pão de Açúcar', PAO_DE_ACUCAR, -86.4, 'Mercado', { bill: NEXT_BILL, by: 'IA', confidence: 62 }),
+  card(5, 27, 'Bar do Zé', 'BAR E LANCH DO ZE LTDA', -64, null, {
+    pending: pending('Baixa confiança', 'Restaurantes e bares', 58, 'O nome sugere bar, mas a compra foi no horário do almoço.'),
+  }),
+  card(6, 26, 'Amazon', 'AMAZON MARKETPLACE BR', -129, 'Casa', { installment: '2/3' }),
+  card(26, 25, 'Hortifruti', 'HORTIFRUTI VILA MADALENA', -14, 'Mercado'),
+  card(7, 24, 'Serviço de nuvem', 'CLOUDSVC SUBSCRIPTION', -113.85, 'Ferramentas de trabalho', {
+    originalAmount: 'US$ 20,00',
+    iof: 3.85,
+  }),
+  card(8, 22, 'Spotify', 'SPOTIFY BR', -23.9, 'Assinaturas'),
+  card(9, 21, 'Pão de Açúcar', PAO_DE_ACUCAR, -31.2, 'Mercado'),
+  card(10, 20, 'Estorno de anuidade', 'ESTORNO ANUIDADE CARBON', 120, 'Tarifas e juros', { refund: true }),
+  card(11, 19, 'Rappi', 'RAPPI BRASIL INTERMEDIACAO', -72.7, 'Delivery'),
+  card(12, 18, 'Uber', 'UBER *TRIP HELP.UBER.COM', -38.7, null, {
+    pending: pending('Baixa confiança', 'Transporte', 66, 'Corridas neste horário já caíram em Transporte e em Transporte para o trabalho.'),
+  }),
+  card(13, 17, 'Pão de Açúcar', PAO_DE_ACUCAR, -18.9, 'Mercado'),
+  card(14, 16, 'Mercado Livre', 'MERCADOLIVRE*3PRODUTOS', -149.9, null, {
+    pending: pending('Baixa confiança', 'Casa', 52, 'Compras neste marketplace se dividem entre Casa e Compras.'),
+  }),
+  card(15, 15, 'iFood', 'IFOOD *IFOOD OSASCO', -24.15, 'Restaurantes e bares', { by: 'IA', confidence: 71 }),
+  card(16, 14, 'Pousada Serra Azul', 'POUSADA SERRA AZUL ME', -420, 'Viagens', { tags: ['#viagem'] }),
+  card(17, 13, 'Farmácia São João', 'FARMACIA SAO JOAO 0412', -212.4, null, {
+    pending: pending('Valor fora do padrão', 'Saúde', 77, 'O valor é quatro vezes a média das suas compras nesta farmácia.'),
+  }),
+  card(18, 12, 'Pão de Açúcar', PAO_DE_ACUCAR, -27.5, 'Mercado'),
+  card(19, 12, 'iFood', 'IFOOD *IFOOD OSASCO', -78.4, 'Delivery'),
+  card(20, 10, 'Sal & Brasa', 'REST SAL E BRASA LTDA', -300, 'Restaurantes e bares', { tags: ['#com-ana'] }),
+  card(21, 9, 'Loja Verde Vida', 'VERDE VIDA COM PLANTAS', -89.9, null, {
+    pending: pending('Estabelecimento novo', 'Casa', 44, 'Primeira compra aqui. O nome lembra uma loja de plantas.'),
+  }),
+  card(22, 7, 'Pão de Açúcar', PAO_DE_ACUCAR, -22, 'Mercado'),
+  card(23, 6, 'Hortifruti', 'HORTIFRUTI VILA MADALENA', -20, 'Mercado'),
+  card(24, 5, 'Assistente de IA', 'AI ASSISTANT PRO', -110, 'Assinaturas'),
+  card(25, 3, 'Pão de Açúcar', PAO_DE_ACUCAR, -26, 'Mercado'),
+  transaction(30, 23, 'Padaria Estrela', 'PIX ENVIADO PADARIA ESTRELA', 'pix', MERCADO_PAGO, -26.5, null, {
+    pending: pending('Estabelecimento novo', 'Mercado', 49, 'Primeiro PIX para este recebedor. Padarias costumam cair em Mercado.'),
+  }),
+  transaction(31, 19, 'Marcos A. Lima', 'PIX ENVIADO MARCOS A LIMA', 'pix', 'Itaú', -80, null, {
+    person: true,
+    pending: pending(
+      'PIX para pessoa sem apelido',
+      'Lazer',
+      38,
+      'Não há histórico com esta pessoa. O valor parece com outros gastos de Lazer.',
+    ),
+  }),
+  transaction(32, 12, 'Ana C. Ribeiro', 'PIX RECEBIDO ANA C RIBEIRO', 'pix', 'Itaú', 150, 'Reembolsos', {
+    person: true,
+    reimbursementIncome: true,
+  }),
+  transaction(33, 11, 'Carlos Mendes', 'PIX RECEBIDO CARLOS MENDES', 'pix', 'Itaú', 200, 'Renda extra', { person: true }),
+  transaction(34, 5, 'João P. Santos', 'PIX ENVIADO JOAO P SANTOS', 'pix', 'Itaú', -1500, 'Contas da casa', { person: true }),
+  transaction(35, 5, 'Salário', 'PIX RECEBIDO EMPRESA LTDA', 'pix', 'Itaú', 10000, 'Salário'),
+  transaction(36, 3, 'Hortifruti', 'PIX ENVIADO HORTIFRUTI VM', 'pix', 'Itaú', -62, 'Mercado', { by: 'Você' }),
+  transaction(40, 10, 'Internet', 'VELOX TELECOM S.A.', 'boleto', 'Itaú', -109.9, 'Contas da casa'),
+  transaction(41, 10, 'Condomínio', 'COND ED JARDIM DAS ACACIAS', 'boleto', 'Itaú', -450, 'Contas da casa'),
+  transaction(42, 8, 'Plano de saúde', 'VIDA PLENA SAUDE', 'boleto', 'Itaú', -480, 'Saúde'),
+  transaction(50, 16, 'Pet Shop Bicho Bom', 'DEB PET SHOP BICHO BOM', 'outros', 'C6', -96, 'Pets', { subtype: 'Débito' }),
+  transaction(52, 7, 'Pagamento da fatura', 'TEF PAGTO FATURA CARBON', 'outros', 'Itaú', -2140, null, {
+    subtype: 'TEF',
+    movement: true,
+  }),
+  transaction(51, 5, 'Transferência para C6', 'TED MESMA TITULARIDADE', 'outros', 'Itaú', -1200, null, {
+    subtype: 'TED',
+    movement: true,
+  }),
+  transaction(53, 3, 'Tarifa de pacote', 'TAR PACOTE SERVICOS', 'outros', 'Itaú', -25, 'Tarifas e juros', { subtype: 'Tarifa' }),
+  card(60, 0, 'Pão de Açúcar', PAO_DE_ACUCAR, -64.2, 'Mercado', { day: '2026-10-28', bill: 'Nov/26' }),
+  card(61, 0, 'Posto Shell', 'POSTO SHELL AV PAULISTA', -175, 'Transporte', { day: '2026-10-20', bill: 'Nov/26' }),
+  transaction(62, 0, 'Condomínio', 'COND ED JARDIM DAS ACACIAS', 'boleto', 'Itaú', -450, 'Contas da casa', { day: '2026-10-10' }),
+  transaction(63, 0, 'João P. Santos', 'PIX ENVIADO JOAO P SANTOS', 'pix', 'Itaú', -1500, 'Contas da casa', {
+    day: '2026-10-05',
+    person: true,
+  }),
+  transaction(64, 0, 'Salário', 'PIX RECEBIDO EMPRESA LTDA', 'pix', 'Itaú', 10000, 'Salário', { day: '2026-10-05' }),
+];
+
+const ESTABLISHMENTS: Record<string, FakeEstablishment> = {
+  'João P. Santos': { nickname: 'Aluguel' },
+  'Ana C. Ribeiro': { nickname: 'Ana' },
+  'Carlos Mendes': { nickname: 'Carlos' },
+  'Pão de Açúcar': { line: 'Mercado' },
+  Hortifruti: { line: 'Mercado' },
+  'Posto Shell': { line: 'Transporte' },
+  'Pousada Serra Azul': { tags: ['#viagem'] },
+  Spotify: { line: 'Assinaturas' },
 };
+
+const BUDGET: FakeBudgetGroup[] = [
+  {
+    key: 'rec',
+    name: 'Receita',
+    lines: [
+      { name: 'Salário', amount: 10000 },
+      { name: 'Renda extra', amount: 1500, flag: 'Não garantida' },
+      { name: 'Reembolsos', amount: 500 },
+    ],
+  },
+  {
+    key: 'fix',
+    name: 'Fixos e essenciais',
+    lines: [
+      { name: 'Contas da casa', amount: 2000 },
+      { name: 'Saúde', amount: 500 },
+      { name: 'Pets', amount: 200 },
+      { name: 'Transporte para o trabalho', amount: 1200 },
+    ],
+  },
+  {
+    key: 'var',
+    name: 'Variáveis',
+    lines: [
+      { name: 'Mercado', amount: 400 },
+      { name: 'Restaurantes e bares', amount: 450 },
+      { name: 'Delivery', amount: 200 },
+      { name: 'Transporte', amount: 280 },
+      { name: 'Casa', amount: 220 },
+      { name: 'Assinaturas', amount: 180 },
+      { name: 'Ferramentas de trabalho', amount: 600 },
+      { name: 'Lazer', amount: 400 },
+      { name: 'Educação', amount: 150 },
+    ],
+  },
+  {
+    key: 'prov',
+    name: 'Provisões',
+    lines: [
+      { name: 'Gás e IPTU', amount: 120 },
+      { name: 'Assinaturas anuais', amount: 50 },
+      { name: 'Remédios', amount: 150 },
+    ],
+  },
+  {
+    key: 'res',
+    name: 'Reservas de desejo',
+    lines: [
+      { name: 'Compras', amount: 500 },
+      { name: 'Viagens', amount: 600 },
+    ],
+  },
+];
+
+const SPENT_BASELINE: FakeState['spentBaseline'] = {
+  '2026-11': {
+    Salário: 10000,
+    'Renda extra': 200,
+    Reembolsos: 150,
+    'Contas da casa': 2059.9,
+    Saúde: 480,
+    Pets: 96,
+    'Transporte para o trabalho': 1200,
+    Mercado: 308,
+    'Restaurantes e bares': 324.15,
+    Delivery: 206,
+    Transporte: 180,
+    Casa: 129,
+    Assinaturas: 133.9,
+    'Ferramentas de trabalho': 113.85,
+    Lazer: 65.1,
+    Educação: 0,
+    Viagens: 420,
+    Compras: 0,
+    'Tarifas e juros': 25,
+  },
+  '2026-10': {
+    Salário: 10000,
+    'Renda extra': 1500,
+    Reembolsos: 320,
+    'Contas da casa': 2012.4,
+    Saúde: 500,
+    Pets: 214,
+    'Transporte para o trabalho': 1200,
+    Mercado: 388,
+    'Restaurantes e bares': 412,
+    Delivery: 248,
+    Transporte: 265,
+    Casa: 190,
+    Assinaturas: 155.8,
+    'Ferramentas de trabalho': 113.85,
+    Lazer: 372,
+    Educação: 150,
+    Viagens: 0,
+    Compras: 310,
+    'Tarifas e juros': 25,
+  },
+};
+
+const pot = (id: string, name: string, bank: string, bucket: FakeSavingsPot['bucket'], balance: number): FakeSavingsPot => ({
+  id,
+  name,
+  bank,
+  bucket,
+  balance,
+});
+
+const SAVINGS_POTS: FakeSavingsPot[] = [
+  pot('rfs', 'RF Saúde', MERCADO_PAGO, 'Reservado', 2000),
+  pot('rfp', 'RF Pets', MERCADO_PAGO, 'Reservado', 4200),
+  pot('rfc', 'RF Casa', MERCADO_PAGO, 'Reservado', 3000),
+  pot('rft', 'RF Tech', MERCADO_PAGO, 'Reservado', 2000),
+  pot('gas', 'Gás e IPTU', MERCADO_PAGO, 'Reservado', 600),
+  pot('asa', 'Assinaturas anuais', MERCADO_PAGO, 'Reservado', 310),
+  pot('rem', 'Remédios', MERCADO_PAGO, 'Reservado', 450),
+  pot('com', 'Compras', MERCADO_PAGO, 'Reservado', 1240),
+  pot('via', 'Viagens', MERCADO_PAGO, 'Reservado', 2350),
+  pot('emg', 'Reserva de emergência', 'Nubank', 'Reservado', 18000),
+  pot('i1', 'Investimento 1', 'Nubank', 'Investido', 25000),
+  pot('i2', 'Investimento 2', 'Nubank', 'Investido', 12800),
+  pot('sn', '', 'C6', null, 500),
+  pot('i0', 'Investimento 0', 'Nubank', 'Investido', 0),
+];
+
+const ACCOUNTS: FakeAccount[] = [
+  { id: 'itau', bank: 'Itaú', name: 'Conta corrente', kind: 'Conta', balance: 7020 },
+  { id: 'mp', bank: MERCADO_PAGO, name: 'Conta', kind: 'Conta', balance: 312.4 },
+  { id: 'c6', bank: 'C6', name: 'Conta corrente', kind: 'Conta', balance: 1180.25 },
+  { id: 'nu', bank: 'Nubank', name: 'Conta', kind: 'Conta', balance: 96.1 },
+  { id: 'card', bank: 'C6', name: 'C6 Carbon · final 1234', kind: 'Cartão', balance: 2310 },
+];
+
+export const PROTOTYPE_CARD_ACCOUNT = CARD;
+export const PROTOTYPE_CARD_LABEL = 'C6 Carbon · 1234';
+
+/** A fresh copy of the prototype's dataset, safe to mutate. */
+export function prototypeState(): FakeState {
+  return structuredClone({
+    shell: {
+      today: PROTOTYPE_TODAY,
+      sync: { state: 'ok', lastSyncDay: PROTOTYPE_TODAY, lastSyncTime: '02:00' },
+      firstMonth: '2026-10',
+      lastMonth: '2026-12',
+      closedMonths: [{ month: '2026-10', closedOn: '2026-11-02' }],
+    },
+    currentMonth: '2026-11',
+    confidenceThreshold: 85,
+    transactions: TRANSACTIONS,
+    establishments: ESTABLISHMENTS,
+    budget: BUDGET,
+    spentBaseline: SPENT_BASELINE,
+    savingsPots: SAVINGS_POTS,
+    accounts: ACCOUNTS,
+    tags: ['#viagem', '#com-ana', '#trabalho', '#presente', '#casa-nova'],
+    weeks: [
+      { label: '01–07', guide: 500, spent: 620, current: false },
+      { label: '08–14', guide: 470, spent: 410, current: false },
+      { label: '15–21', guide: 400, spent: 220, current: false },
+      { label: '22–28', guide: 355, spent: 210, current: true },
+      { label: '29–30', guide: 142, spent: null, current: false },
+    ],
+    payAhead: { amount: 386.4, cardLabel: 'C6 Carbon · final 1234' },
+  } satisfies FakeState);
+}

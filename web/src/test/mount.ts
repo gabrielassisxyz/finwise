@@ -4,10 +4,18 @@ import { createApp, type Component } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 import { apiKey } from '@/api/context';
 import { createFakeApi, type FakeApiOptions } from '@/api/fake';
-import type { FinwiseApi } from '@/api/types';
+import { prototypeState } from '@/api/fake/prototype-data';
+import { pendingCount } from '@/api/fake/rules';
+import type { FinwiseApi, ShellOverview } from '@/api/types';
 import type { NavId } from '@/navigation';
 
 const Blank = { template: '<div />' };
+
+/** What the frame is told about the prototype's dataset. */
+export function prototypeOverview(): ShellOverview {
+  const state = prototypeState();
+  return { ...state.shell, pendingCount: pendingCount(state) };
+}
 
 function testRouter(): Router {
   const paths: [string, NavId][] = [

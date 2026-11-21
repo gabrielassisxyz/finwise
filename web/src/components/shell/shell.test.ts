@@ -1,14 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { PROTOTYPE_SHELL } from '@/api/fake/prototype-data';
-import type { ShellOverview } from '@/api/types';
 import { useMonthStore } from '@/stores/month';
 import { useSessionStore } from '@/stores/session';
-import { mountAt } from '@/test/mount';
+import { mountAt, prototypeOverview } from '@/test/mount';
 import AppHeader from './AppHeader.vue';
 import PhoneNav from './PhoneNav.vue';
 import SidebarNav from './SidebarNav.vue';
 
-const overview: ShellOverview = PROTOTYPE_SHELL;
+const overview = prototypeOverview();
 
 describe('SidebarNav', () => {
   it('marks the destination of the current route', async () => {

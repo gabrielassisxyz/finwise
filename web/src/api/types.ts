@@ -1,49 +1,18 @@
-/** A calendar month as `YYYY-MM`. */
-export type YearMonth = string;
+import type { HomeApi } from './contract/home';
+import type { SessionApi } from './contract/session';
+import type { ShellApi } from './contract/shell';
+import type { TransactionsApi } from './contract/transactions';
 
-/** A calendar day as `YYYY-MM-DD`, in Brazil time. */
-export type IsoDay = string;
+export type * from './contract/common';
+export type * from './contract/home';
+export type * from './contract/session';
+export type * from './contract/shell';
+export type * from './contract/transactions';
 
-export type UnlockResult =
-  | { ok: true }
-  | { ok: false; reason: 'wrong-pin' }
-  | { ok: false; reason: 'locked-out'; retryAfterSeconds: number };
-
-export interface SessionStatus {
-  locked: boolean;
-  /** Zero unless too many wrong PINs put the keypad on hold. */
-  retryAfterSeconds: number;
-}
-
-export type SyncStatus =
-  | { state: 'ok'; lastSyncDay: IsoDay; lastSyncTime: string }
-  | { state: 'warning'; message: string };
-
-export interface ClosedMonth {
-  month: YearMonth;
-  closedOn: IsoDay;
-}
-
-export interface ShellOverview {
-  today: IsoDay;
-  pendingCount: number;
-  sync: SyncStatus;
-  firstMonth: YearMonth;
-  lastMonth: YearMonth;
-  closedMonths: ClosedMonth[];
-}
-
-export interface SessionApi {
-  status(): Promise<SessionStatus>;
-  unlock(pin: string): Promise<UnlockResult>;
-  lock(): Promise<void>;
-}
-
-export interface ShellApi {
-  overview(): Promise<ShellOverview>;
-}
-
+/** Everything the interface asks of the backend. */
 export interface FinwiseApi {
   session: SessionApi;
   shell: ShellApi;
+  home: HomeApi;
+  transactions: TransactionsApi;
 }

@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { PROTOTYPE_SHELL } from '@/api/fake/prototype-data';
-import { withStores } from '@/test/mount';
+import { prototypeOverview, withStores } from '@/test/mount';
 import { useMonthStore } from './month';
 
 function setup() {
   const month = withStores(() => useMonthStore()).result;
-  month.configure(PROTOTYPE_SHELL);
+  month.configure(prototypeOverview());
   return month;
 }
 
@@ -17,7 +16,7 @@ describe('month store', () => {
   it('keeps the selection when the overview is loaded again', () => {
     const month = setup();
     month.shift(-1);
-    month.configure(PROTOTYPE_SHELL);
+    month.configure(prototypeOverview());
     expect(month.selected).toBe('2026-10');
   });
 
