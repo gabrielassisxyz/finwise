@@ -6,6 +6,8 @@
 //              state's reference through `reference`.
 //   app        how the app reaches it: a path. `null` while the screen has
 //              not been ported.
+//   viewports  which viewports to shoot, by name. Defaults to desktop and phone; the tablet
+//              has to be asked for.
 //   steps      what to do once the screen is up, the same on both sides.
 //              They find things by role and text, which the port keeps.
 //   clip       compare only this rectangle, per viewport. Used to check a
@@ -14,7 +16,15 @@
 export const VIEWPORTS = {
   desktop: { width: 1440, height: 900 },
   phone: { width: 390, height: 844 },
+  // Between the two breakpoints (820 and 1200 pixels), which the other two never reach.
+  tablet: { width: 1024, height: 768 },
 };
+
+// A state is shot on these unless it lists `viewports`. The tablet is opt-in: a state that
+// means "desktop and phone" keeps meaning that, whatever viewport is added later.
+export const DEFAULT_VIEWPORTS = ['desktop', 'phone'];
+
+export const viewportsOf = (state) => state.viewports ?? DEFAULT_VIEWPORTS;
 
 export const PROTOTYPE_STATE_ITEM = 'finwise-proto-v1';
 export const PROTOTYPE_PIN = '123456';
@@ -29,6 +39,9 @@ const click = {
 // option is found by its text.
 const menuOption = (label, hint) => (page) =>
   page.locator('button').filter({ hasText: new RegExp(`^${label}\\s*${hint}$`) }).first().click();
+
+// A pot's row on the list, opened by clicking its name.
+const openPot = (name) => (page) => page.getByText(name, { exact: true }).first().click();
 
 const selectRow = (index) => (page) =>
   page.getByRole('checkbox', { name: 'Selecionar', exact: true }).nth(index).check();
@@ -63,9 +76,9 @@ export const STATES = [
   { name: 'revisao-fechamento', prototype: unlocked('revisao', { revTab: 'fech' }), app: null },
   { name: 'revisao-salario', prototype: unlocked('revisao', { revTab: 'sal' }), app: null },
   { name: 'budget', prototype: unlocked('budget'), app: null },
-  { name: 'cofrinhos', prototype: unlocked('cofrinhos'), app: null },
+  { name: 'cofrinhos', prototype: unlocked('cofrinhos'), app: { path: '/cofrinhos' } },
   { name: 'assinaturas', prototype: unlocked('assinaturas'), app: null },
-  { name: 'patrimonio', prototype: unlocked('patrimonio'), app: null },
+  { name: 'patrimonio', prototype: unlocked('patrimonio'), app: { path: '/patrimonio' } },
   { name: 'contas', prototype: unlocked('contas'), app: null },
   { name: 'config', prototype: unlocked('config'), app: null },
   {
@@ -84,4 +97,25 @@ export const STATES = [
     },
     app: { path: '/' },
   },
+  // The savings pots and the net worth. Rows are found by their text, which both sides share.
+  ...[
+    ['cofrinhos-encerrados', [click.button('Mostrar encerrados')]],
+    ['cofrinho-abaixo-do-alvo', [openPot('RF Pets')]],
+    ['cofrinho-compartilhado', [openPot('Gás e IPTU')]],
+    ['cofrinho-sem-movimentos', [openPot('Compras')]],
+    ['cofrinho-investimento-rendimento', [openPot('Investimento 1'), click.button(/Novembro/)]],
+    ['cofrinho-encerrado', [click.button('Mostrar encerrados'), openPot('Investimento 0')]],
+  ].map(([name, steps]) => ({ name, prototype: unlocked('cofrinhos'), app: { path: '/cofrinhos' }, steps })),
+  { name: 'cofrinhos-tablet', prototype: unlocked('cofrinhos'), app: { path: '/cofrinhos' }, viewports: ['tablet'] },
+  {
+    name: 'cofrinhos-encerrados-tablet',
+    prototype: unlocked('cofrinhos'),
+    app: { path: '/cofrinhos' },
+    viewports: ['tablet'],
+    steps: [click.button('Mostrar encerrados')],
+  },
+  ...[
+    ['patrimonio-balde-aberto', [click.button(/^Reservado/)]],
+    ['patrimonio-empilhado', [click.button('Empilhar por balde')]],
+  ].map(([name, steps]) => ({ name, prototype: unlocked('patrimonio'), app: { path: '/patrimonio' }, steps })),
 ];

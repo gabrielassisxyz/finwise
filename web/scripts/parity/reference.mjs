@@ -16,7 +16,7 @@ import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { launchBrowser, newContext, settle } from './browser.mjs';
 import { decodePng, diffImages, readPng } from './diff.mjs';
-import { PROTOTYPE_STATE_ITEM, STATES, VIEWPORTS } from './states.mjs';
+import { PROTOTYPE_STATE_ITEM, STATES, VIEWPORTS, viewportsOf } from './states.mjs';
 
 const args = process.argv.slice(2);
 const update = args.includes('--update');
@@ -75,7 +75,7 @@ for (const [viewportName, viewport] of Object.entries(VIEWPORTS)) {
   for (const state of STATES) {
     if (!state.prototype) continue;
     if (only.length && !only.includes(state.name)) continue;
-    if (state.viewports && !state.viewports.includes(viewportName)) continue;
+    if (!viewportsOf(state).includes(viewportName)) continue;
     const context = await newContext(browser, viewport);
     await context.addInitScript(
       ([key, seed]) => localStorage.setItem(key, JSON.stringify(seed)),

@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { build, preview } from 'vite';
 import { launchBrowser, newContext, settle } from './browser.mjs';
 import { crop, diffImages, readPng, writePng } from './diff.mjs';
-import { PROTOTYPE_PIN, STATES, VIEWPORTS } from './states.mjs';
+import { PROTOTYPE_PIN, STATES, VIEWPORTS, viewportsOf } from './states.mjs';
 
 // Share of pixels allowed to differ, in percent. A faithful screen measures
 // 0.00 to 0.01; a wrong logo color measured 0.11 and a missing webfont 0.09 on
@@ -67,7 +67,7 @@ const notPorted = new Set();
 for (const [viewportName, viewport] of Object.entries(VIEWPORTS)) {
   for (const state of STATES) {
     if (only.length && !only.includes(state.name)) continue;
-    if (state.viewports && !state.viewports.includes(viewportName)) continue;
+    if (!viewportsOf(state).includes(viewportName)) continue;
     if (!state.app) {
       notPorted.add(state.name);
       continue;
