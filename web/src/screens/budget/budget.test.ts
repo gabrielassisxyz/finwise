@@ -69,10 +69,33 @@ describe('Budget screen', () => {
     expect(rowOf(m, 'Variáveis', 'Mercado').find('.fill').classes()).not.toContain('over');
   });
 
+  it('colours what is over in a fixed line red and heavy, and what is not quiet', async () => {
+    const m = await mountBudget();
+    const over = rowOf(m, 'Fixos e essenciais', 'Contas da casa').findAll('.value')[2]!;
+    expect(over.classes()).toEqual(expect.arrayContaining(['bad', 'strong']));
+    expect(rowOf(m, 'Fixos e essenciais', 'Saúde').findAll('.value')[2]!.classes()).toContain('quiet');
+  });
+
+  it('turns the subtotal of a variable group red once it spent more than its caps', async () => {
+    const m = await mountBudget();
+    expect(groupNamed(m, 'Variáveis').find('strong').classes()).not.toContain('bad');
+    await button(m, 'Editar budget').trigger('click');
+    await flushPromises();
+    for (const name of ['Mercado', 'Restaurantes e bares']) {
+      await typeInto(editRow(m, 'Variáveis', name).findAll('input')[1]!, '10');
+    }
+    for (const name of ['Delivery', 'Transporte', 'Casa', 'Assinaturas', 'Ferramentas de trabalho', 'Lazer', 'Educação']) {
+      await typeInto(editRow(m, 'Variáveis', name).findAll('input')[1]!, '10');
+    }
+    expect(groupNamed(m, 'Variáveis').find('strong').classes()).toContain('bad');
+  });
+
   it('says a rainy fund is back on below its target and off at it', async () => {
     const m = await mountBudget();
     expect(cells(rowOf(m, 'Rainy Funds', 'Pets'))).toBe('Pets R$ 5.000,00 R$ 4.200,00 Religado');
     expect(cells(rowOf(m, 'Rainy Funds', 'Saúde'))).toContain('Desligado');
+    expect(rowOf(m, 'Rainy Funds', 'Pets').findAll('.value')[2]!.classes()).toContain('warning');
+    expect(rowOf(m, 'Rainy Funds', 'Saúde').findAll('.value')[2]!.classes()).not.toContain('warning');
   });
 
   it('labels every value of a row for the phone card', async () => {

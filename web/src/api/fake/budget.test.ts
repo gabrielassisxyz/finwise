@@ -42,6 +42,9 @@ describe('budget figures', () => {
     expect(house.over).toBe(true);
     expect(house.bar).toBeNull();
     expect(line(view, 'fix', 'Saúde').over).toBe(false);
+    // Spending exactly what was planned is not an overspend.
+    expect(line(view, 'fix', 'Transporte para o trabalho')).toMatchObject({ over: false });
+    expect(line(view, 'fix', 'Transporte para o trabalho').cells[2]).toEqual({ type: 'difference', amount: 0 });
     expect(group(view, 'fix')).toMatchObject({ subtotal: 3900, subtotalSpent: 3835.9, over: false });
   });
 
@@ -60,6 +63,15 @@ describe('budget figures', () => {
     const draft = await api.budget.document(NOV);
     for (const l of draft.find((g) => g.key === 'var')!.lines) l.amount = 100;
     expect(group(await api.budget.view(NOV, draft), 'var')).toMatchObject({ subtotal: 900, over: true });
+  });
+
+  it('does not flag a variable group that spent exactly its caps', async () => {
+    const api = createFakeApi();
+    const spent = await api.budget.view(NOV);
+    const draft = await api.budget.document(NOV);
+    const variable = draft.find((g) => g.key === 'var')!;
+    variable.lines.forEach((l, i) => (l.amount = (group(spent, 'var').lines[i]!.cells[1] as { amount: number }).amount));
+    expect(group(await api.budget.view(NOV, draft), 'var')).toMatchObject({ subtotal: 1460, subtotalSpent: 1460, over: false });
   });
 
   it('carries the marker of an income line', async () => {
