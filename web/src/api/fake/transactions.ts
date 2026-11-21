@@ -34,6 +34,8 @@ export function newestFirst(a: FakeTransaction, b: FakeTransaction): number {
 
 /** Fees have no group of their own in the budget, so the menu lists them after the provisions. */
 export function lineOptions(state: FakeState): BudgetLineOption[] {
+  // A budget nobody has filled in offers no line to move a transaction to, the fees line included.
+  if (state.budget.every((group) => group.lines.length === 0)) return [];
   return LINE_MENU_ORDER.flatMap((key) => {
     const group = state.budget.find((candidate) => candidate.key === key);
     const lines = (group?.lines ?? []).map((line) => ({ name: line.name, group: group?.name ?? '' }));
