@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,11 +53,15 @@ func c6Ledger(t *testing.T) *ledgertest.Fixture {
 }
 
 func addCardPurchase(f *ledgertest.Fixture, id string, at time.Time, amount float64, billID string) {
+	addPurchaseOn(f, "card-c6", id, at, amount, billID)
+}
+
+func addPurchaseOn(f *ledgertest.Fixture, accountID, id string, at time.Time, amount float64, billID string) {
 	metadata := map[string]any{"cardNumber": "5555666677778888"}
 	if billID != "" {
 		metadata["billId"] = billID
 	}
-	f.AddTransaction(ledgertest.Transaction{ID: id, AccountID: "card-c6", Date: at, Description: "COMPRA " + id,
+	f.AddTransaction(ledgertest.Transaction{ID: id, AccountID: accountID, Date: at, Description: "COMPRA " + id,
 		Amount: amount, Currency: "BRL", Type: "DEBIT",
 		Raw: map[string]any{"operationType": "PAGAMENTO", "creditCardMetadata": metadata}})
 }
@@ -222,11 +227,11 @@ func TestACardWithoutBillsRanksBelowOneWithABill(t *testing.T) {
 	accounts := []ledger.Account{
 		{ID: "card-1", Type: ledger.AccountCredit}, {ID: "card-2", Type: ledger.AccountCredit}, {ID: "acc", Type: ledger.AccountBank},
 	}
-	chosen, found := theCard(accounts, []ledger.Bill{{ID: "b", AccountID: "card-2", DueDate: "2026-01-01"}})
+	chosen, found := theCard(accounts, []ledger.Bill{{ID: "b", AccountID: "card-2", DueDate: "2026-01-01"}}, nil)
 	if !found || chosen.ID != "card-2" {
 		t.Errorf("chose %q (%v)", chosen.ID, found)
 	}
-	if _, found := theCard(accounts[2:], nil); found {
+	if _, found := theCard(accounts[2:], nil, nil); found {
 		t.Error("a bank account was chosen as the card")
 	}
 }
@@ -240,3 +245,59 @@ func TestOverTheEmptyLedgerTheCardIsNull(t *testing.T) {
 }
 
 func ledgerOf(f *ledgertest.Fixture) *ledger.Reader { return ledger.New(f.Path) }
+
+func titleOfTheCard(t *testing.T, f *ledgertest.Fixture) any {
+	t.Helper()
+	title, _ := answerOf(t, envAt(t, f, 2026, time.March, 20), "card.overview", `[]`)["title"].(string)
+	name, _, _ := strings.Cut(title, " · ")
+	return name
+}
+
+func TestTheCardWithTheNewerPurchaseWinsOverTheOneWithTheLaterBill(t *testing.T) {
+	f := cardLedgerWith(t, "card-a", "2026-05-05", "card-b", "2026-04-05")
+	addPurchaseOn(f, "card-a", "tx-a", utc(2026, time.March, 1, 15, 0), 10, "")
+	addPurchaseOn(f, "card-b", "tx-b", utc(2026, time.March, 10, 15, 0), 10, "")
+	if title := titleOfTheCard(t, f); title != "Cartão card-b" {
+		t.Errorf("described %v, want the card with the newer purchase", title)
+	}
+}
+
+func TestWithNoPurchaseAtAllTheLaterBillWins(t *testing.T) {
+	if title := titleOfTheCard(t, cardLedgerWith(t, "card-a", "2026-05-05", "card-b", "2026-04-05")); title != "Cartão card-a" {
+		t.Errorf("described %v, want the card with the later bill", title)
+	}
+}
+
+func TestAPurchaseOlderThanTheWindowDoesNotChooseTheCard(t *testing.T) {
+	f := cardLedgerWith(t, "card-a", "2026-04-05", "card-b", "2026-05-05")
+	addPurchaseOn(f, "card-a", "tx-old", utc(2025, time.October, 1, 15, 0), 10, "")
+	if title := titleOfTheCard(t, f); title != "Cartão card-b" {
+		t.Errorf("described %v, want the later bill when the only purchase is outside the window", title)
+	}
+}
+
+func TestTheTieRulesOfTheCardInUse(t *testing.T) {
+	sameDay := utc(2026, time.March, 10, 15, 0)
+	f := cardLedgerWith(t, "card-a", "2026-04-05", "card-b", "2026-05-05")
+	addPurchaseOn(f, "card-a", "tx-a", sameDay, 10, "")
+	addPurchaseOn(f, "card-b", "tx-b", sameDay, 10, "")
+	if title := titleOfTheCard(t, f); title != "Cartão card-b" {
+		t.Errorf("a purchase on the same day: described %v, want the later bill", title)
+	}
+	f = cardLedgerWith(t, "card-a", "2026-04-05", "card-b", "2026-04-05")
+	addPurchaseOn(f, "card-a", "tx-a", sameDay, 10, "")
+	addPurchaseOn(f, "card-b", "tx-b", sameDay, 10, "")
+	if title := titleOfTheCard(t, f); title != "Cartão card-a" {
+		t.Errorf("a purchase and a bill on the same days: described %v, want the lower id", title)
+	}
+}
+
+func TestOnlyMoneyOutOfTheCardCountsAsAPurchaseForTheChoice(t *testing.T) {
+	f := cardLedgerWith(t, "card-a", "2026-05-05", "card-b", "2026-04-05")
+	f.AddTransaction(ledgertest.Transaction{ID: "tx-refund", AccountID: "card-b", Date: utc(2026, time.March, 12, 15, 0),
+		Description: "ESTORNO", Amount: 10, Currency: "BRL", Type: "CREDIT",
+		Raw: map[string]any{"operationType": "ESTORNO", "creditCardMetadata": map[string]any{"cardNumber": "1"}}})
+	if title := titleOfTheCard(t, f); title != "Cartão card-a" {
+		t.Errorf("described %v, a refund must not make a card the one in use", title)
+	}
+}

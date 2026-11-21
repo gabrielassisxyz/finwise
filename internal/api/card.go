@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sort"
 	"time"
 
@@ -64,10 +65,15 @@ func registerCard(registry *Registry) {
 	registry.Register("card.overview", readCardOverview)
 }
 
-// theCard is the card account with the latest bill by due date. A card with no
-// bill ranks below every card with one, and equal dues fall back to the id so
-// the choice does not depend on how the ledger is stored.
-func theCard(accounts []ledger.Account, bills []ledger.Bill) (ledger.Account, bool) {
+// cardPurchaseWindowDays is how far back a purchase is looked for to tell which
+// card is in use; a card with none in it is told apart by its bills.
+const cardPurchaseWindowDays = 120
+
+// theCard is the card in use: the card account with the most recent purchase,
+// then the later bill by due date, then the lower account id, so the choice does
+// not depend on how the ledger is stored. With no purchase in sight it is the
+// card with the latest bill, and a card with no bill ranks below one with one.
+func theCard(accounts []ledger.Account, bills []ledger.Bill, lastPurchase map[string]brday.Day) (ledger.Account, bool) {
 	latestDue := map[string]brday.Day{}
 	for _, bill := range bills {
 		latestDue[bill.AccountID] = max(latestDue[bill.AccountID], bill.DueDate)
@@ -78,12 +84,42 @@ func theCard(accounts []ledger.Account, bills []ledger.Bill) (ledger.Account, bo
 		if account.Type != ledger.AccountCredit {
 			continue
 		}
-		if !found || latestDue[account.ID] > latestDue[chosen.ID] ||
-			(latestDue[account.ID] == latestDue[chosen.ID] && account.ID < chosen.ID) {
+		if !found || cardRanksAbove(account, chosen, lastPurchase, latestDue) {
 			chosen, found = account, true
 		}
 	}
 	return chosen, found
+}
+
+func cardRanksAbove(candidate, chosen ledger.Account, lastPurchase, latestDue map[string]brday.Day) bool {
+	if lastPurchase[candidate.ID] != lastPurchase[chosen.ID] {
+		return lastPurchase[candidate.ID] > lastPurchase[chosen.ID]
+	}
+	if latestDue[candidate.ID] != latestDue[chosen.ID] {
+		return latestDue[candidate.ID] > latestDue[chosen.ID]
+	}
+	return candidate.ID < chosen.ID
+}
+
+// lastPurchaseDays is, per card account, the day of its latest purchase among
+// the last cardPurchaseWindowDays days: a listed card row that is money out, not
+// a movement and not a tax row attached to another purchase.
+func lastPurchaseDays(ctx context.Context, reader *ledger.Reader, around ledgerContext, today brday.Day) (map[string]brday.Day, error) {
+	from, ok := shiftedDay(today, -cardPurchaseWindowDays)
+	if !ok {
+		return nil, errors.New("api: today is not a day")
+	}
+	view, err := interpretPeriod(ctx, reader, around, brday.Period{First: from, Last: today})
+	if err != nil {
+		return nil, err
+	}
+	latest := map[string]brday.Day{}
+	for _, transaction := range view.listed {
+		if transaction.Kind == txrules.KindCard && transaction.Movement == txrules.NotAMovement && transaction.Amount < 0 {
+			latest[transaction.AccountID] = max(latest[transaction.AccountID], transaction.Day)
+		}
+	}
+	return latest, nil
 }
 
 // cardView is everything the card page and the home summary need about the card
@@ -111,7 +147,11 @@ func loadCard(ctx context.Context, reader *ledger.Reader) (*cardView, error) {
 	if err != nil {
 		return nil, err
 	}
-	account, found := theCard(around.accounts, bills)
+	lastPurchase, err := lastPurchaseDays(ctx, reader, around, brday.DayOf(nowOf(ctx)))
+	if err != nil {
+		return nil, err
+	}
+	account, found := theCard(around.accounts, bills, lastPurchase)
 	if !found {
 		return nil, nil
 	}
