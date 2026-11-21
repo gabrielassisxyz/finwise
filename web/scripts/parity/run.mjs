@@ -53,7 +53,7 @@ function compare(state, viewportName, candidatePath) {
   return { percent: result.percent, sizes };
 }
 
-await build({ root: webRoot, logLevel: 'warn' });
+await build({ root: webRoot, mode: 'prototype', logLevel: 'warn' });
 const server = await preview({ root: webRoot, logLevel: 'warn', preview: { host: '127.0.0.1', port: 0 } });
 const address = server.httpServer.address();
 const baseUrl = `http://127.0.0.1:${address.port}`;

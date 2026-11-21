@@ -60,6 +60,7 @@ step "API contract manifest is current" npm --prefix web run --silent contract:c
 step "types (vue-tsc)" npm --prefix web run --silent typecheck
 step "tests (vitest)" npm --prefix web run --silent test
 step "build (vite)" npm --prefix web run --silent build
+step "build for real use leaves the stand-in out (bundle sentinel)" npm --prefix web run --silent check:bundle
 
 # gofmt -l exits 0 whatever it finds, so the gate is its output being empty.
 go_is_formatted() {
