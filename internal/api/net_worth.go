@@ -84,7 +84,7 @@ func registerNetWorth(registry *Registry) {
 }
 
 func readNetWorthOverview(ctx context.Context, _ []json.RawMessage, reader *ledger.Reader) (any, error) {
-	view, err := loadPots(ctx, reader, yieldAskerOf(reader))
+	view, err := loadPots(ctx, reader, true)
 	if err != nil {
 		return nil, err
 	}

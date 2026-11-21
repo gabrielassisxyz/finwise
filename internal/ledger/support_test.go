@@ -54,6 +54,7 @@ func everyQuery(reader *ledger.Reader) map[string]error {
 		"Pots":                 failure(reader.Pots(ctx, "2026-03-15")),
 		"BalanceHistory":       failure(reader.BalanceHistory(ctx)),
 		"ReserveHistory":       failure(reader.ReserveHistory(ctx)),
+		"YieldHistory":         failure(reader.YieldHistory(ctx)),
 		"InvestmentPrincipals": failure(reader.InvestmentPrincipals(ctx)),
 		"Investments":          failure(reader.Investments(ctx)),
 		"InvestmentHistory":    failure(reader.InvestmentHistory(ctx, "inv-1")),
