@@ -45,7 +45,7 @@
       "positive": { "$value": { "colorSpace": "oklch", "components": [0.42, 0.1, 155] }, "$description": "Incoming amounts, done state, active phone tab" },
       "tint": { "$value": { "colorSpace": "oklch", "components": [0.95, 0.015, 155] }, "$description": "Active navigation item, chip, toggle on" },
       "tint-border": { "$value": { "colorSpace": "oklch", "components": [0.8, 0.05, 155] }, "$description": "Border of a toggle that is on" },
-      "card": { "$value": { "colorSpace": "oklch", "components": [0.975, 0.012, 155] }, "$description": "Pay-ahead card" },
+      "card": { "$value": { "colorSpace": "oklch", "components": [0.975, 0.012, 155] }, "$description": "Pay-ahead card, the net-worth total and the bucket card that is open. The prototype used 0.008 chroma for the last; unified." },
       "badge-bg": { "$value": { "colorSpace": "oklch", "components": [0.96, 0.02, 155] }, "$description": "Green badge background" },
       "badge-border": { "$value": { "colorSpace": "oklch", "components": [0.9, 0.04, 155] }, "$description": "Green badge border" },
       "sync-dot": { "$value": { "colorSpace": "oklch", "components": [0.6, 0.1, 155] }, "$description": "Sync indicator dot" },
@@ -56,12 +56,14 @@
     "chart": {
       "1": { "$value": { "colorSpace": "oklch", "components": [0.84, 0.06, 155] }, "$description": "Chart: available" },
       "2": { "$value": { "colorSpace": "oklch", "components": [0.68, 0.09, 155] }, "$description": "Chart: reserved" },
-      "3": { "$value": "{color.accent.base}", "$description": "Chart: invested" }
+      "3": { "$value": "{color.accent.base}", "$description": "Chart: invested" },
+      "plan": { "$value": { "colorSpace": "oklch", "components": [0.84, 0.03, 155] }, "$description": "Bar of a planned amount, behind the done one" }
     },
     "warn": {
       "text": { "$value": { "colorSpace": "oklch", "components": [0.5, 0.1, 70] }, "$description": "Warning text, pending state" },
       "bg": { "$value": { "colorSpace": "oklch", "components": [0.97, 0.025, 80] }, "$description": "Amber badge or notice background" },
-      "border": { "$value": { "colorSpace": "oklch", "components": [0.9, 0.05, 80] }, "$description": "Amber badge or notice border" }
+      "border": { "$value": { "colorSpace": "oklch", "components": [0.9, 0.05, 80] }, "$description": "Amber badge or notice border" },
+      "notice-text": { "$value": { "colorSpace": "oklch", "components": [0.42, 0.09, 70] }, "$description": "Text inside an amber notice, darker than the warning text used on its own" }
     },
     "bad": {
       "text": { "$value": { "colorSpace": "oklch", "components": [0.5, 0.1, 25] }, "$description": "Overspend, PIN error, cancel status" },
