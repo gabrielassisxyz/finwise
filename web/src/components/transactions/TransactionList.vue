@@ -10,11 +10,17 @@ import TransactionRow from './TransactionRow.vue';
 import { useTransactionActions } from './useTransactionActions';
 import { useTransactionList } from './useTransactionList';
 
+// An account's page lists only its movements, so the Conta filter has nothing to choose.
+const props = defineProps<{ account?: string }>();
+
 const month = useMonthStore();
 const shell = useShellStore();
 const panel = usePanelStore();
 
-const list = useTransactionList(computed(() => month.selected));
+const list = useTransactionList(
+  computed(() => month.selected),
+  computed(() => props.account),
+);
 const { tab, tabs, rows, loading, hasFilter, total, countLabel } = list;
 
 const selected = reactive(new Set<string>());
@@ -58,7 +64,7 @@ const empty = computed(() => {
 
 <template>
   <div class="list">
-    <TransactionFilters :list="list" />
+    <TransactionFilters :list="list" :hide-account="!!account" />
 
     <div class="tabs">
       <button v-for="item in tabs" :key="item.id" class="tab" :class="{ active: item.id === tab }" @click="tab = item.id">

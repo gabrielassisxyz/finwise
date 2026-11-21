@@ -190,4 +190,9 @@ export const STATES = [
     ['assinatura-moeda-estrangeira', [openSubscription('Hospedagem'), click.button(/US\$ 10,50/)]],
   ].map(([name, steps]) => ({ name, prototype: unlocked('assinaturas'), app: { path: '/assinaturas' }, steps })),
   { name: 'assinaturas-tablet', prototype: unlocked('assinaturas'), app: { path: '/assinaturas' }, viewports: ['tablet'] },
+  // The accounts, the card and the settings. An account is opened from the list by its bank's name.
+  ...[
+    ['contas-conta-itau', [(page) => page.getByText('Itaú', { exact: true }).first().click()]],
+    ['contas-conta-parada', [(page) => page.getByText('Nubank', { exact: true }).first().click()]],
+  ].map(([name, steps]) => ({ name, prototype: unlocked('contas'), app: { path: '/contas' }, steps })),
 ];
