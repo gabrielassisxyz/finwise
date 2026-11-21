@@ -38,14 +38,9 @@ export function nextClosing(state: FakeState, card: FakeCard): IsoDay | null {
   return thisMonth >= today ? thisMonth : dayOf(nextMonth(today.slice(0, 7)), closingDay);
 }
 
-/**
- * The bill closing on `closing` falls due on the bank's due day of the following month. With no closing
- * known, the due date is still the bank's next due day, so it does not hang on the closing.
- */
-export function dueDateFor(card: FakeCard, closing: IsoDay | null, today: IsoDay): IsoDay {
-  if (closing !== null) return dayOf(nextMonth(closing.slice(0, 7)), card.dueDay);
-  const thisMonth = dayOf(today.slice(0, 7), card.dueDay);
-  return thisMonth >= today ? thisMonth : dayOf(nextMonth(today.slice(0, 7)), card.dueDay);
+/** The bill closing on `closing` falls due on the bank's due day of the following month; with no closing the open bill is not placed. */
+export function dueDateFor(card: FakeCard, closing: IsoDay | null): IsoDay | null {
+  return closing === null ? null : dayOf(nextMonth(closing.slice(0, 7)), card.dueDay);
 }
 
 function cardPurchases(state: FakeState): FakeTransaction[] {
@@ -112,7 +107,7 @@ export function cardOverview(state: FakeState): CardOverview | null {
     title: PROTOTYPE_CARD_FULL_LABEL,
     openBill,
     closesOn,
-    dueOn: dueDateFor(card, closesOn, state.shell.today),
+    dueOn: dueDateFor(card, closesOn),
     bestPurchaseDay: closesOn,
     limit: card.limit,
     // Purchases already made still use the limit, whichever bill they land on.

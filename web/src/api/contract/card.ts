@@ -33,7 +33,8 @@ export interface CardOverview {
   openBill: number;
   /** Null when the bank's closing rule is not known. */
   closesOn: IsoDay | null;
-  dueOn: IsoDay;
+  /** Null when the open bill cannot be placed, which takes the closing rule. */
+  dueOn: IsoDay | null;
   /** The first day whose purchases land on the bill after the open one. */
   bestPurchaseDay: IsoDay | null;
   limit: number;

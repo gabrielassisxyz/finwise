@@ -19,7 +19,7 @@ async function mountCard(unknownClosing: boolean) {
 describe('a card whose closing is unknown', () => {
   it('shows a dash for the closing, the best day to buy and the next-bill amount, and keeps what is known', async () => {
     const { wrapper } = await mountCard(true);
-    expect(plain(wrapper.find('.dates').text())).toBe('Fecha em — · Vence em 07/12 · Melhor dia de compra: —');
+    expect(plain(wrapper.find('.dates').text())).toBe('Fecha em — · Vence em — · Melhor dia de compra: —');
     expect(plain(wrapper.find('.title').text())).toBe('Valor a adiantar: —');
     expect(plain(wrapper.text())).not.toContain('R$ 0,00');
     const cells = wrapper.findAll('.limit').map((cell) => plain(Array.from(cell.element.children, (child) => child.textContent ?? '').join(' ')));

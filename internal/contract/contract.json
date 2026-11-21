@@ -2606,7 +2606,15 @@
           "description": "Null when the bank's closing rule is not known."
         },
         "dueOn": {
-          "$ref": "#/definitions/IsoDay"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IsoDay"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null when the open bill cannot be placed, which takes the closing rule."
         },
         "bestPurchaseDay": {
           "anyOf": [

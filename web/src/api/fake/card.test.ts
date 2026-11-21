@@ -125,13 +125,14 @@ describe('a card whose closing is unknown', () => {
     return (await createFakeApi({ state }).card.overview())!;
   };
 
-  it('answers null for the closing, the best purchase day and the next-bill amount, and the rest as known', async () => {
+  it('answers null for the closing, the due date, the best purchase day and the next-bill amount, and the rest as known', async () => {
     const card = await unknownClosing();
     expect(card.closesOn).toBeNull();
+    expect(card.dueOn).toBeNull();
     expect(card.bestPurchaseDay).toBeNull();
     expect(card.payAhead).toEqual({ amount: null, purchases: [] });
     expect(card.mayFallOnNextBill).toEqual([]);
-    expect(card).toMatchObject({ dueOn: '2026-12-07', limit: 12000, availableLimit: 9690 });
+    expect(card).toMatchObject({ limit: 12000, availableLimit: 9690 });
     expect(card.bills).toHaveLength(3);
   });
 

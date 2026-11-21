@@ -13,7 +13,7 @@ const dayOrUnknown = (day: IsoDay | null): string => (day === null ? UNKNOWN : s
       <span class="label">Fatura aberta</span>
       <span class="value">{{ brl(card.openBill) }}</span>
       <span class="dates">
-        Fecha em {{ dayOrUnknown(card.closesOn) }} · Vence em {{ shortDay(card.dueOn) }} · Melhor dia de compra:
+        Fecha em {{ dayOrUnknown(card.closesOn) }} · Vence em {{ dayOrUnknown(card.dueOn) }} · Melhor dia de compra:
         {{ dayOrUnknown(card.bestPurchaseDay) }}
       </span>
     </div>
