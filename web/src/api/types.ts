@@ -13,6 +13,7 @@ export type * from './contract/net-worth';
 export type * from './contract/savings-pots';
 export type * from './contract/session';
 export type * from './contract/shell';
+export type * from './contract/transaction-detail';
 export type * from './contract/transactions';
 
 /** Everything the interface asks of the backend. */

@@ -15,7 +15,7 @@ export function isExcluded(transaction: FakeTransaction): boolean {
 
 /** What the transaction counts for once its linked reimbursement is taken off. */
 export function effectiveAmount(transaction: FakeTransaction): number {
-  return transaction.amount + (transaction.reimbursedAmount ?? 0);
+  return transaction.amount + (transaction.reimbursement?.link?.amount ?? 0);
 }
 
 /**
@@ -110,7 +110,7 @@ export function toContract(state: FakeState, transaction: FakeTransaction): Tran
     person: transaction.person,
     refund: transaction.refund,
     reimbursementIncome: transaction.reimbursementIncome,
-    reimbursed: transaction.reimbursedAmount !== null,
+    reimbursed: !!transaction.reimbursement?.link,
     excluded: isExcluded(transaction),
     split: !!transaction.split && transaction.split.length > 1,
     installment: transaction.installment,

@@ -3,6 +3,7 @@ import type {
   FakeAccount,
   FakeBudgetGroup,
   FakeEstablishment,
+  FakeHistoryEntry,
   FakePlannedContribution,
   FakeSavingsPot,
   FakeState,
@@ -33,7 +34,7 @@ function transaction(
   line: string | null,
   extra: Extra = {},
 ): FakeTransaction {
-  return {
+  const built: FakeTransaction = {
     id: `t${sequence}`,
     sequence,
     day: `2026-11-${String(day).padStart(2, '0')}`,
@@ -57,13 +58,27 @@ function transaction(
     reimbursementIncome: false,
     excludedReason: null,
     split: null,
-    reimbursedAmount: null,
+    reimbursement: null,
+    justification: null,
+    askReason: false,
+    reasonText: '',
+    note: '',
+    history: [],
     installment: null,
     bill: kind === 'cartao' ? 'Dez/26' : null,
     originalAmount: null,
     iof: null,
     ...extra,
   };
+  return { ...built, history: built.history.length ? built.history : [firstHistoryEntry(built)] };
+}
+
+/** How the prototype opens every history: with what put the transaction where it is. */
+function firstHistoryEntry(built: FakeTransaction): FakeHistoryEntry {
+  let text = `${built.by} classificou como ${built.line}`;
+  if (built.movement) text = 'Regra marcou como Movimentação';
+  else if (built.pending) text = `IA sugeriu ${built.pending.suggestion} (${built.pending.confidence}%)`;
+  return { id: `${built.id}-h0`, text, day: built.day, reason: null, restore: null };
 }
 
 const card = (sequence: number, day: number, name: string, raw: string, amount: number, line: string | null, extra?: Extra) =>
@@ -83,7 +98,12 @@ const TRANSACTIONS: FakeTransaction[] = [
   card(1, 28, 'Cinema Belas Artes', 'CINE BELAS ARTES SP', -65.1, 'Lazer', { posted: false, bill: NEXT_BILL }),
   card(2, 28, 'Posto Shell', 'POSTO SHELL AV PAULISTA', -180, 'Transporte', { bill: NEXT_BILL }),
   card(3, 28, 'iFood', 'IFOOD *IFOOD OSASCO', -54.9, 'Delivery', { bill: NEXT_BILL }),
-  card(4, 28, 'Pão de Açúcar', PAO_DE_ACUCAR, -86.4, 'Mercado', { bill: NEXT_BILL, by: 'IA', confidence: 62 }),
+  card(4, 28, 'Pão de Açúcar', PAO_DE_ACUCAR, -86.4, 'Mercado', {
+    bill: NEXT_BILL,
+    by: 'IA',
+    confidence: 62,
+    justification: 'Compras anteriores neste estabelecimento foram todas em Mercado.',
+  }),
   card(5, 27, 'Bar do Zé', 'BAR E LANCH DO ZE LTDA', -64, null, {
     pending: pending('Baixa confiança', 'Restaurantes e bares', 58, 'O nome sugere bar, mas a compra foi no horário do almoço.'),
   }),
@@ -104,7 +124,11 @@ const TRANSACTIONS: FakeTransaction[] = [
   card(14, 16, 'Mercado Livre', 'MERCADOLIVRE*3PRODUTOS', -149.9, null, {
     pending: pending('Baixa confiança', 'Casa', 52, 'Compras neste marketplace se dividem entre Casa e Compras.'),
   }),
-  card(15, 15, 'iFood', 'IFOOD *IFOOD OSASCO', -24.15, 'Restaurantes e bares', { by: 'IA', confidence: 71 }),
+  card(15, 15, 'iFood', 'IFOOD *IFOOD OSASCO', -24.15, 'Restaurantes e bares', {
+    by: 'IA',
+    confidence: 71,
+    justification: 'O pedido veio de um restaurante onde você costuma comer no local.',
+  }),
   card(16, 14, 'Pousada Serra Azul', 'POUSADA SERRA AZUL ME', -420, 'Viagens', { tags: ['#viagem'] }),
   card(17, 13, 'Farmácia São João', 'FARMACIA SAO JOAO 0412', -212.4, null, {
     pending: pending('Valor fora do padrão', 'Saúde', 77, 'O valor é quatro vezes a média das suas compras nesta farmácia.'),
@@ -138,7 +162,19 @@ const TRANSACTIONS: FakeTransaction[] = [
   transaction(33, 11, 'Carlos Mendes', 'PIX RECEBIDO CARLOS MENDES', 'pix', 'Itaú', 200, 'Renda extra', { person: true }),
   transaction(34, 5, 'João P. Santos', 'PIX ENVIADO JOAO P SANTOS', 'pix', 'Itaú', -1500, 'Contas da casa', { person: true }),
   transaction(35, 5, 'Salário', 'PIX RECEBIDO EMPRESA LTDA', 'pix', 'Itaú', 10000, 'Salário'),
-  transaction(36, 3, 'Hortifruti', 'PIX ENVIADO HORTIFRUTI VM', 'pix', 'Itaú', -62, 'Mercado', { by: 'Você' }),
+  transaction(36, 3, 'Hortifruti', 'PIX ENVIADO HORTIFRUTI VM', 'pix', 'Itaú', -62, 'Mercado', {
+    by: 'Você',
+    history: [
+      { id: 't36-h0', text: 'IA classificou como Lazer', day: '2026-11-03', reason: null, restore: null },
+      {
+        id: 't36-h1',
+        text: 'Você alterou para Mercado',
+        day: '2026-11-04',
+        reason: 'é o mercado do bairro',
+        restore: { line: 'Lazer', by: 'IA', confidence: 54 },
+      },
+    ],
+  }),
   transaction(40, 10, 'Internet', 'VELOX TELECOM S.A.', 'boleto', 'Itaú', -109.9, 'Contas da casa'),
   transaction(41, 10, 'Condomínio', 'COND ED JARDIM DAS ACACIAS', 'boleto', 'Itaú', -450, 'Contas da casa'),
   transaction(42, 8, 'Plano de saúde', 'VIDA PLENA SAUDE', 'boleto', 'Itaú', -480, 'Saúde'),
@@ -365,6 +401,7 @@ const ACCOUNTS: FakeAccount[] = [
 
 export const PROTOTYPE_CARD_ACCOUNT = CARD;
 export const PROTOTYPE_CARD_LABEL = 'C6 Carbon · 1234';
+export const PROTOTYPE_CARD_FULL_LABEL = 'C6 Carbon · final 1234';
 
 /** A fresh copy of the prototype's dataset, safe to mutate. */
 export function prototypeState(): FakeState {

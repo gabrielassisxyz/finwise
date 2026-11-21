@@ -28,7 +28,7 @@ describe('contributions', () => {
   });
 
   it('takes a linked reimbursement off the purchase', () => {
-    expect(contributions(purchase({ amount: -300, line: 'Lazer', reimbursedAmount: 150 }))).toEqual([['Lazer', 150]]);
+    expect(contributions(purchase({ amount: -300, line: 'Lazer', reimbursement: { expected: 150, link: { transactionId: 't32', amount: 150 } } }))).toEqual([['Lazer', 150]]);
   });
 
   it('spreads a split purchase over its parts and drops a part without a line', () => {

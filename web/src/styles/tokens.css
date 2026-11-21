@@ -16,6 +16,7 @@
   --color-surface-count: oklch(0.9550 0.0050 150.00); /** Tab counter, tag */
   --color-surface-toast-button: oklch(0.3400 0.0150 155.00); /** Action inside a toast */
   --color-surface-toast-button-hover: oklch(0.4200 0.0200 155.00); /** Hover of an action inside a toast */
+  --color-surface-switch-off: oklch(0.8400 0.0080 150.00); /** Track of a switch that is off */
   --color-border-default: oklch(0.9200 0.0060 150.00); /** Card, sidebar, header */
   --color-border-input: oklch(0.9000 0.0060 150.00); /** Input, month selector, keypad key */
   --color-border-button: oklch(0.9100 0.0060 150.00); /** Secondary button, badge, menu */
@@ -40,7 +41,7 @@
   --color-accent-tint-border: oklch(0.8000 0.0500 155.00); /** Border of a toggle that is on */
   --color-accent-card: oklch(0.9750 0.0120 155.00); /** Pay-ahead card, the net-worth total and the bucket card that is open. The prototype used 0.008 chroma for the last; unified. */
   --color-accent-badge-bg: oklch(0.9600 0.0200 155.00); /** Green badge background */
-  --color-accent-badge-border: oklch(0.9000 0.0400 155.00); /** Green badge border */
+  --color-accent-badge-border: oklch(0.9000 0.0400 155.00); /** Green badge border, and the rule beside a history step. The prototype used 0.02 chroma for the rule; unified. */
   --color-accent-sync-dot: oklch(0.6000 0.1000 155.00); /** Sync indicator dot */
   --color-accent-ink: oklch(0.3000 0.0600 155.00); /** Text over the accent tint: a toggle that is on, a filter chip. The prototype used 0.04 chroma for the chip; unified. */
   --color-accent-card-label: oklch(0.4200 0.0600 155.00); /** Label on the pay-ahead card */
@@ -52,6 +53,7 @@
   --color-warn-bg: oklch(0.9700 0.0250 80.00); /** Amber badge or notice background */
   --color-warn-border: oklch(0.9000 0.0500 80.00); /** Amber badge or notice border */
   --color-warn-notice-text: oklch(0.4200 0.0900 70.00); /** Text inside an amber notice, darker than the warning text used on its own */
+  --color-warn-field-border: oklch(0.7500 0.1000 70.00); /** Border of a field that still needs an answer */
   --color-bad-text: oklch(0.5000 0.1000 25.00); /** Overspend, PIN error, cancel status */
   --color-bad-bg: oklch(0.9700 0.0150 25.00); /** Red badge background */
   --color-bad-border: oklch(0.9000 0.0400 25.00); /** Red badge border */
@@ -71,6 +73,7 @@
   --font-size-caption: 12px; /** Table header, captions, pills */
   --font-size-badge: 11px; /** Badges, raw bank description */
   --font-size-micro: 10px; /** Counter on the phone navigation */
+  --font-size-panel-title: 20px; /** Name and amount at the head of the transaction panel */
   --font-tracking-tight: -0.02; /** Letter spacing of titles and figures, in em */
   --font-tracking-snug: -0.01; /** Letter spacing of the app name, in em */
   --radius-bar: 4px; /** Progress bar */

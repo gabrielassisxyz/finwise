@@ -2,6 +2,7 @@
 import { computed, reactive, watch } from 'vue';
 import { monthInSentence } from '@/lib/format';
 import { useMonthStore } from '@/stores/month';
+import { usePanelStore } from '@/stores/panel';
 import { useShellStore } from '@/stores/shell';
 import SelectionBar from './SelectionBar.vue';
 import TransactionFilters from './TransactionFilters.vue';
@@ -11,6 +12,7 @@ import { useTransactionList } from './useTransactionList';
 
 const month = useMonthStore();
 const shell = useShellStore();
+const panel = usePanelStore();
 
 const list = useTransactionList(computed(() => month.selected));
 const { tab, tabs, rows, loading, hasFilter, total, countLabel } = list;
@@ -100,6 +102,7 @@ const empty = computed(() => {
               :tab="tab"
               :selected="selected.has(transaction.id)"
               :iof-open="iofOpen.has(transaction.id)"
+              @open="panel.open(transaction.id)"
               @toggle-selected="toggle(selected, transaction.id)"
               @toggle-iof="toggle(iofOpen, transaction.id)"
               @pick-line="actions.pickLine($event, transaction)"

@@ -15,7 +15,8 @@
       "count": { "$value": { "colorSpace": "oklch", "components": [0.955, 0.005, 150] }, "$description": "Tab counter, tag" },
       "toast": { "$value": "{color.text.ink}", "$description": "Toast" },
       "toast-button": { "$value": { "colorSpace": "oklch", "components": [0.34, 0.015, 155] }, "$description": "Action inside a toast" },
-      "toast-button-hover": { "$value": { "colorSpace": "oklch", "components": [0.42, 0.02, 155] }, "$description": "Hover of an action inside a toast" }
+      "toast-button-hover": { "$value": { "colorSpace": "oklch", "components": [0.42, 0.02, 155] }, "$description": "Hover of an action inside a toast" },
+      "switch-off": { "$value": { "colorSpace": "oklch", "components": [0.84, 0.008, 150] }, "$description": "Track of a switch that is off" }
     },
     "border": {
       "default": { "$value": { "colorSpace": "oklch", "components": [0.92, 0.006, 150] }, "$description": "Card, sidebar, header" },
@@ -47,7 +48,7 @@
       "tint-border": { "$value": { "colorSpace": "oklch", "components": [0.8, 0.05, 155] }, "$description": "Border of a toggle that is on" },
       "card": { "$value": { "colorSpace": "oklch", "components": [0.975, 0.012, 155] }, "$description": "Pay-ahead card, the net-worth total and the bucket card that is open. The prototype used 0.008 chroma for the last; unified." },
       "badge-bg": { "$value": { "colorSpace": "oklch", "components": [0.96, 0.02, 155] }, "$description": "Green badge background" },
-      "badge-border": { "$value": { "colorSpace": "oklch", "components": [0.9, 0.04, 155] }, "$description": "Green badge border" },
+      "badge-border": { "$value": { "colorSpace": "oklch", "components": [0.9, 0.04, 155] }, "$description": "Green badge border, and the rule beside a history step. The prototype used 0.02 chroma for the rule; unified." },
       "sync-dot": { "$value": { "colorSpace": "oklch", "components": [0.6, 0.1, 155] }, "$description": "Sync indicator dot" },
       "ink": { "$value": { "colorSpace": "oklch", "components": [0.3, 0.06, 155] }, "$description": "Text over the accent tint: a toggle that is on, a filter chip. The prototype used 0.04 chroma for the chip; unified." },
       "card-label": { "$value": { "colorSpace": "oklch", "components": [0.42, 0.06, 155] }, "$description": "Label on the pay-ahead card" },
@@ -63,7 +64,8 @@
       "text": { "$value": { "colorSpace": "oklch", "components": [0.5, 0.1, 70] }, "$description": "Warning text, pending state" },
       "bg": { "$value": { "colorSpace": "oklch", "components": [0.97, 0.025, 80] }, "$description": "Amber badge or notice background" },
       "border": { "$value": { "colorSpace": "oklch", "components": [0.9, 0.05, 80] }, "$description": "Amber badge or notice border" },
-      "notice-text": { "$value": { "colorSpace": "oklch", "components": [0.42, 0.09, 70] }, "$description": "Text inside an amber notice, darker than the warning text used on its own" }
+      "notice-text": { "$value": { "colorSpace": "oklch", "components": [0.42, 0.09, 70] }, "$description": "Text inside an amber notice, darker than the warning text used on its own" },
+      "field-border": { "$value": { "colorSpace": "oklch", "components": [0.75, 0.1, 70] }, "$description": "Border of a field that still needs an answer" }
     },
     "bad": {
       "text": { "$value": { "colorSpace": "oklch", "components": [0.5, 0.1, 25] }, "$description": "Overspend, PIN error, cancel status" },
@@ -97,7 +99,8 @@
       "secondary": { "$value": { "value": 13, "unit": "px" }, "$description": "Secondary text, filters" },
       "caption": { "$value": { "value": 12, "unit": "px" }, "$description": "Table header, captions, pills" },
       "badge": { "$value": { "value": 11, "unit": "px" }, "$description": "Badges, raw bank description" },
-      "micro": { "$value": { "value": 10, "unit": "px" }, "$description": "Counter on the phone navigation" }
+      "micro": { "$value": { "value": 10, "unit": "px" }, "$description": "Counter on the phone navigation" },
+      "panel-title": { "$value": { "value": 20, "unit": "px" }, "$description": "Name and amount at the head of the transaction panel" }
     },
     "tracking": {
       "$type": "number",

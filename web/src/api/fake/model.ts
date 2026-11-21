@@ -3,6 +3,29 @@ import type { Bucket, Classifier, IsoDay, PendingReview, ShellOverview, Transact
 // What the stand-in keeps in memory. It is wider than the contract: the
 // contract is what a screen needs, this is what the rules are computed from.
 
+/** What a history step puts back when it is taken back. */
+export type Restorable = Partial<
+  Pick<
+    FakeTransaction,
+    'line' | 'by' | 'confidence' | 'pending' | 'askReason' | 'reimbursement' | 'excludedReason' | 'refund' | 'refundOffsetsLine'
+  >
+>;
+
+export interface FakeHistoryEntry {
+  id: string;
+  text: string;
+  day: IsoDay;
+  reason: string | null;
+  /** Null for a step that only records what happened. */
+  restore: Restorable | null;
+}
+
+export interface FakeReimbursement {
+  expected: number | null;
+  /** The received PIX that paid the purchase back, with the amount that came in. */
+  link: { transactionId: string; amount: number } | null;
+}
+
 export interface FakeTransaction {
   id: string;
   /** Breaks ties between transactions of the same day, oldest entry first. */
@@ -27,11 +50,19 @@ export interface FakeTransaction {
   /** The line a refund is taken off; a refund without one touches no total. */
   refundOffsetsLine: string | null;
   reimbursementIncome: boolean;
-  /** Set when the transaction was marked as not counting; it only takes effect with a reason. */
+  /** Set when the transaction was marked as not counting; it only takes effect with a reason, so '' is on but idle. */
   excludedReason: string | null;
   split: { line: string | null; amount: number }[] | null;
-  /** Amount of the credit linked as this purchase's reimbursement. */
-  reimbursedAmount: number | null;
+  /** Null while the purchase is not marked reimbursable. */
+  reimbursement: FakeReimbursement | null;
+  /** The model's sentence for a classification that stands; a pending review carries its own. */
+  justification: string | null;
+  /** True right after the user corrected the model, when the panel asks why. */
+  askReason: boolean;
+  reasonText: string;
+  note: string;
+  /** Oldest first. */
+  history: FakeHistoryEntry[];
   installment: string | null;
   bill: string | null;
   originalAmount: string | null;

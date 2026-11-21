@@ -1,6 +1,7 @@
 import type {
   BudgetLineOption,
   Transaction,
+  TransactionDetail,
   TransactionFilterOptions,
   TransactionQuery,
   TransactionsApi,
@@ -11,6 +12,7 @@ import type { BudgetGroupKey, FakeState, FakeTransaction } from './model';
 import { PROTOTYPE_CARD_ACCOUNT, PROTOTYPE_CARD_LABEL } from './prototype-data';
 import { toContract } from './rules';
 import type { ChangeLog } from './changes';
+import { toDetail } from './transaction-detail';
 import { createTransactionWrites } from './transaction-writes';
 
 // A menu of budget lines lists where spending goes first and income last.
@@ -48,6 +50,10 @@ export function createFakeTransactions(state: FakeState, log: ChangeLog): Transa
         .filter((transaction) => matches(transaction.day.slice(0, 7)))
         .sort(newestFirst)
         .map((transaction) => toContract(state, transaction));
+    },
+    async detail(id: string): Promise<TransactionDetail | null> {
+      const found = state.transactions.find((transaction) => transaction.id === id);
+      return found ? toDetail(state, found) : null;
     },
     async filterOptions(): Promise<TransactionFilterOptions> {
       const banks = state.accounts.filter((account) => account.kind === 'Conta').map((account) => account.bank);
