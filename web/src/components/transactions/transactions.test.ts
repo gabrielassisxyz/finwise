@@ -1,5 +1,5 @@
 import { flushPromises } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeApi } from '@/api/fake';
 import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
@@ -7,6 +7,11 @@ import { useShellStore } from '@/stores/shell';
 import { mountAt, prototypeOverview } from '@/test/mount';
 import { marksOf } from './marks';
 import TransactionList from './TransactionList.vue';
+
+// Where the app's floating stack would receive the selection bar.
+beforeEach(() => {
+  document.body.innerHTML = '<div id="float-above-toast"></div>';
+});
 
 async function mountList() {
   const mounted = await mountAt(TransactionList, '/');
@@ -192,6 +197,16 @@ describe('acting on the list', () => {
     mounted.overlay.menu!.items.find((item) => item.label === line)!.onPick!();
     await flushPromises();
   };
+  const select = async (wrapper: Mounted['wrapper'], ...names: string[]) => {
+    for (const name of names) await rowsNamed(wrapper, name)[0]!.find('.check').setValue(true);
+  };
+  const bar = () => document.querySelector('#float-above-toast .bar');
+  const barButton = (label: string) =>
+    [...document.querySelectorAll<HTMLButtonElement>('#float-above-toast .bar button')].find((button) => button.textContent === label)!;
+  const click = async (button: HTMLElement) => {
+    button.click();
+    await flushPromises();
+  };
 
   it('opens a searchable menu of the budget lines from the pill, with the current one marked', async () => {
     const { wrapper, overlay } = await mountList();
@@ -285,5 +300,76 @@ describe('acting on the list', () => {
 
     await runToastAction(mounted.overlay, 'Desfazer');
     expect(shell.overview!.pendingCount).toBe(7);
+  });
+
+  it('shows the bar for the selection, in the floating stack, and clears it with ×', async () => {
+    const { wrapper } = await mountList();
+    expect(bar()).toBeNull();
+
+    await select(wrapper, 'Aluguel');
+    expect(bar()!.textContent).toContain('1 selecionada');
+    await select(wrapper, 'Posto Shell');
+    expect(bar()!.textContent).toContain('2 selecionadas');
+    expect([...bar()!.querySelectorAll('button')].map((button) => button.textContent)).toEqual([
+      'Alterar linha',
+      'Adicionar tag',
+      'Marcar como não conta',
+      '×',
+    ]);
+
+    await click(document.querySelector<HTMLElement>('[aria-label="Limpar seleção"]')!);
+    expect(bar()).toBeNull();
+    expect(wrapper.findAll<HTMLInputElement>('.row .check').filter((box) => box.element.checked)).toHaveLength(0);
+  });
+
+  it('changes the line of the selection as one change with one Desfazer', async () => {
+    const { wrapper, overlay } = await mountList();
+    await select(wrapper, 'Bar do Zé', 'Posto Shell');
+    await click(barButton('Alterar linha'));
+    expect(overlay.menu).toMatchObject({ search: true, placeholder: 'Buscar linha' });
+    expect(overlay.menu!.items.some((item) => item.current)).toBe(false);
+
+    overlay.menu!.items.find((item) => item.label === 'Lazer')!.onPick!();
+    await flushPromises();
+
+    expect(overlay.toast!.message).toBe('2 transações agora estão em Lazer.');
+    expect(toastActions(overlay)).toEqual(['Desfazer']);
+    expect(bar()).toBeNull();
+    expect(pillOf(wrapper, 'Bar do Zé')).toBe('Lazer');
+    expect(useShellStore().overview!.pendingCount).toBe(6);
+
+    await runToastAction(overlay, 'Desfazer');
+    expect(pillOf(wrapper, 'Posto Shell')).toBe('Transporte');
+    expect(pillOf(wrapper, 'Bar do Zé')).toBe('Restaurantes e bares?');
+    expect(useShellStore().overview!.pendingCount).toBe(7);
+  });
+
+  it('adds a tag to the selection from a titled menu of the known tags', async () => {
+    const { wrapper, overlay, api } = await mountList();
+    await select(wrapper, 'Aluguel', 'Posto Shell');
+    await click(barButton('Adicionar tag'));
+
+    expect(overlay.menu!.title).toBe('Adicionar tag');
+    expect(overlay.menu!.search).toBeUndefined();
+    expect(overlay.menu!.items.map((item) => item.label)).toEqual((await api.transactions.filterOptions()).tags);
+
+    overlay.menu!.items.find((item) => item.label === '#viagem')!.onPick!();
+    await flushPromises();
+    expect(overlay.toast!.message).toBe('Tag #viagem adicionada a 2 transações.');
+    expect(rowsNamed(wrapper, 'Posto Shell')[0]!.text()).toContain('#viagem');
+    expect(bar()).toBeNull();
+  });
+
+  it('marks the selection as not counting', async () => {
+    const { wrapper, overlay } = await mountList();
+    await select(wrapper, 'Aluguel', 'Posto Shell');
+    await click(barButton('Marcar como não conta'));
+
+    expect(overlay.toast!.message).toBe('2 transações marcadas como não conta.');
+    expect(toastActions(overlay)).toEqual(['Desfazer']);
+    expect(wrapper.findAll('.row.faded')).toHaveLength(2);
+
+    await runToastAction(overlay, 'Desfazer');
+    expect(wrapper.findAll('.row.faded')).toHaveLength(0);
   });
 });

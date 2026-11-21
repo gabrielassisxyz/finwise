@@ -8,6 +8,8 @@ const overlay = useOverlayStore();
   <!-- Whatever floats over the foot of the page stacks here, above the toast. -->
   <div class="float">
     <slot />
+    <!-- Where the list's selection bar is teleported to; it takes no box of its own while empty. -->
+    <div id="float-above-toast" class="above-toast" />
     <div v-if="overlay.toast" class="toast" role="status">
       <span class="message">{{ overlay.toast.message }}</span>
       <span class="actions">
@@ -38,6 +40,10 @@ const overlay = useOverlayStore();
   .float {
     bottom: 72px;
   }
+}
+
+.above-toast {
+  display: contents;
 }
 
 .toast {
