@@ -1,8 +1,10 @@
 import { flushPromises } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { prototypeState } from '@/api/fake/prototype-data';
+import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
 import { useRevisionStore } from '@/stores/revision';
+import { prototypeOverview } from '@/test/mount';
 import { mountRouted } from '@/test/mountRouted';
 import PaydayTab from './PaydayTab.vue';
 
@@ -12,6 +14,7 @@ const plain = (text: string) => text.replace(/ /g, ' ').replace(/\s+/g, ' ').tri
 
 async function mountPayday(state = prototypeState()) {
   const mounted = await mountRouted(PaydayTab, routes, '/revisao/salario', { state });
+  useMonthStore().configure(prototypeOverview());
   await flushPromises();
   return { ...mounted, overlay: useOverlayStore(), revision: useRevisionStore() };
 }

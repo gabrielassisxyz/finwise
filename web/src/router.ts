@@ -10,6 +10,7 @@ import InicioScreen from './screens/inicio/InicioScreen.vue';
 import PatrimonioScreen from './screens/patrimonio/PatrimonioScreen.vue';
 import PaydayTab from './screens/revisao/PaydayTab.vue';
 import RevisaoScreen from './screens/revisao/RevisaoScreen.vue';
+import WeeklyTab from './screens/revisao/WeeklyTab.vue';
 import ScreenPlaceholder from './screens/ScreenPlaceholder.vue';
 
 declare module 'vue-router' {
@@ -25,7 +26,7 @@ const routes: RouteRecordRaw[] = [
     component: RevisaoScreen,
     meta: { nav: 'revisao' },
     children: [
-      { path: '', component: ScreenPlaceholder, props: { title: 'Semanal' } },
+      { path: '', component: WeeklyTab },
       { path: 'fechamento', component: ScreenPlaceholder, props: { title: 'Fechamento do mês' } },
       { path: 'salario', component: PaydayTab },
     ],
