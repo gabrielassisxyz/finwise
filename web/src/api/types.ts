@@ -2,6 +2,7 @@ import type { BudgetApi } from './contract/budget';
 import type { ChangesApi } from './contract/changes';
 import type { HomeApi } from './contract/home';
 import type { NetWorthApi } from './contract/net-worth';
+import type { ReviewApi } from './contract/review';
 import type { SavingsPotsApi } from './contract/savings-pots';
 import type { SessionApi } from './contract/session';
 import type { ShellApi } from './contract/shell';
@@ -13,6 +14,9 @@ export type * from './contract/changes';
 export type * from './contract/common';
 export type * from './contract/home';
 export type * from './contract/net-worth';
+export type * from './contract/review';
+export type * from './contract/review-closing';
+export type * from './contract/review-payday';
 export type * from './contract/savings-pots';
 export type * from './contract/session';
 export type * from './contract/shell';
@@ -31,4 +35,5 @@ export interface FinwiseApi {
   netWorth: NetWorthApi;
   budget: BudgetApi;
   subscriptions: SubscriptionsApi;
+  review: ReviewApi;
 }

@@ -166,6 +166,16 @@ export function candidatePurchases(state: FakeState): FakeTransaction[] {
   return candidates.slice(0, CANDIDATES_SHOWN);
 }
 
+/** The purchase an open suggestion points at, or null once it was answered or became a subscription. */
+export function suggestedPurchase(state: FakeState): FakeTransaction | null {
+  const suggestion = state.subscriptionSuggestion;
+  if (!suggestion || suggestion.dismissed) return null;
+  const purchase = state.transactions.find((candidate) => candidate.id === suggestion.transactionId);
+  if (!purchase) return null;
+  const taken = state.subscriptions.some((subscription) => subscription.name === nameOf(state, purchase));
+  return taken ? null : purchase;
+}
+
 /** A new subscription from a card purchase: monthly, repeating on the purchase's day of the next month. */
 export function subscriptionFrom(state: FakeState, purchase: FakeTransaction, reviewFrom: IsoDay): FakeSubscription {
   return {

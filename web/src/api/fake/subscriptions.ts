@@ -19,6 +19,7 @@ import {
   monthlyEquivalent,
   monthlyTotal,
   subscriptionFrom,
+  suggestedPurchase,
   toRecurring,
 } from './subscription-rules';
 import { nameOf } from './transaction-detail';
@@ -45,16 +46,6 @@ function toDetail(subscription: FakeSubscription, today: string): SubscriptionDe
 export function createFakeSubscriptions(state: FakeState, log: ChangeLog): SubscriptionsApi {
   const today = () => state.shell.today;
 
-  /** The purchase an open suggestion points at, or null once it was answered or became a subscription. */
-  function suggestedPurchase(): FakeTransaction | null {
-    const suggestion = state.subscriptionSuggestion;
-    if (!suggestion || suggestion.dismissed) return null;
-    const purchase = state.transactions.find((candidate) => candidate.id === suggestion.transactionId);
-    if (!purchase) return null;
-    const taken = state.subscriptions.some((subscription) => subscription.name === nameOf(state, purchase));
-    return taken ? null : purchase;
-  }
-
   function add(purchase: FakeTransaction, reviewFrom: string): CreatedSubscription {
     const changeId = log.begin();
     const created = subscriptionFrom(state, purchase, reviewFrom);
@@ -71,7 +62,7 @@ export function createFakeSubscriptions(state: FakeState, log: ChangeLog): Subsc
 
   return {
     async list({ grouped }): Promise<SubscriptionList> {
-      const purchase = suggestedPurchase();
+      const purchase = suggestedPurchase(state);
       const suggestion: SubscriptionSuggestion | null = purchase ? { name: nameOf(state, purchase) } : null;
       return {
         monthlyTotal: monthlyTotal(state.subscriptions),
@@ -99,11 +90,11 @@ export function createFakeSubscriptions(state: FakeState, log: ChangeLog): Subsc
       return purchase ? add(purchase, today()) : null;
     },
     async acceptSuggestion() {
-      const purchase = suggestedPurchase();
+      const purchase = suggestedPurchase(state);
       return purchase ? add(purchase, purchase.day) : null;
     },
     async rejectSuggestion() {
-      if (!suggestedPurchase()) return null;
+      if (!suggestedPurchase(state)) return null;
       const changeId = log.begin();
       if (state.subscriptionSuggestion) state.subscriptionSuggestion.dismissed = true;
       return { changeId };

@@ -28,7 +28,7 @@ function inPeriod(query: TransactionQuery): (month: YearMonth) => boolean {
   return (month) => month === query.month;
 }
 
-function newestFirst(a: FakeTransaction, b: FakeTransaction): number {
+export function newestFirst(a: FakeTransaction, b: FakeTransaction): number {
   return b.day.localeCompare(a.day) || a.sequence - b.sequence;
 }
 
