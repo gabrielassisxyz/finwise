@@ -3,7 +3,7 @@
     "$type": "color",
     "surface": {
       "page": { "$value": { "colorSpace": "oklch", "components": [0.982, 0.004, 150] }, "$description": "Page background" },
-      "nav": { "$value": { "colorSpace": "oklch", "components": [0.995, 0.002, 150] }, "$description": "Sidebar, header, bottom bar, table footer. The prototype used 0.99 lightness for the footer; unified." },
+      "nav": { "$value": { "colorSpace": "oklch", "components": [0.995, 0.002, 150] }, "$description": "Sidebar, header, bottom bar, table footer, the budget's closed-month notice and list of establishments. The prototype used 0.99 lightness for these; unified." },
       "card": { "$value": { "colorSpace": "oklch", "components": [1, 0, 0] }, "$description": "Cards, tables, inputs, menus" },
       "head": { "$value": { "colorSpace": "oklch", "components": [0.985, 0.003, 150] }, "$description": "Table header, tax sub-row" },
       "hover-row": { "$value": { "colorSpace": "oklch", "components": [0.985, 0.004, 150] }, "$description": "Hover of a table row and of a clickable card" },
@@ -19,13 +19,14 @@
       "switch-off": { "$value": { "colorSpace": "oklch", "components": [0.84, 0.008, 150] }, "$description": "Track of a switch that is off" }
     },
     "border": {
-      "default": { "$value": { "colorSpace": "oklch", "components": [0.92, 0.006, 150] }, "$description": "Card, sidebar, header" },
+      "default": { "$value": { "colorSpace": "oklch", "components": [0.92, 0.006, 150] }, "$description": "Card, sidebar, header. The prototype used 0.02 chroma for the rule under a scenario's name; unified." },
       "input": { "$value": { "colorSpace": "oklch", "components": [0.9, 0.006, 150] }, "$description": "Input, month selector, keypad key" },
       "button": { "$value": { "colorSpace": "oklch", "components": [0.91, 0.006, 150] }, "$description": "Secondary button, badge, menu" },
       "divider": { "$value": { "colorSpace": "oklch", "components": [0.94, 0.005, 150] }, "$description": "Divider inside a card" },
       "row": { "$value": { "colorSpace": "oklch", "components": [0.95, 0.004, 150] }, "$description": "Table row separator" },
-      "strong": { "$value": { "colorSpace": "oklch", "components": [0.88, 0.008, 150] }, "$description": "Floating bar, pill border, dot of an unset line. The prototype used 0.85 lightness for the dot; unified." },
-      "dot": { "$value": { "colorSpace": "oklch", "components": [0.75, 0.01, 155] }, "$description": "Empty PIN dot" }
+      "strong": { "$value": { "colorSpace": "oklch", "components": [0.88, 0.008, 150] }, "$description": "Floating bar, pill border, dot of an unset line, the field of a scenario's name. The prototype used 0.85 lightness for the dot and 0.02 chroma for the field; unified." },
+      "dot": { "$value": { "colorSpace": "oklch", "components": [0.75, 0.01, 155] }, "$description": "Empty PIN dot" },
+      "dashed": { "$value": { "colorSpace": "oklch", "components": [0.82, 0.01, 150] }, "$description": "Dashed border of the button that adds a budget line" }
     },
     "text": {
       "ink": { "$value": { "colorSpace": "oklch", "components": [0.24, 0.012, 155] }, "$description": "Main text" },
@@ -51,12 +52,12 @@
       "badge-border": { "$value": { "colorSpace": "oklch", "components": [0.9, 0.04, 155] }, "$description": "Green badge border, and the rule beside a history step. The prototype used 0.02 chroma for the rule; unified." },
       "sync-dot": { "$value": { "colorSpace": "oklch", "components": [0.6, 0.1, 155] }, "$description": "Sync indicator dot" },
       "ink": { "$value": { "colorSpace": "oklch", "components": [0.3, 0.06, 155] }, "$description": "Text over the accent tint: a toggle that is on, a filter chip. The prototype used 0.04 chroma for the chip; unified." },
-      "card-label": { "$value": { "colorSpace": "oklch", "components": [0.42, 0.06, 155] }, "$description": "Label on the pay-ahead card" },
+      "card-label": { "$value": { "colorSpace": "oklch", "components": [0.42, 0.06, 155] }, "$description": "Label on the pay-ahead card, and the tax rate under a scenario's name. The prototype used 0.03 chroma for the latter; unified." },
       "card-hover": { "$value": { "colorSpace": "oklch", "components": [0.96, 0.018, 155] }, "$description": "Hover of the pay-ahead card" }
     },
     "chart": {
       "1": { "$value": { "colorSpace": "oklch", "components": [0.84, 0.06, 155] }, "$description": "Chart: available" },
-      "2": { "$value": { "colorSpace": "oklch", "components": [0.68, 0.09, 155] }, "$description": "Chart: reserved" },
+      "2": { "$value": { "colorSpace": "oklch", "components": [0.68, 0.09, 155] }, "$description": "Chart: reserved, and the border of a scenario value that changed. The prototype used 0.7 lightness and 0.08 chroma for the latter; unified." },
       "3": { "$value": "{color.accent.base}", "$description": "Chart: invested" },
       "plan": { "$value": { "colorSpace": "oklch", "components": [0.84, 0.03, 155] }, "$description": "Bar of a planned amount, behind the done one" }
     },

@@ -1,5 +1,5 @@
 import type { NetWorthSummary, Transaction, YearMonth } from '../types';
-import type { BudgetGroupKey, FakeState, FakeTransaction } from './model';
+import type { BudgetGroupKey, FakeBudgetGroup, FakeState, FakeTransaction } from './model';
 import { PROTOTYPE_CARD_LABEL } from './prototype-data';
 
 // The money rules. The server will own these; the stand-in applies the same
@@ -56,9 +56,23 @@ export function spentByLine(state: FakeState, original: FakeTransaction[], month
   return spent;
 }
 
-export function groupTotal(state: FakeState, key: BudgetGroupKey): number {
-  const group = state.budget.find((candidate) => candidate.key === key);
+export function groupTotalOf(groups: FakeBudgetGroup[], key: BudgetGroupKey): number {
+  const group = groups.find((candidate) => candidate.key === key);
   return sum((group?.lines ?? []).map((line) => line.amount));
+}
+
+export function groupTotal(state: FakeState, key: BudgetGroupKey): number {
+  return groupTotalOf(state.budget, key);
+}
+
+/** Income minus every planned outgoing: what a budget sets aside to invest. */
+export function plannedInvestmentOf(groups: FakeBudgetGroup[]): number {
+  const out = (['fix', 'var', 'prov', 'res'] as const).reduce((total, key) => total + groupTotalOf(groups, key), 0);
+  return groupTotalOf(groups, 'rec') - out;
+}
+
+export function percentOfIncome(income: number, amount: number): number {
+  return income ? Math.round((amount / income) * 100) : 0;
 }
 
 export function netWorth(state: FakeState): NetWorthSummary {

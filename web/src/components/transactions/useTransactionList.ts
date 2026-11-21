@@ -1,4 +1,5 @@
 import { computed, reactive, ref, watch, type Ref } from 'vue';
+import { useRoute } from 'vue-router';
 import { useApi } from '@/api/context';
 import type { Transaction, TransactionFilterOptions, TransactionKind, TransactionPeriod, YearMonth } from '@/api/types';
 import { brl } from '@/lib/format';
@@ -96,6 +97,9 @@ export function useTransactionList(month: Ref<YearMonth>) {
   const loading = ref(true);
   const tab = ref<TransactionTab>('todas');
   const filters = reactive<TransactionFilters>(emptyFilters());
+  // The budget sends a person here already looking at one establishment.
+  const arrivedAt = useRoute().query.establishment;
+  if (typeof arrivedAt === 'string' && arrivedAt) filters.establishment = arrivedAt;
 
   /** A refetch after a write keeps the rows on screen instead of flashing the skeleton. */
   async function load(mode: { quiet?: boolean } = {}): Promise<void> {
