@@ -46,6 +46,7 @@ let failed = false;
 for (const [viewportName, viewport] of Object.entries(VIEWPORTS)) {
   for (const state of STATES) {
     if (!state.prototype) continue;
+    if (state.viewports && !state.viewports.includes(viewportName)) continue;
     const context = await newContext(browser, viewport);
     await context.addInitScript(
       ([key, seed]) => localStorage.setItem(key, JSON.stringify(seed)),

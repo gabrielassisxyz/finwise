@@ -25,6 +25,14 @@ const click = {
   button: (name) => (page) => page.getByRole('button', { name }).first().click(),
 };
 
+// The menus of the prototype are plain buttons and the app's carry the menuitem role, so an
+// option is found by its text.
+const menuOption = (label, hint) => (page) =>
+  page.locator('button').filter({ hasText: new RegExp(`^${label}\\s*${hint}$`) }).first().click();
+
+const selectRow = (index) => (page) =>
+  page.getByRole('checkbox', { name: 'Selecionar', exact: true }).nth(index).check();
+
 export const STATES = [
   { name: 'pin', prototype: { seed: { locked: true, screen: 'inicio' } }, app: { path: '/', locked: true } },
   { name: 'inicio', prototype: unlocked('inicio'), app: { path: '/' } },
@@ -38,7 +46,19 @@ export const STATES = [
     ['inicio-busca-sem-resultado', [(page) => page.getByPlaceholder(/^Buscar por descrição/).fill('zzzz')]],
     ['inicio-mes-fechado', [click.button('Mês anterior')]],
     ['inicio-mes-vazio', [click.button('Próximo mês')]],
+    ['inicio-linha-alterada', [click.button(/^Lazer\s*▾$/), menuOption('Delivery', 'Variáveis')]],
   ].map(([name, steps]) => ({ name, prototype: unlocked('inicio'), app: { path: '/' }, steps })),
+  // A phone card has no checkbox, so the selection exists on the wide layout only.
+  ...[
+    ['inicio-selecao', [selectRow(0), selectRow(1)]],
+    ['inicio-selecao-tag', [selectRow(0), selectRow(1), click.button('Adicionar tag')]],
+  ].map(([name, steps]) => ({
+    name,
+    prototype: unlocked('inicio'),
+    app: { path: '/' },
+    viewports: ['desktop'],
+    steps,
+  })),
   { name: 'revisao-semanal', prototype: unlocked('revisao', { revTab: 'semanal' }), app: null },
   { name: 'revisao-fechamento', prototype: unlocked('revisao', { revTab: 'fech' }), app: null },
   { name: 'revisao-salario', prototype: unlocked('revisao', { revTab: 'sal' }), app: null },
