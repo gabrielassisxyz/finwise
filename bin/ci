@@ -56,6 +56,7 @@ tokens_are_current() {
 
 step "design tokens are built and current" tokens_are_current
 step "no raw design value outside the tokens" npm --prefix web run --silent check:tokens
+step "API contract manifest is current" npm --prefix web run --silent contract:check
 step "types (vue-tsc)" npm --prefix web run --silent typecheck
 step "tests (vitest)" npm --prefix web run --silent test
 step "build (vite)" npm --prefix web run --silent build
