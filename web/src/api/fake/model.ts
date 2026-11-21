@@ -1,4 +1,5 @@
 import type { Bucket, Classifier, IsoDay, PendingReview, ShellOverview, TransactionKind, WeekGuide, YearMonth } from '../types';
+import type { CadenceUnit, SubscriptionCycle, SubscriptionStatus } from '../types';
 
 // What the stand-in keeps in memory. It is wider than the contract: the
 // contract is what a screen needs, this is what the rules are computed from.
@@ -127,6 +128,40 @@ export interface FakeAccount {
   balance: number;
 }
 
+/** What the model detected about a subscription that is not derived from its figures. */
+export type SubscriptionFlag = 'overlapping' | 'charged-after-cancel';
+
+export interface FakeSubscription {
+  id: string;
+  name: string;
+  amount: number;
+  cycle: SubscriptionCycle;
+  nextCharge: IsoDay;
+  line: string;
+  status: SubscriptionStatus;
+  reviewOn: IsoDay;
+  note: string;
+  flags: SubscriptionFlag[];
+  foreign: { originalAmount: string; iof: number } | null;
+  /** What the charges before the latest one cost, when the price changed. */
+  previousAmount: number | null;
+  alternatives: string[];
+}
+
+/** A purchase the app saw repeat that is not a subscription. */
+export interface FakeRecurringPurchase {
+  name: string;
+  cadence: { every: number; unit: CadenceUnit };
+  lastPurchase: IsoDay;
+  amount: number;
+}
+
+/** A card purchase the app asks to confirm as a subscription. */
+export interface FakeSubscriptionSuggestion {
+  transactionId: string;
+  dismissed: boolean;
+}
+
 export interface FakeState {
   shell: Omit<ShellOverview, 'pendingCount'>;
   /** The month the baseline of spending was taken in; only its transactions move the totals. */
@@ -143,4 +178,7 @@ export interface FakeState {
   tags: string[];
   weeks: WeekGuide[];
   payAhead: { amount: number; cardLabel: string } | null;
+  subscriptions: FakeSubscription[];
+  recurringPurchases: FakeRecurringPurchase[];
+  subscriptionSuggestion: FakeSubscriptionSuggestion | null;
 }

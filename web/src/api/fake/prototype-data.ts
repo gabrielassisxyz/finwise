@@ -6,7 +6,9 @@ import type {
   FakeHistoryEntry,
   FakePlannedContribution,
   FakeSavingsPot,
+  FakeRecurringPurchase,
   FakeState,
+  FakeSubscription,
   FakeTransaction,
 } from './model';
 
@@ -399,6 +401,67 @@ const ACCOUNTS: FakeAccount[] = [
   { id: 'card', bank: 'C6', name: 'C6 Carbon · final 1234', kind: 'Cartão', balance: 2310 },
 ];
 
+type SubscriptionDetails = Partial<Omit<FakeSubscription, 'id' | 'name' | 'amount' | 'cycle' | 'nextCharge' | 'line' | 'status' | 'reviewOn'>>;
+
+const subscription = (
+  id: string,
+  name: string,
+  amount: number,
+  cycle: FakeSubscription['cycle'],
+  nextCharge: string,
+  line: string,
+  status: FakeSubscription['status'],
+  reviewOn: string,
+  details: SubscriptionDetails = {},
+): FakeSubscription => ({
+  id,
+  name,
+  amount,
+  cycle,
+  nextCharge,
+  line,
+  status,
+  reviewOn,
+  note: '',
+  flags: [],
+  foreign: null,
+  previousAmount: null,
+  alternatives: [],
+  ...details,
+});
+
+const SUBSCRIPTIONS: FakeSubscription[] = [
+  subscription('ai', 'Assistente de IA', 110, 'Mensal', '2026-12-05', 'Assinaturas', 'Manter', '2027-03-01', {
+    flags: ['overlapping'],
+    alternatives: [
+      'Plano anual: R$ 1.100,00, economia de R$ 220,00 por ano.',
+      'Dois planos foram cobrados neste mês. Manter só um economiza R$ 110,00 por mês.',
+    ],
+  }),
+  subscription('sp', 'Spotify', 21.9, 'Mensal', '2026-12-22', 'Assinaturas', 'Manter', '2027-01-15', {
+    previousAmount: 19.9,
+    alternatives: ['Plano anual: R$ 219,00, economia de R$ 43,80 por ano.', 'Plano para duas pessoas: R$ 27,90, se for dividir com alguém.'],
+  }),
+  subscription('ap', 'Amazon Prime', 166.8, 'Anual', '2026-12-07', 'Assinaturas anuais', 'Analisar', '2026-11-30', {
+    alternatives: ['Você já está no plano anual: R$ 166,80, economia de R$ 72,00 por ano em relação ao mensal.'],
+  }),
+  subscription('ho', 'Hospedagem', 60, 'Trimestral', '2027-01-10', 'Ferramentas de trabalho', 'Manter', '2027-06-01', {
+    foreign: { originalAmount: 'US$ 10,50', iof: 2.03 },
+    alternatives: ['Plano anual: US$ 36,00, economia de cerca de R$ 34,00 por ano.'],
+  }),
+  subscription('rv', 'Revista digital', 29.9, 'Mensal', '2026-12-14', 'Assinaturas', 'Analisar', '2026-09-15', {
+    alternatives: ['Assinatura avulsa por edição: R$ 9,90, compensa se você lê menos de três por mês.'],
+  }),
+  subscription('do', 'Domínio', 80, 'Anual', '2027-04-18', 'Assinaturas anuais', 'Manter', '2027-04-01'),
+];
+
+const RECURRING_PURCHASES: FakeRecurringPurchase[] = [
+  { name: 'Areia do gato', cadence: { every: 3, unit: 'weeks' }, lastPurchase: '2026-11-08', amount: 54.9 },
+  { name: 'Filtro de água', cadence: { every: 6, unit: 'months' }, lastPurchase: '2026-05-14', amount: 89 },
+  { name: 'Remédio de uso contínuo', cadence: { every: 30, unit: 'days' }, lastPurchase: '2026-10-27', amount: 112.4 },
+  { name: 'Ração', cadence: { every: 5, unit: 'weeks' }, lastPurchase: '2026-11-02', amount: 139.9 },
+];
+
 export const PROTOTYPE_CARD_ACCOUNT = CARD;
 export const PROTOTYPE_CARD_LABEL = 'C6 Carbon · 1234';
 export const PROTOTYPE_CARD_FULL_LABEL = 'C6 Carbon · final 1234';
@@ -431,5 +494,8 @@ export function prototypeState(): FakeState {
       { label: '29–30', guide: 142, spent: null, current: false },
     ],
     payAhead: { amount: 386.4, cardLabel: 'C6 Carbon · final 1234' },
+    subscriptions: SUBSCRIPTIONS,
+    recurringPurchases: RECURRING_PURCHASES,
+    subscriptionSuggestion: { transactionId: 't7', dismissed: false },
   } satisfies FakeState);
 }

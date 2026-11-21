@@ -1,5 +1,5 @@
 import type { ChangesApi } from '../types';
-import type { FakeEstablishment, FakeState, FakeTransaction } from './model';
+import type { FakeEstablishment, FakeState, FakeSubscription, FakeSubscriptionSuggestion, FakeTransaction } from './model';
 
 /** A line change that "all purchases here" may still extend. */
 export interface LineChangeOrigin {
@@ -12,6 +12,8 @@ interface RecordedChange {
   transactions: FakeTransaction[];
   establishments: Record<string, FakeEstablishment>;
   origin: LineChangeOrigin | null;
+  subscriptions: FakeSubscription[];
+  subscriptionSuggestion: FakeSubscriptionSuggestion | null;
 }
 
 export interface ChangeLog {
@@ -37,6 +39,8 @@ export function createChangeLog(state: FakeState): ChangeLog {
         transactions: structuredClone(state.transactions),
         establishments: structuredClone(state.establishments),
         origin: origin ?? null,
+        subscriptions: structuredClone(state.subscriptions),
+        subscriptionSuggestion: structuredClone(state.subscriptionSuggestion),
       });
       return changeId;
     },
@@ -51,6 +55,8 @@ export function createChangeLog(state: FakeState): ChangeLog {
         if (!change) throw new Error(`Unknown change ${changeId}`);
         state.transactions = change.transactions;
         state.establishments = change.establishments;
+        state.subscriptions = change.subscriptions;
+        state.subscriptionSuggestion = change.subscriptionSuggestion;
         recorded.delete(changeId);
       },
     },
