@@ -177,14 +177,24 @@ func noTableLedger(t *testing.T) *ledgertest.Fixture {
 	return f
 }
 
-func TestACardOfABankWithNoClosingTableHasNoClosingDateAndNoNextBillAmount(t *testing.T) {
+func TestACardOfABankWithNoClosingTableAnswersNullForTheClosingTheBestDayAndTheNextBillAmount(t *testing.T) {
 	f := noTableLedger(t)
 
-	overview := answerOf(t, envAt(t, f, 2026, time.March, 20), "card.overview", `[]`)
-	for _, field := range []string{"closesOn", "dueOn", "bestPurchaseDay"} {
-		if overview[field] != "" {
-			t.Errorf("%s is %v for a card whose closing is unknown, want the empty string and never a date", field, overview[field])
+	env := envAt(t, f, 2026, time.March, 20)
+	if _, body := env.answer("card.overview", `[]`); conformanceProblem("card.overview", body) != "" {
+		t.Errorf("the answer for a card with no closing table breaks the schema: %s", conformanceProblem("card.overview", body))
+	}
+	overview := answerOf(t, env, "card.overview", `[]`)
+	for _, field := range []string{"closesOn", "bestPurchaseDay"} {
+		if value, present := overview[field]; !present || value != nil {
+			t.Errorf("%s is %v for a card whose closing is unknown, want null", field, value)
 		}
+	}
+	if amount, present := overview["payAhead"].(map[string]any)["amount"]; !present || amount != nil {
+		t.Errorf("the next bill's amount is %v for a card whose closing is unknown, want null and never 0", amount)
+	}
+	if overview["limit"].(float64) != 4000 || len(overview["bills"].([]any)) != 1 {
+		t.Errorf("the limit and the past bills are still answered: %v, %v", overview["limit"], overview["bills"])
 	}
 	card, err := loadCard(withNow(t.Context(), func() time.Time { return utc(2026, time.March, 20, 15, 0) }), ledger.New(f.Path))
 	if err != nil || card == nil {
