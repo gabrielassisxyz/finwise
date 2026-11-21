@@ -217,8 +217,8 @@ export interface FakeCardBill {
 
 export interface FakeCard {
   limit: number;
-  /** The day the bank's own rule closes the bill on. */
-  bankClosingDay: number;
+  /** The day the bank's own rule closes the bill on; null for a bank whose rule is not known. */
+  bankClosingDay: number | null;
   /** The bank's due date, as a day of the month after the closing. */
   dueDay: number;
   /** Newest first. */
