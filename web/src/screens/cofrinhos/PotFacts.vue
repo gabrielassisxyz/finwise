@@ -65,7 +65,8 @@ const investmentFacts = computed(() => {
   font-weight: var(--font-weight-medium);
 }
 
-.lines .value {
+.lines .value,
+.investment .value {
   font-variant-numeric: tabular-nums;
 }
 
