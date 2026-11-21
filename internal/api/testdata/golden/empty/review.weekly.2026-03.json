@@ -1,0 +1,16 @@
+{
+  "limit": {
+    "cap": 0.00,
+    "spent": 0.00,
+    "remaining": 0.00,
+    "over": false,
+    "fill": 0
+  },
+  "week": null,
+  "queue": {
+    "items": [],
+    "resolved": 0
+  },
+  "approvals": [],
+  "warnings": []
+}

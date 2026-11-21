@@ -40,7 +40,7 @@ func registerHome(registry *Registry) {
 }
 
 func readHomeSummary(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
-	month, err := monthArgument(args)
+	month, err := onlyMonthArgument(args)
 	if err != nil {
 		return nil, err
 	}
@@ -59,18 +59,6 @@ func readHomeSummary(ctx context.Context, args []json.RawMessage, reader *ledger
 		NetWorth: netWorthSummaryWire{Available: Reais(parts.available), Reserved: Reais(parts.reserved), Invested: Reais(parts.invested)},
 		PayAhead: payAheadOfHome(card, month),
 	}, nil
-}
-
-func monthArgument(args []json.RawMessage) (brday.Month, error) {
-	text, err := stringArgument(args)
-	if err != nil {
-		return "", err
-	}
-	month, err := brday.ParseMonth(text)
-	if err != nil {
-		return "", &badArgumentsError{}
-	}
-	return month, nil
 }
 
 // payAheadOfHome is offered only while there is something to pay ahead: the

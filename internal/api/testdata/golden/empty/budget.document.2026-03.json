@@ -1,0 +1,27 @@
+[
+  {
+    "key": "rec",
+    "name": "Receita",
+    "lines": []
+  },
+  {
+    "key": "fix",
+    "name": "Fixos e essenciais",
+    "lines": []
+  },
+  {
+    "key": "var",
+    "name": "Variáveis",
+    "lines": []
+  },
+  {
+    "key": "prov",
+    "name": "Provisões",
+    "lines": []
+  },
+  {
+    "key": "res",
+    "name": "Reservas de desejo",
+    "lines": []
+  }
+]

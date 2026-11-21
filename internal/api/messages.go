@@ -71,3 +71,15 @@ var foreignSymbols = map[string]string{
 	"EUR": "€",
 	"GBP": "£",
 }
+
+// The groups of a budget, as the budget screen names them.
+const (
+	budgetGroupIncome     = "Receita"
+	budgetGroupFixed      = "Fixos e essenciais"
+	budgetGroupVariable   = "Variáveis"
+	budgetGroupProvisions = "Provisões"
+	budgetGroupWishes     = "Reservas de desejo"
+	budgetGroupRainyFunds = "Rainy Funds"
+	budgetGroupFees       = "Tarifas e juros"
+	budgetGroupInvestment = "Investimento"
+)
