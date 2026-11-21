@@ -26,7 +26,7 @@ const monthName = computed(() => {
     <template v-if="expanded">
       <div v-for="day in pot.yield.days" :key="day.day" class="yield-day">
         <span>{{ shortDay(day.day) }}</span>
-        <span>{{ signedBrl(day.amount) }}</span>
+        <span>{{ orUnknown(day.amount, signedBrl) }}</span>
       </div>
     </template>
     <div class="note">O histórico começa em {{ monthInSentence(pot.historyStart) }}.</div>

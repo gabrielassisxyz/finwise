@@ -25,6 +25,10 @@ const YIELD_PER_CDI_POINT = 0.000105;
 
 /** What an open pot earned this month; a closed pot earns nothing and one whose rate is unknown has no figure. */
 export function monthlyYield(pot: FakeSavingsPot): number | null {
+  return pot.unknownYieldDays?.length ? null : earnedYield(pot);
+}
+
+function earnedYield(pot: FakeSavingsPot): number | null {
   if (pot.closed) return 0;
   return pot.cdiPercent === null ? null : cents(pot.balance * pot.cdiPercent * YIELD_PER_CDI_POINT);
 }
@@ -34,7 +38,8 @@ const YIELD_DAYS = [27, 26, 25, 24, 23, 19, 18, 17, 16, 13, 12, 11, 10, 9, 6, 5,
 
 /** The month's yield spread over its days; the last day takes the rounding so the days add up to the total. */
 export function yieldDays(state: FakeState, pot: FakeSavingsPot): PotYieldDay[] {
-  const total = monthlyYield(pot);
+  const unknown = new Set(pot.unknownYieldDays ?? []);
+  const total = earnedYield(pot);
   if (!total) return [];
   const base = total / YIELD_DAYS.length;
   let accumulated = 0;
@@ -42,7 +47,7 @@ export function yieldDays(state: FakeState, pot: FakeSavingsPot): PotYieldDay[] 
     const isLast = index === YIELD_DAYS.length - 1;
     const amount = isLast ? cents(total - accumulated) : cents(base * (1 + ((day * 7) % 5 - 2) * 0.03));
     accumulated = cents(accumulated + amount);
-    return { day: `${state.currentMonth}-${String(day).padStart(2, '0')}`, amount };
+    return { day: `${state.currentMonth}-${String(day).padStart(2, '0')}`, amount: unknown.has(day) ? null : amount };
   });
 }
 

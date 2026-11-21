@@ -4078,7 +4078,11 @@
           "$ref": "#/definitions/IsoDay"
         },
         "amount": {
-          "type": "number"
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Null when the ledger cannot say what the pot earned that day; a day with no yield at all is a zero."
         }
       },
       "required": [

@@ -70,7 +70,8 @@ export interface PotMovement {
 
 export interface PotYieldDay {
   day: IsoDay;
-  amount: number;
+  /** Null when the ledger cannot say what the pot earned that day; a day with no yield at all is a zero. */
+  amount: number | null;
 }
 
 export interface SavingsPotDetail {
