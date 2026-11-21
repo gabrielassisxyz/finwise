@@ -1,6 +1,6 @@
 import type { Transaction } from '@/api/types';
 
-export type MarkTone = 'neutral' | 'warning' | 'positive' | 'tag' | 'danger';
+export type MarkTone = 'neutral' | 'warning' | 'positive' | 'bad' | 'tag';
 
 export interface Mark {
   text: string;

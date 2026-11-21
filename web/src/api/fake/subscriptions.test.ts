@@ -113,7 +113,7 @@ describe('the marks', () => {
 
   it('marks a charge after cancelling in red', async () => {
     const api = apiWith([subscription('x', { flags: ['charged-after-cancel'] })]);
-    expect((await rowOf('x', api)).marks).toEqual([{ text: 'Cobrou após cancelar', tone: 'danger' }]);
+    expect((await rowOf('x', api)).marks).toEqual([{ text: 'Cobrou após cancelar', tone: 'bad' }]);
   });
 });
 

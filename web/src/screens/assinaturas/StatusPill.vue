@@ -45,7 +45,7 @@ defineProps<{ status: SubscriptionStatus; tall?: boolean }>();
   border-color: var(--color-warn-border);
 }
 
-.danger {
+.bad {
   color: var(--color-bad-text);
   background: var(--color-bad-bg);
   border-color: var(--color-bad-border);

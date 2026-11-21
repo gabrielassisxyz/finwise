@@ -1,5 +1,14 @@
 import type { ChangesApi } from '../types';
-import type { FakeEstablishment, FakeState, FakeSubscription, FakeSubscriptionSuggestion, FakeTransaction } from './model';
+import { syncCurrentBudget } from './budget-versions';
+import type {
+  FakeBudgetVersion,
+  FakeEstablishment,
+  FakeScenario,
+  FakeState,
+  FakeSubscription,
+  FakeSubscriptionSuggestion,
+  FakeTransaction,
+} from './model';
 
 /** A line change that "all purchases here" may still extend. */
 export interface LineChangeOrigin {
@@ -8,17 +17,31 @@ export interface LineChangeOrigin {
   establishmentKey: string;
 }
 
-interface RecordedChange {
+/** What a write over a transaction, an establishment or a subscription may have touched. */
+interface RecordedRecords {
   transactions: FakeTransaction[];
   establishments: Record<string, FakeEstablishment>;
-  origin: LineChangeOrigin | null;
   subscriptions: FakeSubscription[];
   subscriptionSuggestion: FakeSubscriptionSuggestion | null;
+}
+
+interface RecordedBudget {
+  versions: FakeBudgetVersion[];
+  scenarios: FakeScenario[];
+}
+
+/** A change takes back the records it touched or the budget it replaced, never both. */
+interface RecordedChange {
+  records?: RecordedRecords;
+  budget?: RecordedBudget;
+  origin: LineChangeOrigin | null;
 }
 
 export interface ChangeLog {
   /** Snapshots what is about to change and returns the id that restores it. */
   begin(origin?: LineChangeOrigin): string;
+  /** Snapshots the budget versions and the saved scenarios; the records are left as they are. */
+  beginBudget(): string;
   originOf(changeId: string): LineChangeOrigin;
   api: ChangesApi;
 }
@@ -31,18 +54,30 @@ export function createChangeLog(state: FakeState): ChangeLog {
   const recorded = new Map<string, RecordedChange>();
   let counter = 0;
 
+  function remember(change: RecordedChange): string {
+    counter += 1;
+    const changeId = `change-${counter}`;
+    recorded.set(changeId, change);
+    return changeId;
+  }
+
   return {
     begin(origin) {
-      counter += 1;
-      const changeId = `change-${counter}`;
-      recorded.set(changeId, {
-        transactions: structuredClone(state.transactions),
-        establishments: structuredClone(state.establishments),
+      return remember({
+        records: structuredClone({
+          transactions: state.transactions,
+          establishments: state.establishments,
+          subscriptions: state.subscriptions,
+          subscriptionSuggestion: state.subscriptionSuggestion,
+        }),
         origin: origin ?? null,
-        subscriptions: structuredClone(state.subscriptions),
-        subscriptionSuggestion: structuredClone(state.subscriptionSuggestion),
       });
-      return changeId;
+    },
+    beginBudget() {
+      return remember({
+        budget: structuredClone({ versions: state.budgetVersions, scenarios: state.scenarios }),
+        origin: null,
+      });
     },
     originOf(changeId) {
       const origin = recorded.get(changeId)?.origin;
@@ -53,10 +88,12 @@ export function createChangeLog(state: FakeState): ChangeLog {
       async undo(changeId) {
         const change = recorded.get(changeId);
         if (!change) throw new Error(`Unknown change ${changeId}`);
-        state.transactions = change.transactions;
-        state.establishments = change.establishments;
-        state.subscriptions = change.subscriptions;
-        state.subscriptionSuggestion = change.subscriptionSuggestion;
+        if (change.records) Object.assign(state, change.records);
+        if (change.budget) {
+          state.budgetVersions = change.budget.versions;
+          state.scenarios = change.budget.scenarios;
+          syncCurrentBudget(state);
+        }
         recorded.delete(changeId);
       },
     },

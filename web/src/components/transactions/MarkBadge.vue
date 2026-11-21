@@ -36,15 +36,15 @@ defineProps<{ mark: Mark; large?: boolean }>();
   border-color: var(--color-accent-badge-border);
 }
 
-.tag {
-  color: var(--color-text-ink-3);
-  background: var(--color-surface-count);
-}
-
-.danger {
+.bad {
   color: var(--color-bad-text);
   background: var(--color-bad-bg);
   border-color: var(--color-bad-border);
+}
+
+.tag {
+  color: var(--color-text-ink-3);
+  background: var(--color-surface-count);
 }
 
 /* The badge at the head of a page, a step larger than the one in a table row. */

@@ -1,3 +1,4 @@
+import type { BudgetApi } from './contract/budget';
 import type { ChangesApi } from './contract/changes';
 import type { HomeApi } from './contract/home';
 import type { NetWorthApi } from './contract/net-worth';
@@ -7,6 +8,7 @@ import type { ShellApi } from './contract/shell';
 import type { SubscriptionsApi } from './contract/subscriptions';
 import type { TransactionsApi } from './contract/transactions';
 
+export type * from './contract/budget';
 export type * from './contract/changes';
 export type * from './contract/common';
 export type * from './contract/home';
@@ -27,5 +29,6 @@ export interface FinwiseApi {
   changes: ChangesApi;
   savingsPots: SavingsPotsApi;
   netWorth: NetWorthApi;
+  budget: BudgetApi;
   subscriptions: SubscriptionsApi;
 }

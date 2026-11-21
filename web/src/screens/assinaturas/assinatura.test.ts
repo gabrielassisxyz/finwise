@@ -90,7 +90,7 @@ describe('Assinatura, editing', () => {
     overlay.menu!.items.find((item) => item.label === 'Cancelar')!.onPick!();
     await flushPromises();
     expect(plain(wrapper.find('.pill').text())).toBe('Cancelar▾');
-    expect(wrapper.find('.pill').classes()).toContain('danger');
+    expect(wrapper.find('.pill').classes()).toContain('bad');
     expect(overlay.toast?.message).toBe('Spotify: status alterado para Cancelar.');
 
     overlay.toast!.actions[0]!.run();

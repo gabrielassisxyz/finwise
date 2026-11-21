@@ -85,7 +85,7 @@ export function marksOf(subscription: FakeSubscription, today: IsoDay): Subscrip
   if (yearly && daysToRenewal >= 0 && daysToRenewal <= RENEWAL_NOTICE_DAYS) {
     marks.push({ text: renewalText(daysToRenewal), tone: 'warning' });
   }
-  if (subscription.flags.includes('charged-after-cancel')) marks.push({ text: 'Cobrou após cancelar', tone: 'danger' });
+  if (subscription.flags.includes('charged-after-cancel')) marks.push({ text: 'Cobrou após cancelar', tone: 'bad' });
   return marks;
 }
 

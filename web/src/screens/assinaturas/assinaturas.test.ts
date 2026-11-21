@@ -77,7 +77,7 @@ describe('Assinaturas, the list', () => {
     await rowOf(wrapper, 'Spotify').find('.pill').trigger('click');
     useOverlayStore().menu!.items.find((item) => item.label === 'Cancelar')!.onPick!();
     await flushPromises();
-    expect(tone('Spotify')).toBe('danger');
+    expect(tone('Spotify')).toBe('bad');
   });
 
   it('carries the cycle, equivalent and line twice, as columns and as a subtitle, for the 1200px breakpoint to choose', async () => {

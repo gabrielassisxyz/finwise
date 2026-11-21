@@ -21,7 +21,7 @@ export function rowSubtitle(row: SubscriptionRow): string {
 }
 
 export function statusTone(status: SubscriptionStatus): MarkTone {
-  if (status === 'Cancelar') return 'danger';
+  if (status === 'Cancelar') return 'bad';
   return status === 'Manter' ? 'neutral' : 'warning';
 }
 

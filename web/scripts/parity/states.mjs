@@ -120,7 +120,7 @@ export const STATES = [
   { name: 'revisao-semanal', prototype: unlocked('revisao', { revTab: 'semanal' }), app: null },
   { name: 'revisao-fechamento', prototype: unlocked('revisao', { revTab: 'fech' }), app: null },
   { name: 'revisao-salario', prototype: unlocked('revisao', { revTab: 'sal' }), app: null },
-  { name: 'budget', prototype: unlocked('budget'), app: null },
+  { name: 'budget', prototype: unlocked('budget'), app: { path: '/budget' } },
   { name: 'cofrinhos', prototype: unlocked('cofrinhos'), app: { path: '/cofrinhos' } },
   { name: 'assinaturas', prototype: unlocked('assinaturas'), app: { path: '/assinaturas' } },
   { name: 'patrimonio', prototype: unlocked('patrimonio'), app: { path: '/patrimonio' } },
@@ -163,6 +163,21 @@ export const STATES = [
     ['patrimonio-balde-aberto', [click.button(/^Reservado/)]],
     ['patrimonio-empilhado', [click.button('Empilhar por balde')]],
   ].map(([name, steps]) => ({ name, prototype: unlocked('patrimonio'), app: { path: '/patrimonio' }, steps })),
+  // The budget. A line is opened by its name and a group by its title; the budget's edit
+  // inputs are found by their labels, which both sides share.
+  ...[
+    ['budget-linha-aberta', [(page) => page.getByText('Delivery', { exact: true }).first().click()]],
+    ['budget-grupo-recolhido', [click.button(/Variáveis/)]],
+    ['budget-editando', [click.button('Editar budget')]],
+    ['budget-remover-linha', [click.button('Editar budget'), click.button('Remover linha')]],
+    ['budget-cenarios', [click.button('Cenários')]],
+    [
+      'budget-cenario-alterado',
+      [click.button('Cenários'), (page) => page.getByLabel('Renda extra', { exact: true }).fill('0'), (page) => page.keyboard.press('Tab')],
+    ],
+    ['budget-mes-fechado', [click.button('Mês anterior')]],
+    ['budget-estabelecimento-no-inicio', [(page) => page.getByText('Delivery', { exact: true }).first().click(), click.button(/^iFood/)]],
+  ].map(([name, steps]) => ({ name, prototype: unlocked('budget'), app: { path: '/budget' }, steps })),
   // The subscriptions: the list and its menus, the tab of recurring purchases, and a subscription's
   // page. A pill is found by its status and caret, a row by its name.
   ...[

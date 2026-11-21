@@ -5,8 +5,8 @@ export type SubscriptionCycle = 'Mensal' | 'Trimestral' | 'Semestral' | 'Anual' 
 
 export type SubscriptionStatus = 'Manter' | 'Analisar' | 'Backup e cancelar' | 'Cancelar';
 
-/** `warning` is amber, `danger` is red. */
-export type SubscriptionMarkTone = 'warning' | 'danger';
+/** `warning` is amber, `bad` is red. */
+export type SubscriptionMarkTone = 'warning' | 'bad';
 
 export interface SubscriptionMark {
   text: string;
