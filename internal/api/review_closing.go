@@ -125,14 +125,18 @@ func emptyPlannedActual() []plannedActualGroupWire {
 
 // closingCardBillOf is the card page's pay-ahead, worked out once there: what
 // this month's purchases will charge on the next bill. A purchase is money out
-// on the card page and an amount owed here.
+// on the card page and an amount owed here. A card whose next-bill amount is
+// unknown has no bill to show: a zero would read as nothing to set aside.
 func closingCardBillOf(card *cardView) *closingCardBillWire {
 	if card == nil {
 		return nil
 	}
 	overview := card.overview()
+	if overview.PayAhead.Amount == nil {
+		return nil
+	}
 	bill := &closingCardBillWire{
-		Amount: overview.PayAhead.Amount, CardLabel: overview.Title, Purchases: []closingPurchaseWire{},
+		Amount: *overview.PayAhead.Amount, CardLabel: overview.Title, Purchases: []closingPurchaseWire{},
 	}
 	for _, purchase := range overview.PayAhead.Purchases {
 		bill.Purchases = append(bill.Purchases, closingPurchaseWire{Name: purchase.Name, Day: purchase.Day, Amount: -purchase.Amount})

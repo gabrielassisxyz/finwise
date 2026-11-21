@@ -181,3 +181,11 @@ func TestTheClosingRefusesAMonthThatIsNotOne(t *testing.T) {
 		expectError(t, "review.closing "+body, response, http.StatusBadRequest, "bad_request")
 	}
 }
+
+func TestTheClosingHasNoCardBillWhenTheNextBillAmountIsUnknown(t *testing.T) {
+	env := envAt(t, noTableLedger(t), 2026, time.March, 20)
+	view := answerOf(t, env, "review.closing", `["2026-03"]`)
+	if bill, present := view["cardBill"]; !present || bill != nil {
+		t.Errorf("cardBill = %v for a card whose next-bill amount is unknown, want null and never a bill of zero", bill)
+	}
+}
