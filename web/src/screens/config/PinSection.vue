@@ -70,7 +70,7 @@ async function save(): Promise<void> {
         </div>
         <span class="error">{{ error }}</span>
         <div class="buttons">
-          <ActionButton primary @click="save">Salvar PIN</ActionButton>
+          <ActionButton primary class="save" @click="save">Salvar PIN</ActionButton>
           <ActionButton class="cancel" @click="open = false">Cancelar</ActionButton>
         </div>
       </template>
@@ -126,6 +126,10 @@ async function save(): Promise<void> {
 .buttons {
   display: flex;
   gap: var(--space-8);
+}
+
+.buttons .save:hover {
+  background: var(--color-accent-base);
 }
 
 .cancel {

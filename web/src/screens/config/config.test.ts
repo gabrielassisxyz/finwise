@@ -223,6 +223,12 @@ describe('Categorização section', () => {
     expect(wrapper.find('.marker.suggested').attributes('style')).toContain('left: 60%');
   });
 
+  it('draws each bar as the design scales it: 1.6 per percent corrected', async () => {
+    const { wrapper } = await mountConfig();
+    const heights = wrapper.findAll('.bar').map((bar) => bar.attributes('style'));
+    expect(heights).toEqual(['height: 73.6%;', 'height: 49.6%;', 'height: 28.8%;', 'height: 11.2%;', 'height: 3.2%;']);
+  });
+
   it('follows the slider while it moves and writes only when it is released', async () => {
     const mounted = await mountConfig();
     const input = slider(mounted.wrapper);
