@@ -133,11 +133,18 @@ function unknownClosingState(): FakeState {
   return state;
 }
 
+function unknownYieldDayState(): FakeState {
+  const state = prototypeState();
+  state.savingsPots.find((pot) => pot.id === 'rfs')!.unknownYieldDays = [25];
+  return state;
+}
+
 const STATES: { name: string; build: () => FakeState; minimumAnswers: number }[] = [
   { name: 'the prototype dataset', build: prototypeState, minimumAnswers: 100 },
   { name: 'a fresh install', build: freshInstallState, minimumAnswers: 30 },
   { name: 'an empty ledger', build: emptyLedgerState, minimumAnswers: 20 },
   { name: 'a card with no known closing', build: unknownClosingState, minimumAnswers: 100 },
+  { name: 'a pot with a day of unknown yield', build: unknownYieldDayState, minimumAnswers: 100 },
 ];
 
 describe.each(STATES)('the stand-in over $name against the schemas', ({ name, build, minimumAnswers }) => {
@@ -204,6 +211,11 @@ describe.each(STATES)('the stand-in over $name against the schemas', ({ name, bu
       const valid = validators.get(method)!.args;
       expect(valid(args), `${method} ${JSON.stringify(args)} ${JSON.stringify(valid.errors)}`).toBe(true);
     }
+  });
+
+  it.runIf(name === 'a pot with a day of unknown yield')('answers the unknown day with a null amount', async () => {
+    const detail = await api.savingsPots.detail('rfs');
+    expect(detail!.yield.days.filter((day) => day.amount === null)).toHaveLength(1);
   });
 
   it('validates every answer of every read method', () => {

@@ -145,7 +145,7 @@ describe('savings pot detail', () => {
     for (const id of ['rfs', 'rfp', 'i1', 'i2', 'sn', 'emg']) {
       const { yield: earned } = await detailOf(id);
       expect(earned.days).toHaveLength(18);
-      expect(Math.round(earned.days.reduce((total, day) => total + day.amount, 0) * 100) / 100).toBe(earned.total);
+      expect(Math.round(earned.days.reduce((total, day) => total + (day.amount ?? 0), 0) * 100) / 100).toBe(earned.total);
       expect(earned.days.every((day) => day.day.startsWith('2026-11-'))).toBe(true);
     }
   });

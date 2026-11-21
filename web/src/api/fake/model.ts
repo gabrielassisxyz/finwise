@@ -117,6 +117,8 @@ export interface FakeSavingsPot {
   lineShares: { line: string; amount: number }[] | null;
   maturity: IsoDay | null;
   closed: boolean;
+  /** Days of the month whose yield the ledger cannot support; the month's yield is then unknown too. */
+  unknownYieldDays?: number[];
   /** Present for an investment. */
   investment: { applied: number; tax: number } | null;
   /** The next bill a provision is saving for, when one is known. */
