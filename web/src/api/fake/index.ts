@@ -1,5 +1,6 @@
 import type { FinwiseApi, SessionStatus, ShellOverview, UnlockResult } from '../types';
 import { createFakeHome } from './home';
+import { createChangeLog } from './changes';
 import type { FakeState } from './model';
 import { PROTOTYPE_PIN, prototypeState } from './prototype-data';
 import { pendingCount } from './rules';
@@ -28,6 +29,8 @@ export function createFakeApi(options: FakeApiOptions = {}): FinwiseApi {
   const state = options.state ?? prototypeState();
   // Spending is a baseline plus what changed since; this is the "since".
   const original = structuredClone(state.transactions);
+
+  const log = createChangeLog(state);
 
   let locked = options.startLocked ?? true;
   let wrongPins = 0;
@@ -66,6 +69,7 @@ export function createFakeApi(options: FakeApiOptions = {}): FinwiseApi {
       },
     },
     home: createFakeHome(state, original),
-    transactions: createFakeTransactions(state),
+    transactions: createFakeTransactions(state, log),
+    changes: log.api,
   };
 }

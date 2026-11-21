@@ -1,8 +1,10 @@
+import type { ChangesApi } from './contract/changes';
 import type { HomeApi } from './contract/home';
 import type { SessionApi } from './contract/session';
 import type { ShellApi } from './contract/shell';
 import type { TransactionsApi } from './contract/transactions';
 
+export type * from './contract/changes';
 export type * from './contract/common';
 export type * from './contract/home';
 export type * from './contract/session';
@@ -15,4 +17,5 @@ export interface FinwiseApi {
   shell: ShellApi;
   home: HomeApi;
   transactions: TransactionsApi;
+  changes: ChangesApi;
 }

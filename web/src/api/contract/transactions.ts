@@ -1,3 +1,4 @@
+import type { ChangeResult } from './changes';
 import type { IsoDay, YearMonth } from './common';
 
 export type TransactionKind = 'cartao' | 'pix' | 'boleto' | 'outros';
@@ -86,8 +87,20 @@ export interface TransactionFilterOptions {
   lines: BudgetLineOption[];
 }
 
+export interface LineChangeResult extends ChangeResult {
+  /** What "all purchases here" would apply to; null for a person or a movement, where it makes no sense. */
+  establishment: { key: string; name: string } | null;
+}
+
 export interface TransactionsApi {
   /** Newest first. */
   list(query: TransactionQuery): Promise<Transaction[]>;
   filterOptions(): Promise<TransactionFilterOptions>;
+  /** Null when nothing changed: the line is the same and no review was waiting. */
+  setLine(id: string, line: string): Promise<LineChangeResult | null>;
+  /** Extends a line change to the rest of its establishment; undoing it undoes both. */
+  applyLineToEstablishment(changeId: string): Promise<ChangeResult & { changed: number }>;
+  setLineForMany(ids: string[], line: string): Promise<ChangeResult>;
+  addTagToMany(ids: string[], tag: string): Promise<ChangeResult>;
+  excludeMany(ids: string[], reason: string): Promise<ChangeResult>;
 }
