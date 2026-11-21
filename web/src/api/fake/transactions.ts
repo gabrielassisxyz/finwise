@@ -10,6 +10,8 @@ import { shiftMonth } from '@/lib/format';
 import type { BudgetGroupKey, FakeState, FakeTransaction } from './model';
 import { PROTOTYPE_CARD_ACCOUNT, PROTOTYPE_CARD_LABEL } from './prototype-data';
 import { toContract } from './rules';
+import type { ChangeLog } from './changes';
+import { createTransactionWrites } from './transaction-writes';
 
 // A menu of budget lines lists where spending goes first and income last.
 const LINE_MENU_ORDER: BudgetGroupKey[] = ['var', 'fix', 'res', 'prov', 'rec'];
@@ -37,8 +39,9 @@ export function lineOptions(state: FakeState): BudgetLineOption[] {
   });
 }
 
-export function createFakeTransactions(state: FakeState): TransactionsApi {
+export function createFakeTransactions(state: FakeState, log: ChangeLog): TransactionsApi {
   return {
+    ...createTransactionWrites(state, log),
     async list(query: TransactionQuery): Promise<Transaction[]> {
       const matches = inPeriod(query);
       return state.transactions

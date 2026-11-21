@@ -3,6 +3,7 @@ import { useApi } from '@/api/context';
 import type { Transaction, TransactionFilterOptions, TransactionKind, TransactionPeriod, YearMonth } from '@/api/types';
 import { brl } from '@/lib/format';
 import { normalize, plural } from '@/lib/text';
+import { useRevisionStore } from '@/stores/revision';
 
 export type TransactionTab = 'todas' | TransactionKind;
 
@@ -88,6 +89,7 @@ function totalLine(rows: Transaction[]): string {
  */
 export function useTransactionList(month: Ref<YearMonth>) {
   const api = useApi();
+  const revision = useRevisionStore();
 
   const transactions = ref<Transaction[]>([]);
   const options = ref<TransactionFilterOptions>({ accounts: [], tags: [], lines: [] });
@@ -95,8 +97,9 @@ export function useTransactionList(month: Ref<YearMonth>) {
   const tab = ref<TransactionTab>('todas');
   const filters = reactive<TransactionFilters>(emptyFilters());
 
-  async function load(): Promise<void> {
-    loading.value = true;
+  /** A refetch after a write keeps the rows on screen instead of flashing the skeleton. */
+  async function load(mode: { quiet?: boolean } = {}): Promise<void> {
+    if (!mode.quiet) loading.value = true;
     const requested = { month: month.value, period: filters.period };
     const [list, filterOptions] = await Promise.all([api.transactions.list(requested), api.transactions.filterOptions()]);
     // A slower answer for a month the user has already left must not land.
@@ -107,6 +110,10 @@ export function useTransactionList(month: Ref<YearMonth>) {
   }
 
   watch([month, () => filters.period], () => void load(), { immediate: true });
+  watch(
+    () => revision.current,
+    () => void load({ quiet: true }),
+  );
 
   const filtered = computed(() => transactions.value.filter(matcher(filters)));
   const rows = computed(() =>

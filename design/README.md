@@ -55,14 +55,25 @@ the scripts at another binary; the references then have to be shot again with it
 
 ### Shooting the references again
 
-Needed when the design changes or the Playwright version moves. Place the design bundle in
-`work/bundle/` (it is git-ignored) and run:
+Needed for a new state, when the design changes, or when the Playwright version moves. Place the
+design bundle in `work/bundle/` (it is git-ignored) and run:
 
 ```sh
-npm --prefix web run parity:reference
+npm --prefix web run parity:reference                      # every state
+npm --prefix web run parity:reference -- inicio            # one state
+npm --prefix web run parity:reference -- --update inicio   # replace an existing reference
 ```
 
 The prototype loads its runtime and its fonts from the network.
+
+A reference that already exists is never replaced without `--update`. A shot that comes out
+different from it is reported with how far away it is, discarded, and the run exits non-zero.
+The reason is an instability that was seen and not explained. Shooting the same state again
+normally gives the same pixels: 61 of 62 repeats did, with a cold browser and with the CPU
+throttled twenty times over. One did not, and four of about 116 did not while other builds were
+running on the machine. Where it was measured the difference was 108 pixels of text
+anti-aliasing on a tall page, 0.007%, well under the limit. So a refused shot on an unchanged
+design is this, and the answer is to run it again, not to update.
 
 ### Where the port departs from the prototype on purpose
 

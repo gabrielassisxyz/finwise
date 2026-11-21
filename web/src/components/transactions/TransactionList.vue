@@ -3,8 +3,10 @@ import { computed, reactive, watch } from 'vue';
 import { monthInSentence } from '@/lib/format';
 import { useMonthStore } from '@/stores/month';
 import { useShellStore } from '@/stores/shell';
+import SelectionBar from './SelectionBar.vue';
 import TransactionFilters from './TransactionFilters.vue';
 import TransactionRow from './TransactionRow.vue';
+import { useTransactionActions } from './useTransactionActions';
 import { useTransactionList } from './useTransactionList';
 
 const month = useMonthStore();
@@ -15,6 +17,8 @@ const { tab, tabs, rows, loading, hasFilter, total, countLabel } = list;
 
 const selected = reactive(new Set<string>());
 const iofOpen = reactive(new Set<string>());
+
+const actions = useTransactionActions(list, selected);
 
 const isCardTab = computed(() => tab.value === 'cartao');
 const showKind = computed(() => tab.value === 'todas' || tab.value === 'outros');
@@ -98,6 +102,7 @@ const empty = computed(() => {
               :iof-open="iofOpen.has(transaction.id)"
               @toggle-selected="toggle(selected, transaction.id)"
               @toggle-iof="toggle(iofOpen, transaction.id)"
+              @pick-line="actions.pickLine($event, transaction)"
             />
             <div v-if="rows.length === 0" class="empty">
               <span class="empty-title">{{ empty.title }}</span>
@@ -111,6 +116,15 @@ const empty = computed(() => {
         <span>Movimentações e “não conta” ficam fora dos totais</span>
       </div>
     </div>
+
+    <SelectionBar
+      v-if="selected.size > 0"
+      :count="selected.size"
+      @pick-line="actions.pickLineForSelection"
+      @pick-tag="actions.pickTagForSelection"
+      @exclude="actions.excludeSelection"
+      @clear="selected.clear()"
+    />
   </div>
 </template>
 

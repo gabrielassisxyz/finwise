@@ -1,9 +1,11 @@
 import { flushPromises } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createFakeApi } from '@/api/fake';
 import type { HomeSummary } from '@/api/types';
+import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
-import { mountAt } from '@/test/mount';
+import { mountAt, prototypeOverview } from '@/test/mount';
+import InicioScreen from './InicioScreen.vue';
 import SummaryStrip from './SummaryStrip.vue';
 
 async function mountStrip(change: (summary: HomeSummary) => void = () => {}) {
@@ -61,5 +63,33 @@ describe('SummaryStrip', () => {
       '22–28 · esta | R$ 355 · R$ 210',
       '29–30 | R$ 142 · —',
     ]);
+  });
+});
+
+describe('InicioScreen after a write', () => {
+  const strip = (wrapper: { text(): string }) => wrapper.text().replace(/\u00a0/g, ' ');
+
+  it('moves the month limit without hiding the strip while it refetches', async () => {
+    const { wrapper, api } = await mountAt(InicioScreen, '/');
+    useMonthStore().configure(prototypeOverview());
+    await flushPromises();
+    expect(strip(wrapper)).toContain('Restam R$ 1.420,00');
+
+    const summary = api.home.summary.bind(api.home);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    vi.spyOn(api.home, 'summary').mockImplementation(async (month) => (await held, summary(month)));
+
+    const row = wrapper.findAll('.row').find((candidate) => candidate.find('.name').text() === 'Bar do Zé')!;
+    await row.find('.pill-button').trigger('click');
+    useOverlayStore().menu!.items.find((item) => item.label === 'Restaurantes e bares')!.onPick!();
+    await flushPromises();
+
+    expect(wrapper.find('.bar-fill').exists()).toBe(true);
+    expect(strip(wrapper)).toContain('Restam R$ 1.420,00');
+    release();
+    await flushPromises();
+    expect(strip(wrapper)).toContain('Restam R$ 1.356,00');
+    expect(strip(wrapper)).toContain('6 para revisar ›');
   });
 });
