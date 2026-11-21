@@ -16,7 +16,6 @@ var pendingReads = []string{
 	"budget.establishments",
 	"budget.scenarios",
 	"budget.view",
-	"card.overview",
 	"home.summary",
 	"netWorth.overview",
 	"review.closing",

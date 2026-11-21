@@ -57,6 +57,7 @@ var domainRegistrations = []func(*Registry){
 	registerShell,
 	registerAccounts,
 	registerTransactions,
+	registerCard,
 }
 
 // NewReadRegistry returns the registry every domain's handlers are in.

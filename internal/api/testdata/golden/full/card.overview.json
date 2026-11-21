@@ -1,0 +1,15 @@
+{
+  "title": "Platinum Visa · final 1234",
+  "openBill": 1500.00,
+  "closesOn": "2026-03-28",
+  "dueOn": "2026-04-05",
+  "bestPurchaseDay": "2026-03-28",
+  "limit": 5000.00,
+  "availableLimit": 3500.00,
+  "payAhead": {
+    "amount": 0.00,
+    "purchases": []
+  },
+  "mayFallOnNextBill": [],
+  "bills": []
+}
