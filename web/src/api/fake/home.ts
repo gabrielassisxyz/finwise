@@ -6,7 +6,7 @@ import { groupTotal, netWorth, pendingCount, spentByLine } from './rules';
 /** The card is offered for paying ahead only while there is something to pay. */
 function payAheadFigure(state: FakeState): HomeSummary['payAhead'] {
   const { amount } = payAheadOf(state);
-  return state.payAhead && amount > 0 ? { amount, cardLabel: state.payAhead.cardLabel } : null;
+  return state.payAhead && amount !== null && amount > 0 ? { amount, cardLabel: state.payAhead.cardLabel } : null;
 }
 
 export function createFakeHome(state: FakeState, original: FakeTransaction[]): HomeApi {

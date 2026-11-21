@@ -25,20 +25,22 @@ function shiftDays(day: IsoDay, delta: number): IsoDay {
 }
 
 /** The day of the month the bill closes on: the user's when set to manual, the bank's otherwise. */
-export function closingDayOf(state: FakeState, card: FakeCard): number {
+export function closingDayOf(state: FakeState, card: FakeCard): number | null {
   return state.settings.closingMode === 'manual' ? state.settings.manualClosingDay : card.bankClosingDay;
 }
 
-/** The next closing on or after today. */
-export function nextClosing(state: FakeState, card: FakeCard): IsoDay {
+/** The next closing on or after today; null while the closing day is not known. */
+export function nextClosing(state: FakeState, card: FakeCard): IsoDay | null {
   const today = state.shell.today;
-  const thisMonth = dayOf(today.slice(0, 7), closingDayOf(state, card));
-  return thisMonth >= today ? thisMonth : dayOf(nextMonth(today.slice(0, 7)), closingDayOf(state, card));
+  const closingDay = closingDayOf(state, card);
+  if (closingDay === null) return null;
+  const thisMonth = dayOf(today.slice(0, 7), closingDay);
+  return thisMonth >= today ? thisMonth : dayOf(nextMonth(today.slice(0, 7)), closingDay);
 }
 
-/** The bill closing on `closing` falls due on the bank's due day of the following month. */
-export function dueDateFor(card: FakeCard, closing: IsoDay): IsoDay {
-  return dayOf(nextMonth(closing.slice(0, 7)), card.dueDay);
+/** The bill closing on `closing` falls due on the bank's due day of the following month; with no closing the open bill is not placed. */
+export function dueDateFor(card: FakeCard, closing: IsoDay | null): IsoDay | null {
+  return closing === null ? null : dayOf(nextMonth(closing.slice(0, 7)), card.dueDay);
 }
 
 function cardPurchases(state: FakeState): FakeTransaction[] {
@@ -61,19 +63,23 @@ function toPurchase(state: FakeState, transaction: FakeTransaction): CardPurchas
  * with the next bill, but the month's spending already includes it. Before
  * the closing day there is nothing yet.
  */
-export function payAheadOf(state: FakeState): { amount: number; purchases: CardPurchase[] } {
-  const closing = state.card ? dayOf(state.currentMonth, closingDayOf(state, state.card)) : null;
+export function payAheadOf(state: FakeState): { amount: number | null; purchases: CardPurchase[] } {
+  const closingDay = state.card ? closingDayOf(state, state.card) : null;
+  const closing = closingDay === null ? null : dayOf(state.currentMonth, closingDay);
   const purchases =
     closing === null || state.shell.today < closing
       ? []
       : cardPurchases(state)
           .filter((transaction) => transaction.day.startsWith(state.currentMonth) && transaction.day >= closing)
           .map((transaction) => toPurchase(state, transaction));
+  // Without a closing nothing is known to fall after it, which is not the same as nothing falling.
+  if (closing === null) return { amount: null, purchases };
   // `0 - sum` rather than `-sum`: an empty list must give 0, not negative zero.
   return { amount: cents(0 - purchases.reduce((total, purchase) => total + purchase.amount, 0)), purchases };
 }
 
-function mayFallOnNextBill(state: FakeState, closing: IsoDay): CardPurchase[] {
+function mayFallOnNextBill(state: FakeState, closing: IsoDay | null): CardPurchase[] {
+  if (closing === null) return [];
   const from = shiftDays(closing, -UNCERTAIN_DAYS_BEFORE_CLOSING);
   return cardPurchases(state)
     .filter((transaction) => transaction.day >= from && transaction.day < closing)
@@ -105,7 +111,7 @@ export function cardOverview(state: FakeState): CardOverview | null {
     bestPurchaseDay: closesOn,
     limit: card.limit,
     // Purchases already made still use the limit, whichever bill they land on.
-    availableLimit: cents(card.limit - openBill - payAhead.amount),
+    availableLimit: cents(card.limit - openBill - (payAhead.amount ?? 0)),
     payAhead,
     mayFallOnNextBill: mayFallOnNextBill(state, closesOn),
     bills: card.bills.map(toBill),
