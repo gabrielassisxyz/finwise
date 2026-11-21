@@ -86,6 +86,14 @@ func TestNextBillAmountIsEmptyBeforeTheClosingHasCome(t *testing.T) {
 	}
 }
 
+func TestNextBillAmountCountsFromTheClosingDayItself(t *testing.T) {
+	purchases := []cardrules.Purchase{purchase("on-closing", "2026-11-27", 700, nil)}
+	got := novemberCard().AmountOnNextBill("2026-11", "2026-11-27", purchases)
+	if !got.Known || got.Total != 700 {
+		t.Fatalf("got known=%t total=%d, want 700: the closing day is the first day of the next bill", got.Known, got.Total)
+	}
+}
+
 func TestNextBillAmountLeavesOutOtherMonths(t *testing.T) {
 	// Closing on 2026-12-01: the slip days of 29 and 30 November belong to another month's figure.
 	card := cardrules.Card{
