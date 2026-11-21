@@ -124,7 +124,7 @@ export const STATES = [
   { name: 'cofrinhos', prototype: unlocked('cofrinhos'), app: { path: '/cofrinhos' } },
   { name: 'assinaturas', prototype: unlocked('assinaturas'), app: { path: '/assinaturas' } },
   { name: 'patrimonio', prototype: unlocked('patrimonio'), app: { path: '/patrimonio' } },
-  { name: 'contas', prototype: unlocked('contas'), app: null },
+  { name: 'contas', prototype: unlocked('contas'), app: { path: '/contas' } },
   { name: 'config', prototype: unlocked('config'), app: null },
   {
     name: 'shell-sidebar',
