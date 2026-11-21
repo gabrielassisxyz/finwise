@@ -70,6 +70,21 @@
   answer `ledger_unavailable`. A read handler is registered in `internal/api` with
   `Registry.Register("domain.name", handler)`, one `register<Domain>` function per domain listed in
   `domainRegistrations`; `pendingReads` in `reads_pending_test.go` lists the reads still without one.
+- **Real data at the desktop:** the interface can read the ledger instead of the stand-in. Start the
+  backend over a snapshot as above, then in another terminal run `npm --prefix web run dev:backend`,
+  open the address it prints and unlock with the PIN whose hash you made. The frame, the accounts and
+  the transactions answer from the ledger (`shell.overview`, `accounts.list`, `accounts.detail`,
+  `transactions.list`, `transactions.filterOptions`, `transactions.detail`); a read with no handler yet
+  answers `internal`, so a screen that needs one shows its failure toast. What only the person can
+  author (budget lines, tags, nicknames, splits) is the contract's empty value, never a guess.
+- **Money on the wire** is a JSON number in reais written from integer cents by `api.Reais`
+  (`19.99`, `-65.10`); no source file of `internal/api` may touch a float, and a test fails if one does.
+- **Conformance and golden files:** every registered read handler must have a case in `readCases`
+  (`internal/api/conformance_test.go`). Each case is answered over the two invented ledgers of
+  `fixtures_test.go` (every shape the rules know, and empty), validated against the method's result
+  schema in the manifest and compared with `internal/api/testdata/golden/<ledger>/`, whose naming is in
+  its README. `go test ./internal/api -run TestEveryAnswerMatchesItsGoldenFile -update` rewrites them and
+  refuses to run while `FINWISE_LEDGER_SNAPSHOT` is set.
 
 ## Design
 - The design arrives as an HTML prototype. It is a reference, never code to copy: `design/README.md`
