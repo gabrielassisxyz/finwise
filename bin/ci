@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# The exact checks CI runs, runnable locally, so "green locally" means "green in CI".
+# Keep in step with .github/workflows/ci.yml.
+#
+# Every gate either runs or fails loudly: a missing tool is a failure that names its
+# install command, never a silent skip.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+fail=0
+
+need() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "missing: $1 (install with: $2)"
+    fail=1
+    return 1
+  fi
+}
+
+step() {
+  local label="$1"
+  shift
+  echo "==> $label"
+  "$@" || { echo "  FAILED: $label"; fail=1; }
+}
+
+echo "==> secret scan (gitleaks, working tree)"
+if need gitleaks "https://github.com/gitleaks/gitleaks#installing"; then
+  gitleaks dir . --no-banner --redact || { echo "  FAILED: gitleaks"; fail=1; }
+fi
+
+echo "==> shell scripts lint clean (shellcheck)"
+if need shellcheck "https://www.shellcheck.net"; then
+  shellcheck bin/ci || { echo "  FAILED: shellcheck"; fail=1; }
+fi
+
+if [ ! -d web/node_modules ]; then
+  echo "missing: web/node_modules (install with: npm --prefix web ci)"
+  echo "bin/ci FAILED"
+  exit 1
+fi
+
+# The built variables are versioned so the app builds without a token step; this
+# is what keeps them from drifting away from the token source.
+tokens_are_current() {
+  npm --prefix web run --silent tokens >/dev/null && git diff --exit-code -- web/src/styles/tokens.css
+}
+
+step "design tokens are built and current" tokens_are_current
+step "no raw design value outside the tokens" npm --prefix web run --silent check:tokens
+step "types (vue-tsc)" npm --prefix web run --silent typecheck
+step "tests (vitest)" npm --prefix web run --silent test
+step "build (vite)" npm --prefix web run --silent build
+
+if [ "$fail" -ne 0 ]; then
+  echo "bin/ci FAILED"
+  exit 1
+fi
+echo "CI green."

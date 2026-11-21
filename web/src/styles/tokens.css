@@ -1,0 +1,97 @@
+/**
+ * Do not edit directly, this file was auto-generated.
+ */
+
+:root {
+  --color-surface-page: oklch(0.9820 0.0040 150.00); /** Page background */
+  --color-surface-nav: oklch(0.9950 0.0020 150.00); /** Sidebar, header, bottom bar */
+  --color-surface-card: oklch(1.0000 0.0000 0.00); /** Cards, tables, inputs, menus */
+  --color-surface-head: oklch(0.9850 0.0030 150.00); /** Table header, tax sub-row */
+  --color-surface-hover-row: oklch(0.9850 0.0040 150.00); /** Hover of a table row and of a clickable card */
+  --color-surface-hover-nav: oklch(0.9550 0.0080 150.00); /** Hover of a navigation item and of an icon button */
+  --color-surface-hover-item: oklch(0.9650 0.0060 150.00); /** Hover of a keypad key and of a menu item */
+  --color-surface-pressed: oklch(0.9400 0.0120 155.00); /** Keypad key while pressed */
+  --color-surface-track: oklch(0.9500 0.0050 150.00); /** Progress bar track, skeleton */
+  --color-surface-pill: oklch(0.9650 0.0040 150.00); /** Budget line pill */
+  --color-surface-count: oklch(0.9550 0.0050 150.00); /** Tab counter, tag */
+  --color-surface-toast-button: oklch(0.3400 0.0150 155.00); /** Action inside a toast */
+  --color-surface-toast-button-hover: oklch(0.4200 0.0200 155.00); /** Hover of an action inside a toast */
+  --color-border-default: oklch(0.9200 0.0060 150.00); /** Card, sidebar, header */
+  --color-border-input: oklch(0.9000 0.0060 150.00); /** Input, month selector, keypad key */
+  --color-border-button: oklch(0.9100 0.0060 150.00); /** Secondary button, badge, menu */
+  --color-border-divider: oklch(0.9400 0.0050 150.00); /** Divider inside a card */
+  --color-border-row: oklch(0.9500 0.0040 150.00); /** Table row separator */
+  --color-border-strong: oklch(0.8800 0.0080 150.00); /** Floating bar, checkbox */
+  --color-border-dot: oklch(0.7500 0.0100 155.00); /** Empty PIN dot */
+  --color-text-ink: oklch(0.2400 0.0120 155.00); /** Main text */
+  --color-text-ink-2: oklch(0.4500 0.0100 155.00); /** Secondary text, inactive navigation */
+  --color-text-ink-3: oklch(0.4000 0.0100 155.00); /** Secondary button label */
+  --color-text-muted: oklch(0.5200 0.0100 155.00); /** Labels, inactive tabs */
+  --color-text-muted-2: oklch(0.5500 0.0100 155.00); /** Raw bank description, captions */
+  --color-text-placeholder: oklch(0.6200 0.0100 155.00); /** Input placeholder */
+  --color-accent-base: oklch(0.5000 0.1000 155.00); /** Primary button, active tab, progress bar, switch on */
+  --color-accent-hover: oklch(0.4400 0.1000 155.00); /** Hover of the primary button */
+  --color-accent-logo: oklch(0.5200 0.1000 155.00); /** Logo */
+  --color-accent-link: oklch(0.4800 0.1000 155.00); /** Links and text actions */
+  --color-accent-link-hover: oklch(0.3800 0.1000 155.00); /** Hover of a link */
+  --color-accent-positive: oklch(0.4200 0.1000 155.00); /** Incoming amounts, done state, active phone tab */
+  --color-accent-tint: oklch(0.9500 0.0150 155.00); /** Active navigation item, chip, toggle on */
+  --color-accent-tint-border: oklch(0.8000 0.0500 155.00); /** Border of a toggle that is on */
+  --color-accent-card: oklch(0.9750 0.0120 155.00); /** Pay-ahead card */
+  --color-accent-badge-bg: oklch(0.9600 0.0200 155.00); /** Green badge background */
+  --color-accent-badge-border: oklch(0.9000 0.0400 155.00); /** Green badge border */
+  --color-accent-sync-dot: oklch(0.6000 0.1000 155.00); /** Sync indicator dot */
+  --color-chart-1: oklch(0.8400 0.0600 155.00); /** Chart: available */
+  --color-chart-2: oklch(0.6800 0.0900 155.00); /** Chart: reserved */
+  --color-warn-text: oklch(0.5000 0.1000 70.00); /** Warning text, pending state */
+  --color-warn-bg: oklch(0.9700 0.0250 80.00); /** Amber badge or notice background */
+  --color-warn-border: oklch(0.9000 0.0500 80.00); /** Amber badge or notice border */
+  --color-bad-text: oklch(0.5000 0.1000 25.00); /** Overspend, PIN error, cancel status */
+  --color-bad-bg: oklch(0.9700 0.0150 25.00); /** Red badge background */
+  --color-bad-border: oklch(0.9000 0.0400 25.00); /** Red badge border */
+  --color-overlay-panel: oklch(0.2400 0.0120 155.00 / 0.25); /** Behind the transaction panel */
+  --color-overlay-sheet: oklch(0.2400 0.0120 155.00 / 0.2); /** Behind the phone navigation sheet */
+  --color-overlay-dialog: oklch(0.2400 0.0120 155.00 / 0.35); /** Behind a confirmation dialog */
+  --font-family-sans: 'Geist Variable', Geist, system-ui, sans-serif; /** Everything but counters and raw bank text */
+  --font-family-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace; /** Numeric counters and the raw bank description */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-size-title: 24px; /** Screen title, keypad digit */
+  --font-size-value: 22px; /** Figure on a card */
+  --font-size-section: 15px; /** Section title, app name */
+  --font-size-body: 14px; /** Body, table rows, buttons, tabs */
+  --font-size-secondary: 13px; /** Secondary text, filters */
+  --font-size-caption: 12px; /** Table header, captions, pills */
+  --font-size-badge: 11px; /** Badges, raw bank description */
+  --font-size-micro: 10px; /** Counter on the phone navigation */
+  --font-tracking-tight: -0.02; /** Letter spacing of titles and figures, in em */
+  --font-tracking-snug: -0.01; /** Letter spacing of the app name, in em */
+  --radius-badge: 5px; /** Rectangular badges, closed-month seal */
+  --radius-item: 6px; /** Menu item */
+  --radius-nav: 7px; /** Navigation item, small logo, sync notice */
+  --radius-control: 8px; /** Inputs, buttons, month selector */
+  --radius-card: 10px; /** Cards, tables, menus, toast, large logo */
+  --radius-dialog: 12px; /** Confirmation dialog, switch track, phone sheet */
+  --radius-pill: 20px; /** Budget line pill, filter chip */
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-36: 36px;
+  --shadow-popover: 0px 12px 32px -8px oklch(30% 0.02 155 / 0.22); /** Menu, floating selection bar, phone sheet. The prototype used 0.2, 0.22 and 0.25 alpha for these three; unified. */
+  --shadow-toast: 0px 12px 32px -8px oklch(20% 0.02 155 / 0.4); /** Toast */
+  --shadow-panel: -16px 0px 40px -16px oklch(30% 0.02 155 / 0.2); /** Side panel */
+  --shadow-dialog: 0px 24px 60px -12px oklch(20% 0.02 155 / 0.4); /** Confirmation dialog */
+  --duration-switch: 0.15s; /** Switch thumb */
+  --duration-shake: 0.4s; /** PIN dots after a wrong PIN */
+  --color-surface-toast: var(--color-text-ink); /** Toast */
+  --color-text-on-accent: var(--color-surface-card); /** Text over the accent or over the toast */
+  --color-chart-3: var(--color-accent-base); /** Chart: invested */
+}
