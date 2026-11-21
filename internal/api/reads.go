@@ -64,6 +64,8 @@ var domainRegistrations = []func(*Registry){
 	registerBudget,
 	registerSubscriptions,
 	registerReview,
+	registerClosing,
+	registerSettings,
 }
 
 // NewReadRegistry returns the registry every domain's handlers are in.
