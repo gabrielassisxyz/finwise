@@ -10,6 +10,7 @@ import TransactionPanel from '@/components/transaction-panel/TransactionPanel.vu
 import TransactionList from '@/components/transactions/TransactionList.vue';
 import AssinaturasScreen from '@/screens/assinaturas/AssinaturasScreen.vue';
 import BudgetScreen from '@/screens/budget/BudgetScreen.vue';
+import ScenariosScreen from '@/screens/budget/ScenariosScreen.vue';
 import ConfigScreen from '@/screens/config/ConfigScreen.vue';
 import ClosingTab from '@/screens/revisao/ClosingTab.vue';
 import { useOverlayStore } from '@/stores/overlay';
@@ -306,5 +307,24 @@ describe('the evaluations of the budget and of the scenarios', () => {
 
     expect(mounted.toasts[0]).toBe(LEDGER_UNAVAILABLE_MESSAGE);
     expect(mounted.wrapper.findAll('button').some((candidate) => candidate.text() === 'Salvar')).toBe(true);
+  });
+
+  it('returns from the scenarios to the budget when the evaluation is refused, with one call and one toast', async () => {
+    const api = readOnlyApi(createFakeApi({ startLocked: false }));
+    let evaluations = 0;
+    const evaluateScenario: FinwiseApi['budget']['evaluateScenario'] = (...args) => {
+      evaluations += 1;
+      return api.budget.evaluateScenario(...args);
+    };
+    const counted = { ...api, budget: { ...api.budget, evaluateScenario } } as FinwiseApi;
+    const routes = [
+      { path: '/budget', component: Blank },
+      { path: '/budget/cenarios', component: ScenariosScreen as Component },
+    ];
+    const mounted = await mountWithFailures(ScenariosScreen, routes, '/budget/cenarios', { api: counted });
+
+    expect(evaluations).toBe(1);
+    expect(mounted.toasts).toEqual([READ_ONLY_MESSAGE]);
+    expect(mounted.wrapper.vm.$router.currentRoute.value.fullPath).toBe('/budget');
   });
 });
