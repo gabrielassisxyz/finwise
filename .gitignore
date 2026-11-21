@@ -15,3 +15,6 @@ work/
 # Agent tooling a contributor installs for their own use: skills, settings.
 # It belongs to the machine, not to the project.
 .claude/
+
+# bv (beads viewer) local config and caches
+.bv/
