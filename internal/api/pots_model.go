@@ -30,10 +30,6 @@ const (
 // is worse than an error, and the contract has no null for a balance.
 var errUnreadableAmount = errors.New("api: a pot or an investment has no readable amount")
 
-// yieldAsker is the one door to the collector's yield statement, so a test can
-// count how many times a request goes through it.
-type yieldAsker func(ctx context.Context, accountID string, from, to brday.Day) ([]ledger.PotYield, error)
-
 type potMovementWire struct {
 	Day         string `json:"day"`
 	Description string `json:"description"`
@@ -67,7 +63,7 @@ type potEntry struct {
 	investment   *investmentFigures
 	movements    []potMovementWire
 	yield        potrules.MonthYield
-	// yieldAsked is false for what the statement does not apply to: an
+	// yieldAsked is false for what the yield rules do not apply to: an
 	// investment, and an entry with no identity to follow.
 	yieldAsked bool
 }
@@ -94,7 +90,7 @@ type potsView struct {
 	leftOut           int
 }
 
-func loadPots(ctx context.Context, reader *ledger.Reader, ask yieldAsker) (*potsView, error) {
+func loadPots(ctx context.Context, reader *ledger.Reader, withYield bool) (*potsView, error) {
 	around, err := loadContext(ctx, reader)
 	if err != nil {
 		return nil, err
@@ -123,7 +119,7 @@ func loadPots(ctx context.Context, reader *ledger.Reader, ask yieldAsker) (*pots
 	if err := view.attachMovements(ctx, reader, around, sightings, reserves); err != nil {
 		return nil, err
 	}
-	if err := view.attachYields(ctx, ask, reserves); err != nil {
+	if err := view.attachYields(ctx, reader, withYield, reserves); err != nil {
 		return nil, err
 	}
 	invested, err := loadInvestments(ctx, reader, view, reserves)

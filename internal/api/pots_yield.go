@@ -9,30 +9,30 @@ import (
 	"github.com/gabrielassisxyz/finwise/internal/potrules"
 )
 
-// attachYields asks the yield statement once for each account that has a pot
-// to follow, over the span of the month's sightings. The statement answers for
-// the whole span between two sightings, so the cost of a request is one call per
-// account and does not grow with the number of sightings; asking for each pair of
-// consecutive sightings took about seventy seconds over a real ledger.
+// attachYields gives each pot to follow its yield for the month, summed from a
+// row for every pair of consecutive sightings. The rows come from one read of
+// the ledger and the rules in potrules, never from the collector's yield
+// statement, whose cost is the same for a day as for a year.
 //
-// What comes back is one figure per pot for the month, not one per day. A nil
-// asker is for a reader that needs no yield, such as the home summary; every pot
-// is then left with an unknown one.
-func (view *potsView) attachYields(ctx context.Context, ask yieldAsker, reserves []potEntry) error {
-	if ask == nil {
+// A false withYield is for a reader that needs no yield, such as the home
+// summary; every pot is then left with an unknown one.
+func (view *potsView) attachYields(ctx context.Context, reader *ledger.Reader, withYield bool, reserves []potEntry) error {
+	accounts := accountsToAsk(reserves)
+	if !withYield || len(accounts) == 0 {
 		return nil
 	}
+	history, err := reader.YieldHistory(ctx)
+	if err != nil {
+		return err
+	}
+	rules := yieldRulesOf(history, accounts)
 	rows := map[string][]potrules.DayYield{}
-	for _, accountID := range accountsToAsk(reserves) {
+	for _, accountID := range accounts {
 		from, to, ok := yieldSpanOf(view.sightings[accountID], view.month, view.today)
 		if !ok {
 			continue
 		}
-		answered, err := ask(ctx, accountID, from, to)
-		if err != nil {
-			return err
-		}
-		rows[accountID] = dayYieldsOf(answered)
+		rows[accountID] = rules[accountID].DailyYields(sightingsFromTo(view.sightings[accountID], from, to))
 	}
 	for index := range reserves {
 		entry := &reserves[index]
@@ -43,6 +43,17 @@ func (view *potsView) attachYields(ctx context.Context, ask yieldAsker, reserves
 		entry.yield = potrules.YieldOfMonth(pot, entry.base, view.month, rows[entry.accountID])
 	}
 	return nil
+}
+
+// sightingsFromTo are the sightings from one day to another, both included.
+func sightingsFromTo(days []brday.Day, from, to brday.Day) []brday.Day {
+	var between []brday.Day
+	for _, day := range days {
+		if day >= from && day <= to {
+			between = append(between, day)
+		}
+	}
+	return between
 }
 
 func accountsToAsk(reserves []potEntry) []string {
@@ -78,21 +89,6 @@ func yieldSpanOf(days []brday.Day, month brday.Month, today brday.Day) (from, to
 		}
 	}
 	return from, to, to >= first && from < to
-}
-
-// dayYieldsOf keeps the rows that name a pot to follow; a row with no reserve is
-// an unmatched transfer or an entry with no identity, and belongs to no pot.
-func dayYieldsOf(answered []ledger.PotYield) []potrules.DayYield {
-	var rows []potrules.DayYield
-	for _, yield := range answered {
-		if yield.ReserveID == nil {
-			continue
-		}
-		rows = append(rows, potrules.DayYield{
-			AccountID: yield.AccountID, ReserveID: *yield.ReserveID, From: yield.From, To: yield.To, Yield: yield.Yield,
-		})
-	}
-	return rows
 }
 
 // monthlyYieldOf is what a pot earned in the month, nil when that cannot be

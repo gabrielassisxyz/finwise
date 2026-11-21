@@ -61,7 +61,7 @@ func readPotDetail(ctx context.Context, args []json.RawMessage, reader *ledger.R
 	if err != nil {
 		return nil, err
 	}
-	view, err := loadPots(ctx, reader, yieldAskerOf(reader))
+	view, err := loadPots(ctx, reader, true)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (view *potsView) detailOf(entry potEntry) potDetailWire {
 		ID: entry.id, Name: entry.name, Bank: entry.bank, Bucket: textPointer(entry.bucket),
 		CDIPercent: entry.cdiPercent, Balance: Reais(entry.balance), Contribution: contributionOf(entry),
 		LinkedLines: []any{}, Movements: movementsOrEmpty(entry.movements),
-		Yield:        potYieldWire{Month: string(view.month), Total: reaisPointer(monthlyYieldOf(entry)), Days: []potYieldDayWire{}},
+		Yield:        potYieldWire{Month: string(view.month), Total: reaisPointer(monthlyYieldOf(entry)), Days: yieldDaysOf(entry)},
 		HistoryStart: string(entry.historyStart),
 	}
 	if figures := entry.investment; figures != nil && figures.principal != nil {
@@ -91,6 +91,22 @@ func (view *potsView) detailOf(entry potEntry) potDetailWire {
 		}
 	}
 	return detail
+}
+
+// yieldDaysOf lists the rows behind the month's yield, oldest first. The contract
+// has no null for a day's amount, so a day the ledger cannot support is left out
+// and never shown as a zero; the month's total is then null as well.
+func yieldDaysOf(entry potEntry) []potYieldDayWire {
+	days := []potYieldDayWire{}
+	if !entry.yieldAsked {
+		return days
+	}
+	for _, row := range entry.yield.Days {
+		if row.Yield != nil {
+			days = append(days, potYieldDayWire{Day: string(row.To), Amount: Reais(*row.Yield)})
+		}
+	}
+	return days
 }
 
 func contributionOf(entry potEntry) potContributionWire {

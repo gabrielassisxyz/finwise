@@ -38,6 +38,7 @@ type Fixture struct {
 
 	coverageStart map[string]string
 	bodies        map[string]map[string]any
+	run           int64
 }
 
 // New creates a fixture in the test's temporary directory.
@@ -82,6 +83,36 @@ func newFixture(t testing.TB, path, firstRunOutcome string) *Fixture {
 	         ?, 10, 'fixture', '[]')`, firstRunOutcome)
 	f.exec("INSERT INTO projection_state (id, projected_run, code_version) VALUES (1, 1, 'fixture')")
 	return f
+}
+
+func (f *Fixture) currentRun() int64 {
+	if f.run == 0 {
+		return 1
+	}
+	return f.run
+}
+
+// UseRun makes the observations recorded from now on belong to a run added with
+// AddRun, so that a later run can see something differently from an earlier one.
+func (f *Fixture) UseRun(run int64) {
+	f.run = run
+}
+
+// MarkAmbiguous records that the run saw the document under more than one
+// parent, which makes every sighting of it in that run ambiguous.
+func (f *Fixture) MarkAmbiguous(kind, id string, run int64) {
+	f.t.Helper()
+	f.exec(`INSERT INTO ambiguities (run_id, document_id, candidate_parents, reason)
+	        SELECT ?, id, '[]', 'fixture' FROM documents WHERE kind = ? AND provider_id = ?`, run, kind, id)
+}
+
+// RecordEvent records that a run saw the document removed (or its parent gone),
+// effective on a day.
+func (f *Fixture) RecordEvent(kind, id string, run int64, event, day string) {
+	f.t.Helper()
+	f.exec(`INSERT INTO events (run_id, document_id, seq, event, effective_at, effective_day)
+	        SELECT ?, id, 1, ?, ?, ? FROM documents WHERE kind = ? AND provider_id = ?`,
+		run, event, day+"T03:00:00.000Z", day, kind, id)
 }
 
 // SetUserVersion changes the schema version the file declares.

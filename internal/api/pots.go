@@ -36,16 +36,12 @@ func registerPots(registry *Registry) {
 	registry.Register("savingsPots.detail", readPotDetail)
 }
 
-// yieldAskerOf is the door the pot handlers ask the yield statement through; a
-// test replaces it to count the calls.
-var yieldAskerOf = func(reader *ledger.Reader) yieldAsker { return reader.PotYields }
-
 func readPotsList(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
 	includeClosed, err := includeClosedOf(args)
 	if err != nil {
 		return nil, err
 	}
-	view, err := loadPots(ctx, reader, yieldAskerOf(reader))
+	view, err := loadPots(ctx, reader, true)
 	if err != nil {
 		return nil, err
 	}

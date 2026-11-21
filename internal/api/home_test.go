@@ -1,6 +1,9 @@
 package api
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"net/http"
 	"testing"
 	"time"
@@ -75,12 +78,42 @@ func TestOverTheEmptyLedgerTheHomeIsAllZeroAndOffersNoPayAhead(t *testing.T) {
 	}
 }
 
-func TestTheHomeSummaryDoesNotAskForAYieldItDoesNotShow(t *testing.T) {
-	calls := countingYields(t)
-	env := envAt(t, nightlyLedger(t, 6), 2026, time.March, 20)
-	answerOf(t, env, "home.summary", `["2026-03"]`)
-	if calls.Load() != 0 {
-		t.Errorf("home.summary ran the yield statement %d times", calls.Load())
+func TestTheHomeSummaryDoesNotWorkOutAYieldItDoesNotShow(t *testing.T) {
+	view, err := loadPots(withNow(t.Context(), func() time.Time { return fixtureNow }), ledgerOf(nightlyLedger(t, 6)), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range view.entries {
+		if entry.yield.Known || len(entry.yield.Days) != 0 {
+			t.Errorf("%s was given a yield the home does not show", entry.id)
+		}
+	}
+}
+
+// The summary shows no yield, so its handler must not ask for one. Nothing it
+// answers shows the difference, so the call itself is what is checked.
+func TestTheHomeHandlerLoadsThePotsWithoutAYield(t *testing.T) {
+	parsed, err := parser.ParseFile(token.NewFileSet(), "home.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	ast.Inspect(parsed, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		if name, isName := call.Fun.(*ast.Ident); !isName || name.Name != "loadPots" {
+			return true
+		}
+		calls++
+		if flag, isName := call.Args[2].(*ast.Ident); !isName || flag.Name != "false" {
+			t.Errorf("home.go loads the pots with %v as its yield flag, want false", call.Args[2])
+		}
+		return true
+	})
+	if calls != 1 {
+		t.Errorf("home.go calls loadPots %d times, want once", calls)
 	}
 }
 

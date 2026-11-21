@@ -2,7 +2,6 @@ package api
 
 import (
 	"math"
-	"net/http"
 	"testing"
 	"time"
 
@@ -153,7 +152,7 @@ func backedLedger(t *testing.T, secondInvestment float64) *ledgertest.Fixture {
 
 func TestAnInvestmentThatTheLedgerShowsBacksTheReservesIsNotCountedTwice(t *testing.T) {
 	f := backedLedger(t, 400)
-	view, err := loadPots(withNow(t.Context(), func() time.Time { return fixtureNow }), ledgerOf(f), nil)
+	view, err := loadPots(withNow(t.Context(), func() time.Time { return fixtureNow }), ledgerOf(f), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +167,7 @@ func TestAnInvestmentThatTheLedgerShowsBacksTheReservesIsNotCountedTwice(t *test
 
 func TestInvestmentsBesideReservesThatTheLedgerDoesNotShowBackThemAreKeptAndCounted(t *testing.T) {
 	f := backedLedger(t, 450)
-	view, err := loadPots(withNow(t.Context(), func() time.Time { return fixtureNow }), ledgerOf(f), nil)
+	view, err := loadPots(withNow(t.Context(), func() time.Time { return fixtureNow }), ledgerOf(f), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +180,7 @@ func TestInvestmentsBesideReservesThatTheLedgerDoesNotShowBackThemAreKeptAndCoun
 }
 
 func TestInvestmentsOnAConnectionWithoutReservesAreNotBesideAnyAndTheFullLedgerCountsTwo(t *testing.T) {
-	view, err := loadPots(withNow(t.Context(), func() time.Time { return fixtureNow }), ledgerOf(newFullLedger(t)), nil)
+	view, err := loadPots(withNow(t.Context(), func() time.Time { return fixtureNow }), ledgerOf(newFullLedger(t)), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,16 +230,5 @@ func TestAPotThatWasEmptiedNoLongerCountsInTheNetWorth(t *testing.T) {
 	worth := answerOf(t, envAt(t, emptiedLedger(t), 2026, time.March, 20), "netWorth.overview", `[]`)
 	if worth["total"].(float64) != 15 {
 		t.Errorf("the net worth is %v, want the two accounts' 15 and nothing for the pot that was emptied", worth["total"])
-	}
-}
-
-func TestTheNetWorthRunsTheYieldStatementOncePerAccountNoMatterHowManySightings(t *testing.T) {
-	calls := countingYields(t)
-	for _, nights := range []int{2, 14} {
-		calls.Store(0)
-		env := envAt(t, nightlyLedger(t, nights), 2026, time.March, 20)
-		if status, _ := env.answer("netWorth.overview", `[]`); status != http.StatusOK || calls.Load() != 1 {
-			t.Errorf("over %d sightings: status %d and %d yield statements, want 200 and 1", nights+1, status, calls.Load())
-		}
 	}
 }

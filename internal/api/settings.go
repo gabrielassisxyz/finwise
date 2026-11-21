@@ -79,7 +79,7 @@ func readSettingsOverview(ctx context.Context, _ []json.RawMessage, reader *ledg
 	if err != nil {
 		return nil, err
 	}
-	pots, err := loadPots(ctx, reader, nil)
+	pots, err := loadPots(ctx, reader, false)
 	if err != nil {
 		return nil, err
 	}

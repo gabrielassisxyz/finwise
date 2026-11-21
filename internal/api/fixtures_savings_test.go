@@ -94,7 +94,7 @@ func addNubankAccount(t testing.TB, f *ledgertest.Fixture) {
 // addDeposit puts money into the "Reserva" pot on 13 March: negative on the account.
 func addDeposit(f *ledgertest.Fixture, id string, amount float64) {
 	f.AddTransaction(ledgertest.Transaction{ID: id, AccountID: accountNubank,
-		Date: utc(2026, time.March, 13, 12, 0), Description: "Dinheiro reservado Reserva",
+		Date: utc(2026, time.March, 13, 12, 0), Day: "2026-03-13", Description: "Dinheiro reservado Reserva",
 		Amount: -amount, Currency: "BRL", Type: "DEBIT",
 		Raw: map[string]any{"operationType": "TRANSFERENCIA_SALDO_RESERVADO"}})
 }

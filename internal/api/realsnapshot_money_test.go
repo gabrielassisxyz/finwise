@@ -23,18 +23,15 @@ func TestTheCardPotsNetWorthAndHomeOverARealSnapshot(t *testing.T) {
 	ctx := withNow(t.Context(), func() time.Time { return now })
 	env := newTestEnv(t, withLedger(path, now))
 	run := &realRun{t: t, env: &readEnv{testEnv: env, cookie: env.unlock()}}
-	calls := countingYields(t)
 
 	cards, withBill, withPurchase, err := cardCounts(ctx, reader, brday.DayOf(now))
 	withoutValues(t, "card counts", err)
 	run.answer("card.overview", `[]`)
-	calls.Store(0)
 	run.answer("savingsPots.list", includeClosed)
-	yieldCallsForOneList := calls.Load()
 	run.answer("netWorth.overview", `[]`)
 	run.answer("home.summary", `["`+string(brday.MonthOf(now))+`"]`)
 
-	view, err := loadPots(ctx, reader, yieldAskerOf(reader))
+	view, err := loadPots(ctx, reader, true)
 	withoutValues(t, "pots", err)
 	for _, id := range someDetails(view) {
 		run.answer("savingsPots.detail", `["`+id+`"]`)
@@ -48,8 +45,8 @@ func TestTheCardPotsNetWorthAndHomeOverARealSnapshot(t *testing.T) {
 	t.Logf("months_of_known_yield=%d months_of_unknown_yield=%d", known, unknown)
 	attributed, unattributed := movementCounts(view)
 	t.Logf("movements_attributed=%d movements_unattributed=%d", attributed, unattributed)
-	t.Logf("investments_beside_reserve_entries=%d investments_left_out_of_the_total=%d yield_statement_calls_for_one_list=%d",
-		view.onReserveAccounts, view.leftOut, yieldCallsForOneList)
+	t.Logf("investments_beside_reserve_entries=%d investments_left_out_of_the_total=%d",
+		view.onReserveAccounts, view.leftOut)
 
 	if withPurchase != 1 {
 		t.Errorf("%d card accounts have a purchase in the last %d days, want exactly one", withPurchase, recentDays)
@@ -59,8 +56,7 @@ func TestTheCardPotsNetWorthAndHomeOverARealSnapshot(t *testing.T) {
 	}
 }
 
-// detailsAsked bounds the detail calls: each reads the whole ledger and asks
-// the slow yield statement once per account.
+// detailsAsked bounds the detail calls: each reads the whole ledger.
 const detailsAsked = 4
 
 // someDetails picks the first, the middle and the last pot and the first account
@@ -142,14 +138,19 @@ func movementCounts(view *potsView) (attributed, unattributed int) {
 }
 
 // yieldMonthCounts counts, for each open pot with an identity and each month its
-// account was sighted in, whether that month's yield is known. It asks the
-// statement once per account and month.
+// account was sighted in, whether that month's yield is known.
 func yieldMonthCounts(t *testing.T, reader *ledger.Reader, view *potsView) (known, unknown int) {
 	t.Helper()
+	history, err := reader.YieldHistory(t.Context())
+	withoutValues(t, "yield history", err)
+	var accounts []string
+	for accountID := range view.sightings {
+		accounts = append(accounts, accountID)
+	}
+	rules := yieldRulesOf(history, accounts)
 	for accountID, days := range view.sightings {
 		for _, month := range monthsOfDays(days) {
-			end := lastDayOf(month)
-			rows := rowsOfSpan(t, reader, accountID, days, month, end)
+			rows := rowsOfSpan(rules[accountID], days, month, lastDayOf(month))
 			for _, entry := range view.entries {
 				if entry.accountID != accountID || !entry.yieldAsked {
 					continue
@@ -166,15 +167,12 @@ func yieldMonthCounts(t *testing.T, reader *ledger.Reader, view *potsView) (know
 	return known, unknown
 }
 
-func rowsOfSpan(t *testing.T, reader *ledger.Reader, accountID string, days []brday.Day, month brday.Month, end brday.Day) []potrules.DayYield {
-	t.Helper()
+func rowsOfSpan(rules potrules.AccountYield, days []brday.Day, month brday.Month, end brday.Day) []potrules.DayYield {
 	from, to, ok := yieldSpanOf(days, month, end)
 	if !ok {
 		return nil
 	}
-	answered, err := reader.PotYields(context.Background(), accountID, from, to)
-	withoutValues(t, "yield", err)
-	return dayYieldsOf(answered)
+	return rules.DailyYields(sightingsFromTo(days, from, to))
 }
 
 func monthsOfDays(days []brday.Day) []brday.Month {
