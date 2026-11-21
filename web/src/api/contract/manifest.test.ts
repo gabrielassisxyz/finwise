@@ -127,10 +127,17 @@ for (const method of manifest.methods) {
   });
 }
 
+function unknownClosingState(): FakeState {
+  const state = prototypeState();
+  state.card!.bankClosingDay = null;
+  return state;
+}
+
 const STATES: { name: string; build: () => FakeState; minimumAnswers: number }[] = [
   { name: 'the prototype dataset', build: prototypeState, minimumAnswers: 100 },
   { name: 'a fresh install', build: freshInstallState, minimumAnswers: 30 },
   { name: 'an empty ledger', build: emptyLedgerState, minimumAnswers: 20 },
+  { name: 'a card with no known closing', build: unknownClosingState, minimumAnswers: 100 },
 ];
 
 describe.each(STATES)('the stand-in over $name against the schemas', ({ name, build, minimumAnswers }) => {

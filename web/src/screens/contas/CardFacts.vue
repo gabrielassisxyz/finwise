@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import type { CardOverview } from '@/api/types';
-import { brl, shortDay } from '@/lib/format';
+import type { CardOverview, IsoDay } from '@/api/types';
+import { brl, shortDay, UNKNOWN } from '@/lib/format';
 
 defineProps<{ card: CardOverview }>();
+
+const dayOrUnknown = (day: IsoDay | null): string => (day === null ? UNKNOWN : shortDay(day));
 </script>
 
 <template>
@@ -11,8 +13,8 @@ defineProps<{ card: CardOverview }>();
       <span class="label">Fatura aberta</span>
       <span class="value">{{ brl(card.openBill) }}</span>
       <span class="dates">
-        Fecha em {{ shortDay(card.closesOn) }} · Vence em {{ shortDay(card.dueOn) }} · Melhor dia de compra:
-        {{ shortDay(card.bestPurchaseDay) }}
+        Fecha em {{ dayOrUnknown(card.closesOn) }} · Vence em {{ shortDay(card.dueOn) }} · Melhor dia de compra:
+        {{ dayOrUnknown(card.bestPurchaseDay) }}
       </span>
     </div>
     <div class="cell limit">

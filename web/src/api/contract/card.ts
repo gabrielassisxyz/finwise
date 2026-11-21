@@ -31,14 +31,15 @@ export type ClosingMode = 'auto' | 'manual';
 export interface CardOverview {
   title: string;
   openBill: number;
-  closesOn: IsoDay;
+  /** Null when the bank's closing rule is not known. */
+  closesOn: IsoDay | null;
   dueOn: IsoDay;
   /** The first day whose purchases land on the bill after the open one. */
-  bestPurchaseDay: IsoDay;
+  bestPurchaseDay: IsoDay | null;
   limit: number;
   availableLimit: number;
-  /** What the purchases since the closing add up to; zero before the month's closing day. */
-  payAhead: { amount: number; purchases: CardPurchase[] };
+  /** What the purchases since the closing add up to; zero before the month's closing day, null when the closing is not known. */
+  payAhead: { amount: number | null; purchases: CardPurchase[] };
   /** Purchases of the two days before the closing, which the bank may still post to either bill. */
   mayFallOnNextBill: CardPurchase[];
   /** Newest first. */

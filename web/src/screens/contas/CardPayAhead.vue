@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CardOverview } from '@/api/types';
-import { brl } from '@/lib/format';
+import { brl, orUnknown } from '@/lib/format';
 import { usePanelStore } from '@/stores/panel';
 import CardPurchaseButton from './CardPurchaseButton.vue';
 
@@ -12,7 +12,7 @@ const panel = usePanelStore();
 <template>
   <section class="block">
     <div class="head">
-      <span class="title">Valor a adiantar: {{ brl(card.payAhead.amount) }}</span>
+      <span class="title">Valor a adiantar: {{ orUnknown(card.payAhead.amount, brl) }}</span>
       <span class="explanation">
         Compras feitas a partir do fechamento. Pagando adiantado, o gasto do cartão fica igual ao do mês.
       </span>

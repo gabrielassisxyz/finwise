@@ -23,6 +23,7 @@ const KEEP_REVIEW_MONTHS = 6;
 function cardBill(state: FakeState): ClosingCardBill | null {
   if (!state.payAhead) return null;
   const { amount, purchases } = payAheadOf(state);
+  if (amount === null) return null;
   return {
     amount,
     cardLabel: state.payAhead.cardLabel,
