@@ -55,9 +55,12 @@ func writeErrorWithStatus(w http.ResponseWriter, r *http.Request, status int, ki
 // looked at, never its text: that text may carry a row id.
 func kindOfReadError(err error) errorKind {
 	var refused *badArgumentsError
+	var declined *readOnlyError
 	switch {
 	case errors.As(err, &refused):
 		return kindBadRequest
+	case errors.As(err, &declined):
+		return kindReadOnly
 	case ledger.IsUnsupportedVersion(err),
 		ledger.IsUnreadableSnapshot(err),
 		errors.Is(err, fs.ErrNotExist),
@@ -91,3 +94,10 @@ func noteErrorKind(ctx context.Context, kind errorKind) {
 type badArgumentsError struct{}
 
 func (*badArgumentsError) Error() string { return "api: the arguments are not what the method takes" }
+
+// readOnlyError is a handler declining an input only the part of the app that
+// stores and evaluates what a person authors could answer. It is answered as
+// every write is.
+type readOnlyError struct{}
+
+func (*readOnlyError) Error() string { return "api: the app is read-only for now" }

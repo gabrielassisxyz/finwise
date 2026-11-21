@@ -12,23 +12,13 @@ import (
 // fails on a name that is both, on one that is neither, and on one that is not
 // a read method at all.
 var pendingReads = []string{
-	"budget.document",
-	"budget.establishments",
-	"budget.scenarios",
-	"budget.view",
 	"card.overview",
 	"home.summary",
 	"netWorth.overview",
 	"review.closing",
-	"review.payday",
-	"review.weekly",
 	"savingsPots.detail",
 	"savingsPots.list",
 	"settings.overview",
-	"subscriptions.candidates",
-	"subscriptions.detail",
-	"subscriptions.list",
-	"subscriptions.recurring",
 }
 
 // readCoverageProblems names every disagreement between the manifest's reads
