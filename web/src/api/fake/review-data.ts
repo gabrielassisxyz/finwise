@@ -74,6 +74,5 @@ export function prototypeReview(): FakeReview {
     ],
     resolved: 0,
     stepsDone: {},
-    cardBillPurchases: ['t1', 't2', 't3', 't4'],
   };
 }

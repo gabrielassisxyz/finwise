@@ -50,7 +50,7 @@ export interface CardBillPurchase {
   amount: number;
 }
 
-export interface CardBill {
+export interface ClosingCardBill {
   amount: number;
   cardLabel: string;
   purchases: CardBillPurchase[];
@@ -92,7 +92,7 @@ export interface ClosingView {
   /** Variable cap minus what the variable lines spent; negative when they went over. */
   leftover: number;
   contributions: ClosingContribution[];
-  cardBill: CardBill | null;
+  cardBill: ClosingCardBill | null;
   subscriptionsToReview: SubscriptionToReview[];
   report: ReportSection[];
   /** Closed months, newest first. */

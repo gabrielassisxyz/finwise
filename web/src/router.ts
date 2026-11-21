@@ -4,6 +4,10 @@ import AssinaturaScreen from './screens/assinaturas/AssinaturaScreen.vue';
 import AssinaturasScreen from './screens/assinaturas/AssinaturasScreen.vue';
 import BudgetScreen from './screens/budget/BudgetScreen.vue';
 import ScenariosScreen from './screens/budget/ScenariosScreen.vue';
+import AccountScreen from './screens/contas/AccountScreen.vue';
+import CardScreen from './screens/contas/CardScreen.vue';
+import ConfigScreen from './screens/config/ConfigScreen.vue';
+import ContasScreen from './screens/contas/ContasScreen.vue';
 import CofrinhoScreen from './screens/cofrinhos/CofrinhoScreen.vue';
 import CofrinhosScreen from './screens/cofrinhos/CofrinhosScreen.vue';
 import InicioScreen from './screens/inicio/InicioScreen.vue';
@@ -12,7 +16,6 @@ import ClosingTab from './screens/revisao/ClosingTab.vue';
 import PaydayTab from './screens/revisao/PaydayTab.vue';
 import RevisaoScreen from './screens/revisao/RevisaoScreen.vue';
 import WeeklyTab from './screens/revisao/WeeklyTab.vue';
-import ScreenPlaceholder from './screens/ScreenPlaceholder.vue';
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -39,9 +42,10 @@ const routes: RouteRecordRaw[] = [
   { path: '/assinaturas', component: AssinaturasScreen, meta: { nav: 'assinaturas' } },
   { path: '/assinaturas/:id', component: AssinaturaScreen, meta: { nav: 'assinaturas' } },
   { path: '/patrimonio', component: PatrimonioScreen, meta: { nav: 'patrimonio' } },
-  { path: '/contas', component: ScreenPlaceholder, props: { title: 'Contas' }, meta: { nav: 'contas' } },
-  { path: '/contas/cartao', component: ScreenPlaceholder, props: { title: 'Cartão' }, meta: { nav: 'contas' } },
-  { path: '/config', component: ScreenPlaceholder, props: { title: 'Configuração' }, meta: { nav: 'config' } },
+  { path: '/contas', component: ContasScreen, meta: { nav: 'contas' } },
+  { path: '/contas/cartao', component: CardScreen, meta: { nav: 'contas' } },
+  { path: '/contas/:id', component: AccountScreen, meta: { nav: 'contas' } },
+  { path: '/config/:section?', component: ConfigScreen, meta: { nav: 'config' } },
 ];
 
 export function createAppRouter() {

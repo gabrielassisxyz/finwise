@@ -37,6 +37,4 @@ export interface FakeReview {
   resolved: number;
   /** The closing steps marked by hand, per month. */
   stepsDone: Record<YearMonth, ClosingStepId[]>;
-  /** The card purchases that already fall on the next bill. */
-  cardBillPurchases: string[];
 }

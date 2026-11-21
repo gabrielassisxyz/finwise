@@ -4,7 +4,7 @@
 
 :root {
   --color-surface-page: oklch(0.9820 0.0040 150.00); /** Page background */
-  --color-surface-nav: oklch(0.9950 0.0020 150.00); /** Sidebar, header, bottom bar, table footer, the budget's closed-month notice and list of establishments. The prototype used 0.99 lightness for these; unified. */
+  --color-surface-nav: oklch(0.9950 0.0020 150.00); /** Sidebar, header, bottom bar, table footer, the budget's closed-month notice and list of establishments, the items of an open card bill. The prototype used 0.99 lightness for these; unified. */
   --color-surface-card: oklch(1.0000 0.0000 0.00); /** Cards, tables, inputs, menus */
   --color-surface-head: oklch(0.9850 0.0030 150.00); /** Table header, tax sub-row */
   --color-surface-hover-row: oklch(0.9850 0.0040 150.00); /** Hover of a table row and of a clickable card */
@@ -17,21 +17,21 @@
   --color-surface-toast-button: oklch(0.3400 0.0150 155.00); /** Action inside a toast */
   --color-surface-toast-button-hover: oklch(0.4200 0.0200 155.00); /** Hover of an action inside a toast */
   --color-surface-switch-off: oklch(0.8400 0.0080 150.00); /** Track of a switch that is off */
-  --color-border-default: oklch(0.9200 0.0060 150.00); /** Card, sidebar, header. The prototype used 0.02 chroma for the rule under a scenario's name; unified. */
+  --color-border-default: oklch(0.9200 0.0060 150.00); /** Card, sidebar, header. The prototype used 0.02 chroma for the rule under a scenario's name and under the head of the pay-ahead card; unified. */
   --color-border-input: oklch(0.9000 0.0060 150.00); /** Input, month selector, keypad key */
   --color-border-button: oklch(0.9100 0.0060 150.00); /** Secondary button, badge, menu */
   --color-border-divider: oklch(0.9400 0.0050 150.00); /** Divider inside a card */
-  --color-border-row: oklch(0.9500 0.0040 150.00); /** Table row separator */
+  --color-border-row: oklch(0.9500 0.0040 150.00); /** Table row separator. The prototype used 0.96 lightness for the rule under the items of an open card bill; unified. */
   --color-border-strong: oklch(0.8800 0.0080 150.00); /** Floating bar, pill border, dot of an unset line, the field of a scenario's name. The prototype used 0.85 lightness for the dot and 0.02 chroma for the field; unified. */
   --color-border-dot: oklch(0.7500 0.0100 155.00); /** Empty PIN dot */
   --color-border-dashed: oklch(0.8200 0.0100 150.00); /** Dashed border of the button that adds a budget line */
   --color-text-ink: oklch(0.2400 0.0120 155.00); /** Main text */
   --color-text-ink-2: oklch(0.4500 0.0100 155.00); /** Secondary text, inactive navigation, an unset budget line. The prototype used 0.48 lightness for the last; unified. */
-  --color-text-ink-3: oklch(0.4000 0.0100 155.00); /** Secondary button label, tag text. The prototype used 0.38 lightness for the tag; unified. */
+  --color-text-ink-3: oklch(0.4000 0.0100 155.00); /** Secondary button label, tag text. The prototype used 0.38 lightness for the tag, and 0.03 chroma for the text under the pay-ahead figure; unified. */
   --color-text-muted: oklch(0.5200 0.0100 155.00); /** Labels, inactive tabs, table header, dates. The prototype also used 0.5 lightness for some of these; unified. */
   --color-text-muted-2: oklch(0.5500 0.0100 155.00); /** Raw bank description, captions */
   --color-text-placeholder: oklch(0.6200 0.0100 155.00); /** Input placeholder */
-  --color-text-pill: oklch(0.3200 0.0100 155.00); /** Budget line pill text, the paragraphs of the month report, the dark button's hover, and the name of a line in the closing table. The prototype used 0.35 lightness for the last; unified. */
+  --color-text-pill: oklch(0.3200 0.0100 155.00); /** Budget line pill text, the paragraphs of the month report, the dark button's hover, the name of a line in the closing table and the items of an open card bill. The prototype used 0.35 lightness for the last two; unified. */
   --color-accent-base: oklch(0.5000 0.1000 155.00); /** Primary button, active tab, progress bar, switch on */
   --color-accent-hover: oklch(0.4400 0.1000 155.00); /** Hover of the primary button */
   --color-accent-logo: oklch(0.5200 0.1000 155.00); /** Logo */
@@ -51,6 +51,7 @@
   --color-chart-1: oklch(0.8400 0.0600 155.00); /** Chart: available */
   --color-chart-2: oklch(0.6800 0.0900 155.00); /** Chart: reserved, and the border of a scenario value that changed. The prototype used 0.7 lightness and 0.08 chroma for the latter; unified. */
   --color-chart-plan: oklch(0.8400 0.0300 155.00); /** Bar of a planned amount, behind the done one */
+  --color-chart-calibration: oklch(0.7200 0.0700 155.00); /** Bar of the calibration chart. Measured 24 per channel away from chart.2, past what the parity check forgives, so it is not folded into it. */
   --color-warn-text: oklch(0.5000 0.1000 70.00); /** Warning text, pending state */
   --color-warn-bg: oklch(0.9700 0.0250 80.00); /** Amber badge or notice background */
   --color-warn-border: oklch(0.9000 0.0500 80.00); /** Amber badge or notice border */

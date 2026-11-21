@@ -1,4 +1,4 @@
-import type { Bucket, Classifier, IsoDay, PendingReview, ShellOverview, TransactionKind, WeekGuide, YearMonth } from '../types';
+import type { Bucket, Classifier, ClosingMode, Moment, IsoDay, PendingReview, ShellOverview, TransactionKind, WeekGuide, YearMonth } from '../types';
 import type { CadenceUnit, SubscriptionCycle, SubscriptionStatus } from '../types';
 import type { FakeReview } from './review-model';
 
@@ -202,4 +202,41 @@ export interface FakeState {
   recurringPurchases: FakeRecurringPurchase[];
   subscriptionSuggestion: FakeSubscriptionSuggestion | null;
   review: FakeReview;
+  card: FakeCard;
+  settings: FakeSettings;
+}
+
+/** A bill that already closed: what it held is a fact, so its dates are stored, not derived. */
+export interface FakeCardBill {
+  month: YearMonth;
+  closedOn: IsoDay;
+  dueOn: IsoDay;
+  items: { name: string; day: IsoDay | null; amount: number }[];
+}
+
+export interface FakeCard {
+  limit: number;
+  /** The day the bank's own rule closes the bill on. */
+  bankClosingDay: number;
+  /** The bank's due date, as a day of the month after the closing. */
+  dueDay: number;
+  /** Newest first. */
+  bills: FakeCardBill[];
+}
+
+export interface FakeConnection {
+  bank: string;
+  consentExpired: boolean;
+}
+
+export interface FakeSettings {
+  minExamples: number;
+  /** Percent of corrections in each band of confidence, from 50-59 up to 90-100. */
+  calibration: number[];
+  cardLabel: string;
+  closingMode: ClosingMode;
+  manualClosingDay: number;
+  connections: FakeConnection[];
+  lastSync: Moment;
+  lastBackup: Moment;
 }

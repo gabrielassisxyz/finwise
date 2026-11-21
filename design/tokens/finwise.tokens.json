@@ -3,7 +3,7 @@
     "$type": "color",
     "surface": {
       "page": { "$value": { "colorSpace": "oklch", "components": [0.982, 0.004, 150] }, "$description": "Page background" },
-      "nav": { "$value": { "colorSpace": "oklch", "components": [0.995, 0.002, 150] }, "$description": "Sidebar, header, bottom bar, table footer, the budget's closed-month notice and list of establishments. The prototype used 0.99 lightness for these; unified." },
+      "nav": { "$value": { "colorSpace": "oklch", "components": [0.995, 0.002, 150] }, "$description": "Sidebar, header, bottom bar, table footer, the budget's closed-month notice and list of establishments, the items of an open card bill. The prototype used 0.99 lightness for these; unified." },
       "card": { "$value": { "colorSpace": "oklch", "components": [1, 0, 0] }, "$description": "Cards, tables, inputs, menus" },
       "head": { "$value": { "colorSpace": "oklch", "components": [0.985, 0.003, 150] }, "$description": "Table header, tax sub-row" },
       "hover-row": { "$value": { "colorSpace": "oklch", "components": [0.985, 0.004, 150] }, "$description": "Hover of a table row and of a clickable card" },
@@ -21,11 +21,11 @@
       "action-dark-hover": { "$value": "{color.text.pill}", "$description": "Hover of the dark button" }
     },
     "border": {
-      "default": { "$value": { "colorSpace": "oklch", "components": [0.92, 0.006, 150] }, "$description": "Card, sidebar, header. The prototype used 0.02 chroma for the rule under a scenario's name; unified." },
+      "default": { "$value": { "colorSpace": "oklch", "components": [0.92, 0.006, 150] }, "$description": "Card, sidebar, header. The prototype used 0.02 chroma for the rule under a scenario's name and under the head of the pay-ahead card; unified." },
       "input": { "$value": { "colorSpace": "oklch", "components": [0.9, 0.006, 150] }, "$description": "Input, month selector, keypad key" },
       "button": { "$value": { "colorSpace": "oklch", "components": [0.91, 0.006, 150] }, "$description": "Secondary button, badge, menu" },
       "divider": { "$value": { "colorSpace": "oklch", "components": [0.94, 0.005, 150] }, "$description": "Divider inside a card" },
-      "row": { "$value": { "colorSpace": "oklch", "components": [0.95, 0.004, 150] }, "$description": "Table row separator" },
+      "row": { "$value": { "colorSpace": "oklch", "components": [0.95, 0.004, 150] }, "$description": "Table row separator. The prototype used 0.96 lightness for the rule under the items of an open card bill; unified." },
       "strong": { "$value": { "colorSpace": "oklch", "components": [0.88, 0.008, 150] }, "$description": "Floating bar, pill border, dot of an unset line, the field of a scenario's name. The prototype used 0.85 lightness for the dot and 0.02 chroma for the field; unified." },
       "dot": { "$value": { "colorSpace": "oklch", "components": [0.75, 0.01, 155] }, "$description": "Empty PIN dot" },
       "dashed": { "$value": { "colorSpace": "oklch", "components": [0.82, 0.01, 150] }, "$description": "Dashed border of the button that adds a budget line" }
@@ -33,11 +33,11 @@
     "text": {
       "ink": { "$value": { "colorSpace": "oklch", "components": [0.24, 0.012, 155] }, "$description": "Main text" },
       "ink-2": { "$value": { "colorSpace": "oklch", "components": [0.45, 0.01, 155] }, "$description": "Secondary text, inactive navigation, an unset budget line. The prototype used 0.48 lightness for the last; unified." },
-      "ink-3": { "$value": { "colorSpace": "oklch", "components": [0.4, 0.01, 155] }, "$description": "Secondary button label, tag text. The prototype used 0.38 lightness for the tag; unified." },
+      "ink-3": { "$value": { "colorSpace": "oklch", "components": [0.4, 0.01, 155] }, "$description": "Secondary button label, tag text. The prototype used 0.38 lightness for the tag, and 0.03 chroma for the text under the pay-ahead figure; unified." },
       "muted": { "$value": { "colorSpace": "oklch", "components": [0.52, 0.01, 155] }, "$description": "Labels, inactive tabs, table header, dates. The prototype also used 0.5 lightness for some of these; unified." },
       "muted-2": { "$value": { "colorSpace": "oklch", "components": [0.55, 0.01, 155] }, "$description": "Raw bank description, captions" },
       "placeholder": { "$value": { "colorSpace": "oklch", "components": [0.62, 0.01, 155] }, "$description": "Input placeholder" },
-      "pill": { "$value": { "colorSpace": "oklch", "components": [0.32, 0.01, 155] }, "$description": "Budget line pill text, the paragraphs of the month report, the dark button's hover, and the name of a line in the closing table. The prototype used 0.35 lightness for the last; unified." },
+      "pill": { "$value": { "colorSpace": "oklch", "components": [0.32, 0.01, 155] }, "$description": "Budget line pill text, the paragraphs of the month report, the dark button's hover, the name of a line in the closing table and the items of an open card bill. The prototype used 0.35 lightness for the last two; unified." },
       "on-accent": { "$value": "{color.surface.card}", "$description": "Text over the accent or over the toast" }
     },
     "accent": {
@@ -62,7 +62,8 @@
       "1": { "$value": { "colorSpace": "oklch", "components": [0.84, 0.06, 155] }, "$description": "Chart: available" },
       "2": { "$value": { "colorSpace": "oklch", "components": [0.68, 0.09, 155] }, "$description": "Chart: reserved, and the border of a scenario value that changed. The prototype used 0.7 lightness and 0.08 chroma for the latter; unified." },
       "3": { "$value": "{color.accent.base}", "$description": "Chart: invested" },
-      "plan": { "$value": { "colorSpace": "oklch", "components": [0.84, 0.03, 155] }, "$description": "Bar of a planned amount, behind the done one" }
+      "plan": { "$value": { "colorSpace": "oklch", "components": [0.84, 0.03, 155] }, "$description": "Bar of a planned amount, behind the done one" },
+      "calibration": { "$value": { "colorSpace": "oklch", "components": [0.72, 0.07, 155] }, "$description": "Bar of the calibration chart. Measured 24 per channel away from chart.2, past what the parity check forgives, so it is not folded into it." }
     },
     "warn": {
       "text": { "$value": { "colorSpace": "oklch", "components": [0.5, 0.1, 70] }, "$description": "Warning text, pending state" },

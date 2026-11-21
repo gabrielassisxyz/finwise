@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
-import type { CardBill } from '@/api/types';
+import type { ClosingCardBill } from '@/api/types';
 import { brl, shortDay } from '@/lib/format';
 
-defineProps<{ bill: CardBill }>();
+defineProps<{ bill: ClosingCardBill }>();
 
 const router = useRouter();
 </script>

@@ -1,6 +1,13 @@
 import type { HomeApi, HomeSummary, YearMonth } from '../types';
 import type { FakeState, FakeTransaction } from './model';
+import { payAheadOf } from './card-rules';
 import { groupTotal, netWorth, pendingCount, spentByLine } from './rules';
+
+/** The card is offered for paying ahead only while there is something to pay. */
+function payAheadFigure(state: FakeState): HomeSummary['payAhead'] {
+  const { amount } = payAheadOf(state);
+  return state.payAhead && amount > 0 ? { amount, cardLabel: state.payAhead.cardLabel } : null;
+}
 
 export function createFakeHome(state: FakeState, original: FakeTransaction[]): HomeApi {
   return {
@@ -13,7 +20,7 @@ export function createFakeHome(state: FakeState, original: FakeTransaction[]): H
         weeks: structuredClone(state.weeks),
         netWorth: netWorth(state),
         pendingCount: pendingCount(state),
-        payAhead: state.payAhead ? { ...state.payAhead } : null,
+        payAhead: payAheadFigure(state),
       };
     },
   };

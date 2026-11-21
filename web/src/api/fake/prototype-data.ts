@@ -471,6 +471,60 @@ export const PROTOTYPE_CARD_ACCOUNT = CARD;
 export const PROTOTYPE_CARD_LABEL = 'C6 Carbon · 1234';
 export const PROTOTYPE_CARD_FULL_LABEL = 'C6 Carbon · final 1234';
 
+const CARD_STATE: FakeState['card'] = {
+  limit: 12000,
+  bankClosingDay: 28,
+  dueDay: 7,
+  bills: [
+    {
+      month: '2026-11',
+      closedOn: '2026-10-28',
+      dueOn: '2026-11-07',
+      items: [
+        { name: 'Pão de Açúcar', day: '2026-10-28', amount: 64.2 },
+        { name: 'Posto Shell', day: '2026-10-20', amount: 175 },
+        { name: 'Assistente de IA', day: '2026-10-05', amount: 110 },
+        { name: 'Outras 31 compras', day: null, amount: 1790.8 },
+      ],
+    },
+    {
+      month: '2026-10',
+      closedOn: '2026-09-28',
+      dueOn: '2026-10-07',
+      items: [
+        { name: 'Posto Shell', day: '2026-09-22', amount: 168 },
+        { name: 'Spotify', day: '2026-09-22', amount: 19.9 },
+        { name: 'Outras 28 compras', day: null, amount: 1797.4 },
+      ],
+    },
+    {
+      month: '2026-09',
+      closedOn: '2026-08-28',
+      dueOn: '2026-09-07',
+      items: [
+        { name: 'Amazon', day: '2026-08-26', amount: 129 },
+        { name: 'Outras 35 compras', day: null, amount: 2283.75 },
+      ],
+    },
+  ],
+};
+
+const SETTINGS_STATE: FakeState['settings'] = {
+  minExamples: 5,
+  calibration: [46, 31, 18, 7, 2],
+  cardLabel: 'Físico',
+  closingMode: 'auto',
+  manualClosingDay: 28,
+  connections: [
+    { bank: 'Itaú', consentExpired: false },
+    { bank: MERCADO_PAGO, consentExpired: false },
+    { bank: 'C6', consentExpired: false },
+    { bank: 'Nubank', consentExpired: false },
+  ],
+  lastSync: { day: PROTOTYPE_TODAY, time: '02:00' },
+  lastBackup: { day: PROTOTYPE_TODAY, time: '02:15' },
+};
+
 /** A fresh copy of the prototype's dataset, safe to mutate. */
 export function prototypeState(): FakeState {
   return structuredClone({
@@ -505,5 +559,7 @@ export function prototypeState(): FakeState {
     recurringPurchases: RECURRING_PURCHASES,
     subscriptionSuggestion: { transactionId: 't7', dismissed: false },
     review: prototypeReview(),
+    card: CARD_STATE,
+    settings: SETTINGS_STATE,
   } satisfies FakeState);
 }

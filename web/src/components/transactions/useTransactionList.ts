@@ -65,9 +65,10 @@ function searchText(transaction: Transaction): string {
   );
 }
 
-function matcher(filters: TransactionFilters): (transaction: Transaction) => boolean {
+function matcher(filters: TransactionFilters, onlyAccount?: string): (transaction: Transaction) => boolean {
   const wanted = normalize(filters.query.trim());
   return (transaction) =>
+    (!onlyAccount || transaction.account === onlyAccount) &&
     (!filters.account || transaction.account === filters.account) &&
     (!filters.line || transaction.line === filters.line) &&
     (!filters.tag || transaction.tags.includes(filters.tag)) &&
@@ -86,9 +87,10 @@ function totalLine(rows: Transaction[]): string {
 
 /**
  * The state behind a list of transactions: what was fetched for the month,
- * the filters over it, and what they leave.
+ * the filters over it, and what they leave. A list of one account's movements
+ * passes that account, which is a restriction and not a filter: no chip shows it.
  */
-export function useTransactionList(month: Ref<YearMonth>) {
+export function useTransactionList(month: Ref<YearMonth>, onlyAccount?: Ref<string | undefined>) {
   const api = useApi();
   const revision = useRevisionStore();
 
@@ -119,7 +121,7 @@ export function useTransactionList(month: Ref<YearMonth>) {
     () => void load({ quiet: true }),
   );
 
-  const filtered = computed(() => transactions.value.filter(matcher(filters)));
+  const filtered = computed(() => transactions.value.filter(matcher(filters, onlyAccount?.value)));
   const rows = computed(() =>
     tab.value === 'todas' ? filtered.value : filtered.value.filter((transaction) => transaction.kind === tab.value),
   );

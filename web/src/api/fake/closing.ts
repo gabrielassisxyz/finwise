@@ -1,4 +1,5 @@
-import type { CardBill, ClosingApi, ClosingView, YearMonth } from '../types';
+import type { ClosingApi, ClosingCardBill, ClosingView, YearMonth } from '../types';
+import { payAheadOf } from './card-rules';
 import type { ChangeLog } from './changes';
 import type { FakeState, FakeTransaction } from './model';
 import {
@@ -18,13 +19,15 @@ import { addMonths } from './subscription-rules';
 /** A kept subscription is looked at again this many months after the end of the month it was reviewed in. */
 const KEEP_REVIEW_MONTHS = 6;
 
-function cardBill(state: FakeState): CardBill | null {
+/** The closing's bill step is the card page's pay-ahead: one rule, read from where it lives. */
+function cardBill(state: FakeState): ClosingCardBill | null {
   if (!state.payAhead) return null;
-  const purchases = state.review.cardBillPurchases.flatMap((id) => {
-    const purchase = state.transactions.find((candidate) => candidate.id === id);
-    return purchase ? [{ name: purchase.name, day: purchase.day, amount: Math.abs(purchase.amount) }] : [];
-  });
-  return { amount: state.payAhead.amount, cardLabel: state.payAhead.cardLabel, purchases };
+  const { amount, purchases } = payAheadOf(state);
+  return {
+    amount,
+    cardLabel: state.payAhead.cardLabel,
+    purchases: purchases.map(({ name, day, amount: signed }) => ({ name, day, amount: Math.abs(signed) })),
+  };
 }
 
 export function createClosing(state: FakeState, original: FakeTransaction[], log: ChangeLog): ClosingApi {

@@ -8,6 +8,8 @@ import type {
   FakeScenario,
   FakeState,
   FakeSubscription,
+  FakeSavingsPot,
+  FakeSettings,
   FakeSubscriptionSuggestion,
   FakeTransaction,
 } from './model';
@@ -29,6 +31,9 @@ interface RecordedRecords {
   review: FakeReview;
   /** Closing a month is a write that reaches the shell's list of closed months. */
   shell: FakeState['shell'];
+  savingsPots: FakeSavingsPot[];
+  settings: FakeSettings;
+  confidenceThreshold: number;
 }
 
 interface RecordedBudget {
@@ -63,6 +68,9 @@ const snapshotRecords = (state: FakeState): RecordedRecords =>
     plannedContributions: state.plannedContributions,
     review: state.review,
     shell: state.shell,
+    savingsPots: state.savingsPots,
+    settings: state.settings,
+    confidenceThreshold: state.confidenceThreshold,
   });
 
 const snapshotBudget = (state: FakeState): RecordedBudget =>

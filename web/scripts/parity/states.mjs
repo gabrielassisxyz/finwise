@@ -33,6 +33,7 @@ const unlocked = (screen, extra = {}) => ({ seed: { locked: false, screen, ...ex
 
 const click = {
   button: (name) => (page) => page.getByRole('button', { name }).first().click(),
+  chip: (name) => (page) => page.getByRole('button', { name, exact: true }).click(),
 };
 
 // The menus of the prototype are plain buttons and the app's carry the menuitem role, so an
@@ -61,6 +62,8 @@ const inPanel = {
   button: (name) => (page) => panelOf(page).getByRole('button', { name, exact: true }).click(),
   switch: (name) => (page) => panelOf(page).getByRole('switch', { name }).click(),
 };
+
+const openCard = (page) => page.getByText('C6 Carbon · final 1234', { exact: true }).first().click();
 
 export const STATES = [
   { name: 'pin', prototype: { seed: { locked: true, screen: 'inicio' } }, app: { path: '/', locked: true } },
@@ -124,8 +127,8 @@ export const STATES = [
   { name: 'cofrinhos', prototype: unlocked('cofrinhos'), app: { path: '/cofrinhos' } },
   { name: 'assinaturas', prototype: unlocked('assinaturas'), app: { path: '/assinaturas' } },
   { name: 'patrimonio', prototype: unlocked('patrimonio'), app: { path: '/patrimonio' } },
-  { name: 'contas', prototype: unlocked('contas'), app: null },
-  { name: 'config', prototype: unlocked('config'), app: null },
+  { name: 'contas', prototype: unlocked('contas'), app: { path: '/contas' } },
+  { name: 'config', prototype: unlocked('config'), app: { path: '/config' } },
   {
     name: 'shell-sidebar',
     reference: 'inicio',
@@ -236,4 +239,42 @@ export const STATES = [
       review('revisao-fechamento-tablet', 'fech', '/revisao/fechamento', [openStep(/Orçado × realizado/)], ['tablet']),
     ];
   })(),
+  // The accounts, the card and the settings. An account is opened from the list by its bank's name.
+  // The card by its own, and a previous bill by its month.
+  ...[
+    ['contas-conta-itau', [(page) => page.getByText('Itaú', { exact: true }).first().click()]],
+    ['contas-conta-parada', [(page) => page.getByText('Nubank', { exact: true }).first().click()]],
+    ['contas-cartao', [openCard]],
+    ['contas-cartao-fatura-aberta', [openCard, click.button(/Novembro de 2026/)]],
+  ].map(([name, steps]) => ({ name, prototype: unlocked('contas'), app: { path: '/contas' }, steps })),
+  { name: 'contas-cartao-ajustar-fechamento', prototype: unlocked('contas'), app: { path: '/contas' }, steps: [openCard, click.button(/Ajustar dia de fechamento/)] },
+  // The settings. A value is typed with fill and committed with Tab, which both sides take as a change.
+  // A phone shows one section, so it first picks the section's chip; a wide screen shows them all.
+  ...[
+    ['config-menu-balde', null, [click.button(/^Reservado\s*▾$/)]],
+    ['config-apelido-editado', 'Apelidos', [(page) => page.getByLabel('Apelido', { exact: true }).first().fill('Mercadinho'), (page) => page.keyboard.press('Tab')]],
+    ['config-limite-movido', 'Categorização', [(page) => page.locator('input[type="range"]').fill('70')]],
+    ['config-limite-sugerido', 'Categorização', [click.button('Usar o sugerido')]],
+    ['config-fechamento-manual', 'Cartão', [(page) => page.getByRole('radio', { name: /^Manual/ }).check()]],
+    ['config-pin-erro', 'PIN', [click.button('Trocar PIN'), click.button('Salvar PIN')]],
+  ].map(([name, chip, steps]) => ({
+    name,
+    prototype: unlocked('config'),
+    app: { path: '/config' },
+    steps: [...(chip ? [(page, viewport) => (viewport === 'phone' ? click.chip(chip)(page) : undefined)] : []), ...steps],
+  })),
+  // On a phone one section shows at a time, chosen from the chips.
+  ...[
+    ['config-chip-categorizacao', 'Categorização'],
+    ['config-chip-dados', 'Dados'],
+  ].map(([name, chip]) => ({
+    name,
+    prototype: unlocked('config'),
+    app: { path: '/config' },
+    viewports: ['phone'],
+    steps: [click.chip(chip)],
+  })),
+  { name: 'config-tablet', prototype: unlocked('config'), app: { path: '/config' }, viewports: ['tablet'] },
+  // Between 820 and 1200 pixels the strip of the card wraps differently.
+  { name: 'contas-cartao-tablet', prototype: unlocked('contas'), app: { path: '/contas' }, viewports: ['tablet'], steps: [openCard] },
 ];
