@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { defineComponent, type Component } from 'vue';
 import type { FakeState } from '@/api/fake/model';
 import { createFakeApi } from '@/api/fake';
+import { ApiFailure } from '@/api/http/failure';
+import type { FinwiseApi } from '@/api/types';
 import { prototypeState } from '@/api/fake/prototype-data';
 import TransactionPanel from '@/components/transaction-panel/TransactionPanel.vue';
 import TransactionList from '@/components/transactions/TransactionList.vue';
@@ -12,8 +14,9 @@ import ConfigScreen from '@/screens/config/ConfigScreen.vue';
 import ClosingTab from '@/screens/revisao/ClosingTab.vue';
 import { useOverlayStore } from '@/stores/overlay';
 import { usePanelStore } from '@/stores/panel';
-import { mountWithFailures, type FailureMount } from '@/test/readOnly';
-import { READ_ONLY_MESSAGE } from './failures';
+import { useRevisionStore } from '@/stores/revision';
+import { mountWithFailures, readOnlyApi, type FailureMount } from '@/test/readOnly';
+import { LEDGER_UNAVAILABLE_MESSAGE, READ_ONLY_MESSAGE } from './failures';
 
 // One refused write through each of the seven ways the interface makes one. The
 // API refuses everything that writes, as the read-only backend does; what the
@@ -251,5 +254,57 @@ describe('the PIN form', () => {
     expect(afterRefusal(mounted, before)).toEqual(refusedOnce);
     expect(mounted.toasts).not.toContain('PIN alterado.');
     expect(section().find('.save').exists()).toBe(true);
+  });
+});
+
+// An evaluation is refused like a write, so a screen that evaluates as it opens or as it is edited has to end
+// itself, or it asks the same refused question again and again.
+describe('the evaluations of the budget and of the scenarios', () => {
+  const ESCAPE_AFTER = 60;
+
+  /** Counts the calls with a draft, and answers for real past ESCAPE_AFTER of them so that a loop ends instead of spinning. */
+  function countingBudgetView(api: FinwiseApi, failWith: ApiFailure): { api: FinwiseApi; draftCalls: () => number } {
+    const real = createFakeApi({ startLocked: false });
+    let draftCalls = 0;
+    const budget = {
+      ...api.budget,
+      view: async (...args: Parameters<FinwiseApi['budget']['view']>) => {
+        if (args[1] === undefined) return api.budget.view(...args);
+        draftCalls += 1;
+        if (draftCalls > ESCAPE_AFTER) return real.budget.view(args[0]);
+        throw failWith;
+      },
+    };
+    return { api: { ...api, budget } as FinwiseApi, draftCalls: () => draftCalls };
+  }
+
+  const editButton = (mounted: FailureMount) => mounted.wrapper.findAll('button').find((candidate) => candidate.text() === 'Editar budget');
+
+  it('ends the edit of the budget when its evaluation is refused, with one call and one toast', async () => {
+    const counted = countingBudgetView(readOnlyApi(createFakeApi({ startLocked: false })), new ApiFailure('read_only'));
+    const routes = [{ path: '/budget', component: BudgetScreen as Component }];
+    const mounted = await mountWithFailures(BudgetScreen, routes, '/budget', { api: counted.api });
+
+    await click(mounted, editButton(mounted)!);
+    for (let bump = 0; bump < 10; bump += 1) {
+      useRevisionStore(mounted.pinia).bump();
+      await mounted.settle();
+    }
+
+    expect(counted.draftCalls()).toBe(1);
+    expect(mounted.toasts).toEqual([READ_ONLY_MESSAGE]);
+    expect(editButton(mounted)).toBeDefined();
+    expect(mounted.wrapper.findAll('button').some((candidate) => candidate.text() === 'Salvar')).toBe(false);
+  });
+
+  it('keeps the edit of the budget when its evaluation fails for any other reason', async () => {
+    const counted = countingBudgetView(readOnlyApi(createFakeApi({ startLocked: false })), new ApiFailure('ledger_unavailable'));
+    const routes = [{ path: '/budget', component: BudgetScreen as Component }];
+    const mounted = await mountWithFailures(BudgetScreen, routes, '/budget', { api: counted.api });
+
+    await click(mounted, editButton(mounted)!);
+
+    expect(mounted.toasts[0]).toBe(LEDGER_UNAVAILABLE_MESSAGE);
+    expect(mounted.wrapper.findAll('button').some((candidate) => candidate.text() === 'Salvar')).toBe(true);
   });
 });
