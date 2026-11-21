@@ -1,4 +1,4 @@
-import type { Classifier, IsoDay, PendingReview, ShellOverview, TransactionKind, WeekGuide, YearMonth } from '../types';
+import type { Bucket, Classifier, IsoDay, PendingReview, ShellOverview, TransactionKind, WeekGuide, YearMonth } from '../types';
 
 // What the stand-in keeps in memory. It is wider than the contract: the
 // contract is what a screen needs, this is what the rules are computed from.
@@ -58,14 +58,34 @@ export interface FakeBudgetGroup {
   lines: FakeBudgetLine[];
 }
 
-export type Bucket = 'Disponível' | 'Reservado' | 'Investido';
-
 export interface FakeSavingsPot {
   id: string;
   name: string;
   bank: string;
   bucket: Bucket | null;
   balance: number;
+  /** Rate the pot pays, as a percent of the CDI. */
+  cdiPercent: number;
+  target: number | null;
+  /** Budget lines the pot feeds. */
+  linkedLines: string[];
+  /** For a pot shared by several lines: how much of the balance each one owns. */
+  lineShares: { line: string; amount: number }[] | null;
+  maturity: IsoDay | null;
+  closed: boolean;
+  /** Present for an investment. */
+  investment: { applied: number; tax: number } | null;
+  /** Deposits and withdrawals the ledger already holds, besides the month's planned deposit. */
+  movements: { day: IsoDay; description: string; amount: number }[];
+}
+
+/** The month's planned deposit into a pot or an investment, and whether it has been made. */
+export interface FakePlannedContribution {
+  /** The pot's name, or "Investimento" for the deposit shared by every investment. */
+  name: string;
+  amount: number;
+  state: 'on-target' | 'done' | 'pending';
+  doneOn: IsoDay | null;
 }
 
 export interface FakeAccount {
@@ -88,6 +108,7 @@ export interface FakeState {
   spentBaseline: Record<YearMonth, Record<string, number>>;
   savingsPots: FakeSavingsPot[];
   accounts: FakeAccount[];
+  plannedContributions: FakePlannedContribution[];
   tags: string[];
   weeks: WeekGuide[];
   payAhead: { amount: number; cardLabel: string } | null;
