@@ -1,19 +1,38 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue';
 import type { TransactionDetail } from '@/api/types';
+import { normalize } from '@/lib/text';
+import { usePanelActions } from './panelActions';
 import PanelSection from './PanelSection.vue';
 
-defineProps<{ detail: TransactionDetail }>();
+const props = defineProps<{ detail: TransactionDetail }>();
+
+const actions = usePanelActions();
+const query = ref('');
+
+const suggestions = computed(() =>
+  props.detail.suggestedTags.filter((tag) => !query.value || normalize(tag).includes(normalize(query.value))),
+);
+
+async function add(tag: string): Promise<void> {
+  await actions.addTag(tag);
+  query.value = '';
+}
+
+function addTyped(): void {
+  if (query.value.trim()) void add(query.value.trim());
+}
 </script>
 
 <template>
   <PanelSection title="Tags">
     <div class="chips">
-      <button v-for="tag in detail.ownTags" :key="tag" class="chip" title="Remover">{{ tag }} ×</button>
-      <input class="field" placeholder="Adicionar tag" />
+      <button v-for="tag in detail.ownTags" :key="tag" class="chip" title="Remover" @click="actions.removeTag(tag)">{{ tag }} ×</button>
+      <input v-model="query" class="field" placeholder="Adicionar tag" @keydown.enter="addTyped()" />
     </div>
-    <div v-if="detail.suggestedTags.length" class="chips">
+    <div v-if="suggestions.length" class="chips">
       <span class="suggestions-label">Sugestões</span>
-      <button v-for="tag in detail.suggestedTags" :key="tag" class="suggestion">{{ tag }}</button>
+      <button v-for="tag in suggestions" :key="tag" class="suggestion" @click="add(tag)">{{ tag }}</button>
     </div>
   </PanelSection>
 </template>

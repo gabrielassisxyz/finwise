@@ -1,32 +1,61 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { TransactionDetail } from '@/api/types';
 import SwitchToggle from '@/components/ui/SwitchToggle.vue';
 import { brl, shortDay } from '@/lib/format';
+import { usePanelActions } from './panelActions';
 import PanelSection from './PanelSection.vue';
 
 const props = defineProps<{ detail: TransactionDetail }>();
 
-const link = computed(() => props.detail.reimbursement?.link ?? null);
+const actions = usePanelActions();
+const linking = ref(false);
+
+async function link(creditId: string): Promise<void> {
+  await actions.link(creditId);
+  linking.value = false;
+}
+
+function expectedFrom(event: Event): number | null {
+  const typed = (event.target as HTMLInputElement).value;
+  return typed === '' ? null : Number(typed);
+}
+
+const linked = computed(() => props.detail.reimbursement?.link ?? null);
 </script>
 
 <template>
   <PanelSection>
     <div class="head">
       <span class="title">Reembolsável</span>
-      <SwitchToggle :on="!!detail.reimbursement" label="Reembolsável" />
+      <SwitchToggle :on="!!detail.reimbursement" label="Reembolsável" @toggle="actions.setReimbursable(!detail.reimbursement)" />
     </div>
-    <template v-if="detail.reimbursement && !link">
+    <template v-if="detail.reimbursement && !linked">
       <label class="expected">
         Espero receber R$
-        <input type="number" :value="detail.reimbursement.expected ?? ''" />
+        <input
+          type="number"
+          :value="detail.reimbursement.expected ?? ''"
+          @change="actions.setExpected(expectedFrom($event))"
+        />
       </label>
-      <button class="link-button">Ligar a um PIX recebido</button>
+      <button class="link-button" @click="linking = !linking">Ligar a um PIX recebido</button>
+      <div v-if="linking" class="candidates">
+        <button
+          v-for="credit in detail.reimbursementCandidates"
+          :key="credit.transactionId"
+          class="candidate"
+          @click="link(credit.transactionId)"
+        >
+          <span>{{ credit.name }} · {{ shortDay(credit.day) }}</span>
+          <span class="candidate-amount">+&nbsp;{{ brl(credit.amount) }}</span>
+        </button>
+      </div>
     </template>
-    <div v-if="link" class="linked">
-      <span class="linked-title">Reembolsado: {{ brl(link.amount) }} de {{ link.name }} em {{ shortDay(link.day) }}</span>
+    <div v-if="linked" class="linked">
+      <span class="linked-title">Reembolsado: {{ brl(linked.amount) }} de {{ linked.name }} em {{ shortDay(linked.day) }}</span>
       <span class="linked-net">Esta compra conta por {{ brl(Math.abs(detail.effectiveAmount)) }}.</span>
-      <button class="unlink">Desfazer ligação</button>
+      <button class="unlink" @click="actions.unlink()">Desfazer ligação</button>
     </div>
   </PanelSection>
 </template>
@@ -78,6 +107,39 @@ const link = computed(() => props.detail.reimbursement?.link ?? null);
 
 .link-button:hover {
   background: var(--color-surface-hover-item);
+}
+
+.candidates {
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.candidate {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-height: 44px;
+  align-items: center;
+  padding: 0 var(--space-12);
+  border: 0;
+  border-bottom: 1px solid var(--color-border-row);
+  background: var(--color-surface-card);
+  font-size: var(--font-size-secondary);
+  cursor: pointer;
+  text-align: left;
+  color: var(--color-text-ink);
+}
+
+.candidate:hover {
+  background: var(--color-accent-card);
+}
+
+.candidate-amount {
+  font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
 }
 
 .linked {

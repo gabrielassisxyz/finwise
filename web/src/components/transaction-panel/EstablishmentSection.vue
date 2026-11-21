@@ -1,25 +1,49 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import type { TransactionDetail } from '@/api/types';
+import { usePanelActions } from './panelActions';
 import PanelSection from './PanelSection.vue';
 
-defineProps<{ detail: TransactionDetail }>();
+const props = defineProps<{ detail: TransactionDetail }>();
+
+const actions = usePanelActions();
+const editing = ref(false);
+const draft = ref('');
+
+const anchorOf = (event: Event): HTMLElement => event.currentTarget as HTMLElement;
+
+function startEditing(): void {
+  draft.value = props.detail.name;
+  editing.value = true;
+}
+
+async function saveNickname(): Promise<void> {
+  await actions.saveNickname(draft.value);
+  editing.value = false;
+}
 </script>
 
 <template>
   <PanelSection v-if="detail.counterparty" title="Estabelecimento">
     <div class="nickname">
-      <span class="name">{{ detail.name }}</span>
-      <button class="link">Editar apelido</button>
+      <template v-if="!editing">
+        <span class="name">{{ detail.name }}</span>
+        <button class="link" @click="startEditing()">Editar apelido</button>
+      </template>
+      <template v-else>
+        <input v-model="draft" class="nickname-field" aria-label="Apelido" />
+        <button class="save" @click="saveNickname()">Salvar</button>
+      </template>
     </div>
     <div class="row">
       <span class="row-label">Linha padrão</span>
-      <button class="select">{{ detail.counterparty.defaultLine ?? 'Nenhuma' }} ▾</button>
+      <button class="select" @click="actions.pickDefaultLine(anchorOf($event), detail.counterparty?.defaultLine ?? null)">{{ detail.counterparty.defaultLine ?? 'Nenhuma' }} ▾</button>
     </div>
     <div class="row">
       <span class="row-label">Tags fixas</span>
       <span class="chips">
-        <button v-for="tag in detail.counterparty.fixedTags" :key="tag" class="chip" title="Remover">{{ tag }} ×</button>
-        <button class="add">+ tag</button>
+        <button v-for="tag in detail.counterparty.fixedTags" :key="tag" class="chip" title="Remover" @click="actions.removeFixedTag(tag)">{{ tag }} ×</button>
+        <button class="add" @click="actions.pickFixedTag(anchorOf($event), detail)">+ tag</button>
       </span>
     </div>
   </PanelSection>
@@ -36,6 +60,28 @@ defineProps<{ detail: TransactionDetail }>();
 .name {
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-medium);
+}
+
+.nickname-field {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid var(--color-border-button);
+  border-radius: var(--radius-nav);
+  padding: 0 var(--space-10);
+  font-size: var(--font-size-body);
+  outline: none;
+}
+
+.save {
+  height: 34px;
+  padding: 0 var(--space-12);
+  border-radius: var(--radius-nav);
+  border: 0;
+  background: var(--color-text-ink);
+  color: var(--color-text-on-accent);
+  font-size: var(--font-size-secondary);
+  cursor: pointer;
 }
 
 .link {

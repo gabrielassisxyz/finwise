@@ -2,9 +2,12 @@
 import { computed } from 'vue';
 import type { TransactionDetail } from '@/api/types';
 import SwitchToggle from '@/components/ui/SwitchToggle.vue';
+import { usePanelActions } from './panelActions';
 import PanelSection from './PanelSection.vue';
 
 const props = defineProps<{ detail: TransactionDetail }>();
+
+const actions = usePanelActions();
 
 const missingReason = computed(() => !!props.detail.exclusion && props.detail.exclusion.reason === '');
 </script>
@@ -16,7 +19,7 @@ const missingReason = computed(() => !!props.detail.exclusion && props.detail.ex
         <span class="title">Não conta</span>
         <span class="hint">Tira a transação de todos os totais</span>
       </span>
-      <SwitchToggle :on="!!detail.exclusion" label="Não conta" />
+      <SwitchToggle :on="!!detail.exclusion" label="Não conta" @toggle="actions.setExcluded(!detail.exclusion)" />
     </div>
     <template v-if="detail.exclusion">
       <input
@@ -24,6 +27,7 @@ const missingReason = computed(() => !!props.detail.exclusion && props.detail.ex
         :class="{ missing: missingReason }"
         :value="detail.exclusion.reason"
         placeholder="Motivo (obrigatório)"
+        @change="actions.setExclusionReason(($event.target as HTMLInputElement).value)"
       />
       <span v-if="missingReason" class="warning">Só vale depois de informar o motivo.</span>
     </template>

@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import type { TransactionDetail } from '@/api/types';
+import { usePanelActions } from './panelActions';
 import PanelSection from './PanelSection.vue';
 import { lineLabel, originSentence } from './panelText';
 
 defineProps<{ detail: TransactionDetail }>();
+
+const actions = usePanelActions();
+
+const anchorOf = (event: Event): HTMLElement => event.currentTarget as HTMLElement;
 </script>
 
 <template>
   <PanelSection title="Linha do budget">
-    <button class="line-button">
+    <button class="line-button" @click="actions.pickLine(anchorOf($event), detail)">
       <span class="line">{{ lineLabel(detail) }}</span>
       <span class="origin">· {{ originSentence(detail) }}</span>
       <span class="chevron">▾</span>
@@ -16,11 +21,17 @@ defineProps<{ detail: TransactionDetail }>();
     <template v-if="detail.justification !== null">
       <span class="justification">{{ detail.justification }}</span>
       <div class="actions">
-        <button class="confirm">Confirmar</button>
-        <button class="change">Alterar</button>
+        <button class="confirm" @click="actions.confirm()">Confirmar</button>
+        <button class="change" @click="actions.pickLine(anchorOf($event), detail)">Alterar</button>
       </div>
     </template>
-    <input v-if="detail.askReason" class="reason" :value="detail.reason" placeholder="Por quê? (opcional)" />
+    <input
+      v-if="detail.askReason"
+      class="reason"
+      :value="detail.reason"
+      placeholder="Por quê? (opcional)"
+      @change="actions.setReason(($event.target as HTMLInputElement).value)"
+    />
   </PanelSection>
 </template>
 

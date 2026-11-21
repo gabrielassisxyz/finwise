@@ -14,10 +14,12 @@ import ReimbursementSection from './ReimbursementSection.vue';
 import RefundSection from './RefundSection.vue';
 import SplitSection from './SplitSection.vue';
 import TagsSection from './TagsSection.vue';
+import { providePanelActions } from './panelActions';
 import { useTransactionDetail } from './useTransactionDetail';
 
 const panel = usePanelStore();
 const route = useRoute();
+providePanelActions();
 const { detail } = useTransactionDetail(computed(() => panel.openId));
 
 // Leaving the screen, or the app being locked (which unmounts the shell), closes the panel.

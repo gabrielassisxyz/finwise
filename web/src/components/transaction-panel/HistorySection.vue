@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import type { TransactionDetail } from '@/api/types';
+import { usePanelActions } from './panelActions';
 import PanelSection from './PanelSection.vue';
 import { historyText } from './panelText';
 
 defineProps<{ detail: TransactionDetail }>();
+
+const actions = usePanelActions();
 </script>
 
 <template>
   <PanelSection title="Histórico" last>
     <div v-for="entry in detail.history" :key="entry.id" class="step">
       <span class="text">{{ historyText(entry) }}</span>
-      <button v-if="entry.undoable" class="undo">Desfazer</button>
+      <button v-if="entry.undoable" class="undo" @click="actions.undoStep(entry.id)">Desfazer</button>
     </div>
   </PanelSection>
 </template>

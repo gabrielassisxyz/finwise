@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import type { TransactionDetail } from '@/api/types';
 import SwitchToggle from '@/components/ui/SwitchToggle.vue';
+import { usePanelActions } from './panelActions';
 import PanelSection from './PanelSection.vue';
 
 defineProps<{ detail: TransactionDetail }>();
+
+const actions = usePanelActions();
+
+const anchorOf = (event: Event): HTMLElement => event.currentTarget as HTMLElement;
 </script>
 
 <template>
@@ -13,11 +18,11 @@ defineProps<{ detail: TransactionDetail }>();
         <span class="kicker">Estorno</span>
         <span class="title">Marcar como estorno</span>
       </span>
-      <SwitchToggle :on="detail.refund" label="Marcar como estorno" />
+      <SwitchToggle :on="detail.refund" label="Marcar como estorno" @toggle="actions.setRefund(!detail.refund)" />
     </div>
     <div v-if="detail.refund" class="offsets">
       <span class="offsets-label">Abate a linha:</span>
-      <button class="select">{{ detail.refundLine ?? 'Nenhuma' }} ▾</button>
+      <button class="select" @click="actions.pickRefundLine(anchorOf($event), detail.refundLine)">{{ detail.refundLine ?? 'Nenhuma' }} ▾</button>
     </div>
   </PanelSection>
 </template>

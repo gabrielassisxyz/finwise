@@ -2,9 +2,15 @@
 import { computed } from 'vue';
 import type { TransactionDetail } from '@/api/types';
 import { brl } from '@/lib/format';
+import { usePanelActions } from './panelActions';
 import PanelSection from './PanelSection.vue';
 
 const props = defineProps<{ detail: TransactionDetail }>();
+
+const actions = usePanelActions();
+
+const anchorOf = (event: Event): HTMLElement => event.currentTarget as HTMLElement;
+const numberOf = (event: Event): number => Number((event.target as HTMLInputElement).value) || 0;
 
 const closed = computed(() => props.detail.splitRemaining === 0);
 const remainingText = computed(() => {
@@ -18,16 +24,18 @@ const remainingText = computed(() => {
   <PanelSection>
     <div class="head">
       <span class="title">Dividir</span>
-      <button class="toggle">{{ detail.splitParts ? 'Remover divisão' : 'Dividir em linhas' }}</button>
+      <button class="toggle" @click="actions.toggleSplit(detail)">{{ detail.splitParts ? 'Remover divisão' : 'Dividir em linhas' }}</button>
     </div>
     <template v-if="detail.splitParts">
       <div v-for="(part, index) in detail.splitParts" :key="index" class="part">
-        <button class="pick">{{ part.line ?? 'Escolher linha' }} ▾</button>
-        <input class="value" type="number" aria-label="Valor" :value="part.amount" />
-        <button class="remove" aria-label="Remover linha">×</button>
+        <button class="pick" @click="actions.pickSplitLine(anchorOf($event), detail, index)">{{ part.line ?? 'Escolher linha' }} ▾</button>
+        <input class="value" type="number" aria-label="Valor" :value="part.amount"
+          @change="actions.setSplitAmount(detail, index, numberOf($event))"
+        />
+        <button class="remove" aria-label="Remover linha" @click="actions.removeSplitPart(detail, index)">×</button>
       </div>
       <div class="foot">
-        <button class="add">+ Linha</button>
+        <button class="add" @click="actions.addSplitPart(detail)">+ Linha</button>
         <span class="remaining" :class="{ closed }">{{ remainingText }}</span>
       </div>
     </template>

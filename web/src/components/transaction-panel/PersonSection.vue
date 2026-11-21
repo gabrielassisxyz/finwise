@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import type { TransactionDetail } from '@/api/types';
+import { usePanelActions } from './panelActions';
 import PanelSection from './PanelSection.vue';
 
 defineProps<{ detail: TransactionDetail }>();
+
+const actions = usePanelActions();
 </script>
 
 <template>
   <PanelSection v-if="detail.counterparty" title="Apelido da pessoa" tight>
-    <input class="field" :value="detail.counterparty.nickname ?? ''" placeholder="Aluguel" />
+    <input class="field" :value="detail.counterparty.nickname ?? ''" placeholder="Aluguel"
+      @change="actions.saveNickname(($event.target as HTMLInputElement).value)"
+    />
     <span class="hint">Vale para todo PIX com {{ detail.originalName }}.</span>
   </PanelSection>
 </template>
