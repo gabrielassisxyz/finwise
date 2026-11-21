@@ -133,8 +133,11 @@ func addFixtureBankRows(f *ledgertest.Fixture) {
 		map[string]any{"operationType": "CARTAO"})
 	row(txFirstOfMarch, accountItau, utc(2026, time.March, 1, 3, 0), "PIX ENVIADO CAFETERIA EXEMPLO", -10, "DEBIT",
 		pix("PIX", map[string]any{"paymentData": payment("PIX", nil, party("Cafeteria Exemplo", "22233344000155"))}))
-	row(txPotTransfer, accountPots, utc(2026, time.March, 9, 12, 0), "Dinheiro reservado Caixinha da casa", -200, "DEBIT",
-		map[string]any{"operationType": "TRANSFERENCIA_SALDO_RESERVADO"})
+	// Seen the night it happened, as the collector sees it: a daily yield counts a
+	// transfer only from the sighting that knows of it.
+	f.AddTransaction(ledgertest.Transaction{ID: txPotTransfer, AccountID: accountPots, Date: utc(2026, time.March, 9, 12, 0),
+		Day: "2026-03-09", Description: "Dinheiro reservado Caixinha da casa", Amount: -200, Currency: "BRL", Type: "DEBIT",
+		Raw: map[string]any{"operationType": "TRANSFERENCIA_SALDO_RESERVADO"}})
 	row(txStale, accountStale, utc(2026, time.January, 5, 12, 0), "PIX RECEBIDO AMIGO EXEMPLO", 50, "CREDIT",
 		pix("PIX", map[string]any{"paymentData": payment("PIX", party("Amigo Exemplo", "44455566677"), nil)}))
 }

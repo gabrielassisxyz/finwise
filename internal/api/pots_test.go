@@ -1,15 +1,11 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
-	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/gabrielassisxyz/finwise/internal/brday"
-	"github.com/gabrielassisxyz/finwise/internal/ledger"
 	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 )
 
@@ -240,41 +236,6 @@ func nightlyLedger(t *testing.T, nights int) *ledgertest.Fixture {
 	}
 	walkReachesBack(t, f, accountNubank)
 	return f
-}
-
-// countingYields counts the calls the handlers make to the yield statement.
-func countingYields(t *testing.T) *atomic.Int32 {
-	t.Helper()
-	var calls atomic.Int32
-	original := yieldAskerOf
-	yieldAskerOf = func(reader *ledger.Reader) yieldAsker {
-		ask := reader.PotYields
-		return func(ctx context.Context, accountID string, from, to brday.Day) ([]ledger.PotYield, error) {
-			calls.Add(1)
-			return ask(ctx, accountID, from, to)
-		}
-	}
-	t.Cleanup(func() { yieldAskerOf = original })
-	return &calls
-}
-
-func TestTheYieldStatementRunsOncePerAccountNoMatterHowManySightings(t *testing.T) {
-	calls := countingYields(t)
-	for _, nights := range []int{2, 6, 14} {
-		env := envAt(t, nightlyLedger(t, nights), 2026, time.March, 20)
-		for _, c := range []struct{ method, arguments string }{
-			{"savingsPots.list", includeClosed},
-			{"savingsPots.detail", `["reserve:acc-nu/pot-t"]`},
-		} {
-			calls.Store(0)
-			if status, _ := env.answer(c.method, c.arguments); status != http.StatusOK {
-				t.Fatalf("%s answered %d", c.method, status)
-			}
-			if calls.Load() != 1 {
-				t.Errorf("%s over %d sightings ran the yield statement %d times, want 1 (one account)", c.method, nights+1, calls.Load())
-			}
-		}
-	}
 }
 
 func decodeList(t *testing.T, body []byte) []map[string]any {

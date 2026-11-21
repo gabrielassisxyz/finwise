@@ -61,7 +61,7 @@ func readPotDetail(ctx context.Context, args []json.RawMessage, reader *ledger.R
 	if err != nil {
 		return nil, err
 	}
-	view, err := loadPots(ctx, reader, yieldAskerOf(reader))
+	view, err := loadPots(ctx, reader, true)
 	if err != nil {
 		return nil, err
 	}
