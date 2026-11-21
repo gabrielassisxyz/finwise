@@ -12,7 +12,6 @@ import (
 // fails on a name that is both, on one that is neither, and on one that is not
 // a read method at all.
 var pendingReads = []string{
-	"review.closing",
 	"settings.overview",
 }
 
