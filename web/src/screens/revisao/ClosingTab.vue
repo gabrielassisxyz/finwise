@@ -51,9 +51,9 @@ function askToClose(): void {
   overlay.confirm({
     message: `Fechar ${monthInSentence(month.selected)}? O budget deste mês fica guardado e não muda mais.`,
     confirmLabel: 'Fechar o mês',
-    onConfirm: () => {
+    onConfirm: async () => {
+      await actions.closeMonth(month.selected);
       view.openStep = -1;
-      void actions.closeMonth(month.selected);
     },
   });
 }
