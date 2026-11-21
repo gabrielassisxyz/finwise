@@ -61,7 +61,7 @@ describe('an unknown figure is a dash and never a zero', () => {
     expect(row.find('[data-label="Rendimento no mês"]').text()).toBe('—');
 
     const page = await mountScreen(CofrinhoScreen, '/cofrinhos/p1', freshInstallState());
-    expect(page.wrapper.find('.subtitle').text()).toBe('Mercado Pago · Sem balde');
+    expect(page.wrapper.find('.subtitle').text()).toBe('Mercado Pago · Reservado');
     expect(plain(page.wrapper.find('[class*="month"]').text())).toContain('—');
     expect(plain(page.wrapper.text())).not.toContain('R$ 0,00 O histórico');
   });
@@ -133,10 +133,20 @@ describe('what a fresh install and an empty ledger have no honest value for', ()
     expect(plain(wrapper.find('[data-section="apelidos"]').text())).not.toContain('C6 Carbon');
   });
 
+  it('counts a pot in the net worth from the first day: a reserve as reserved, an investment as invested', async () => {
+    const summary = await createFakeApi({ state: freshInstallState() }).home.summary('2026-11');
+    expect(summary.netWorth).toEqual({ available: 6171.55, reserved: 14250, invested: 25000 });
+  });
+
   it('lists a pot with no bucket, and opens its page', async () => {
-    const list = await mountScreen(CofrinhosScreen, '/cofrinhos', freshInstallState());
-    expect(list.wrapper.find('.group-name').text()).toBe('Sem balde');
-    const page = await mountScreen(CofrinhoScreen, '/cofrinhos/p3', freshInstallState());
+    const withoutBucket = (): FakeState => {
+      const state = freshInstallState();
+      state.savingsPots = state.savingsPots.map((pot) => (pot.id === 'p3' ? { ...pot, bucket: null } : pot));
+      return state;
+    };
+    const list = await mountScreen(CofrinhosScreen, '/cofrinhos', withoutBucket());
+    expect(list.wrapper.findAll('.group-name').map((name) => name.text())).toContain('Sem balde');
+    const page = await mountScreen(CofrinhoScreen, '/cofrinhos/p3', withoutBucket());
     expect(page.wrapper.find('h1').text()).toBe('Reserva');
     expect(page.wrapper.find('.subtitle').text()).toBe('Nubank · Sem balde · 100% do CDI');
   });

@@ -121,7 +121,12 @@ const CARD_STATE: FakeCard = {
   ],
 };
 
-/** What the bank reports about a pot; the bucket, target and linked lines are the person's to give. */
+/**
+ * What the bank reports about a pot; the target and the linked lines are the person's to give.
+ * The bucket starts as what the bank says the pot is, a reserve as reserved and an investment as
+ * invested, until the person says otherwise: a pot counted in no bucket would be missing from the
+ * net worth on the first day.
+ */
 const pot = (
   id: string,
   name: string,
@@ -133,7 +138,7 @@ const pot = (
   id,
   name,
   bank: bankName,
-  bucket: null,
+  bucket: extra.investment ? 'Investido' : 'Reservado',
   balance,
   cdiPercent,
   target: null,
