@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 import type { NavId } from './navigation';
+import BudgetScreen from './screens/budget/BudgetScreen.vue';
 import CofrinhoScreen from './screens/cofrinhos/CofrinhoScreen.vue';
 import CofrinhosScreen from './screens/cofrinhos/CofrinhosScreen.vue';
 import InicioScreen from './screens/inicio/InicioScreen.vue';
@@ -15,7 +16,7 @@ declare module 'vue-router' {
 const routes: RouteRecordRaw[] = [
   { path: '/', component: InicioScreen, meta: { nav: 'inicio' } },
   { path: '/revisao', component: ScreenPlaceholder, props: { title: 'Revisão' }, meta: { nav: 'revisao' } },
-  { path: '/budget', component: ScreenPlaceholder, props: { title: 'Budget' }, meta: { nav: 'budget' } },
+  { path: '/budget', component: BudgetScreen, meta: { nav: 'budget' } },
   { path: '/cofrinhos', component: CofrinhosScreen, meta: { nav: 'cofrinhos' } },
   { path: '/cofrinhos/:id', component: CofrinhoScreen, meta: { nav: 'cofrinhos' } },
   { path: '/assinaturas', component: ScreenPlaceholder, props: { title: 'Assinaturas' }, meta: { nav: 'assinaturas' } },

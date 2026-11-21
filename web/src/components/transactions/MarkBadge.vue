@@ -36,6 +36,12 @@ defineProps<{ mark: Mark }>();
   border-color: var(--color-accent-badge-border);
 }
 
+.bad {
+  color: var(--color-bad-text);
+  background: var(--color-bad-bg);
+  border-color: var(--color-bad-border);
+}
+
 .tag {
   color: var(--color-text-ink-3);
   background: var(--color-surface-count);
