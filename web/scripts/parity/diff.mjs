@@ -9,6 +9,10 @@ export function readPng(path) {
   return PNG.sync.read(readFileSync(path));
 }
 
+export function decodePng(buffer) {
+  return PNG.sync.read(buffer);
+}
+
 export function writePng(path, png) {
   writeFileSync(path, PNG.sync.write(png));
 }
