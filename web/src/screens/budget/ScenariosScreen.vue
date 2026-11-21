@@ -50,8 +50,9 @@ watch(
       const loaded = await api.budget.evaluateScenario(month.selected, value);
       if (request === latest) impact.value = loaded;
     } catch (error) {
-      // Without an evaluation the screen has no impact to show, so it returns to the budget it came from.
-      if (isApiFailure(error) && error.kind === 'read_only') void leave();
+      // Without an evaluation the screen has no impact to show, so it returns to the budget it came from. The
+      // return completes first: the frame clears what floats on a leave, which would take the toast with it.
+      if (isApiFailure(error) && error.kind === 'read_only') await leave();
       throw error;
     }
   },
