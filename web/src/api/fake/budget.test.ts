@@ -266,8 +266,11 @@ describe('versioning by month', () => {
 
   it('answers a save with a change that takes it back,', async () => {
     const api = createFakeApi();
-    const { changeId } = await api.budget.save(NOV, await withAmount(api, 'fix', 'Saúde', 900));
+    const draft = await withAmount(api, 'fix', 'Saúde', 900);
+    draft.find((g) => g.key === 'var')!.lines[0]!.amount = 1000;
+    const { changeId } = await api.budget.save(NOV, draft);
     expect(changeId).toMatch(/^change-/);
+    expect((await api.home.summary(NOV)).limit.cap).toBe(3480);
     await api.changes.undo(changeId);
     expect(line(await api.budget.view(NOV), 'fix', 'Saúde').cells[0]).toEqual({ type: 'money', amount: 500 });
     expect((await api.home.summary(NOV)).limit.cap).toBe(2880);
@@ -332,11 +335,12 @@ describe('scenarios', () => {
     expect(kept[0]?.budget[0]?.lines[1]?.amount).toBe(1500);
   });
 
-  it('takes a saved scenario back with its change', async () => {
+  it('takes a saved scenario back with its change, and keeps the ones saved before it', async () => {
     const api = createFakeApi();
+    await api.budget.saveScenario('Primeiro', await api.budget.document(NOV));
     const { changeId } = await api.budget.saveScenario('Sem extra', await withoutExtraIncome(api));
     await api.changes.undo(changeId);
-    expect(await api.budget.scenarios()).toEqual([]);
+    expect((await api.budget.scenarios()).map((scenario) => scenario.name)).toEqual(['Primeiro']);
   });
 
   it('applies a scenario as the budget from the month on', async () => {

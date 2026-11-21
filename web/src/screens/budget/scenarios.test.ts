@@ -105,10 +105,8 @@ describe('Scenarios screen', () => {
   });
 
   it('is not open on a closed month', async () => {
-    const m = await mountBudgetAt('/budget', ScenariosScreen);
-    m.month.shift(-1);
-    await m.router.push('/budget/cenarios');
-    await flushPromises();
+    const m = await mountBudgetAt('/budget/cenarios', ScenariosScreen, { earlier: true });
+    expect(m.month.isClosed).toBe(true);
     expect(m.router.currentRoute.value.path).toBe('/budget');
   });
 });
