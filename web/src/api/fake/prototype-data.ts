@@ -4,6 +4,7 @@ import type {
   FakeBudgetGroup,
   FakeEstablishment,
   FakeHistoryEntry,
+  FakePlannedContribution,
   FakeSavingsPot,
   FakeState,
   FakeTransaction,
@@ -307,29 +308,87 @@ const SPENT_BASELINE: FakeState['spentBaseline'] = {
   },
 };
 
-const pot = (id: string, name: string, bank: string, bucket: FakeSavingsPot['bucket'], balance: number): FakeSavingsPot => ({
+type PotDetails = Partial<Omit<FakeSavingsPot, 'id' | 'name' | 'bank' | 'bucket' | 'balance' | 'cdiPercent'>>;
+
+const pot = (
+  id: string,
+  name: string,
+  bank: string,
+  bucket: FakeSavingsPot['bucket'],
+  balance: number,
+  cdiPercent: number,
+  details: PotDetails = {},
+): FakeSavingsPot => ({
   id,
   name,
   bank,
   bucket,
   balance,
+  cdiPercent,
+  target: null,
+  linkedLines: [],
+  lineShares: null,
+  maturity: null,
+  closed: false,
+  investment: null,
+  movements: [],
+  ...details,
 });
 
 const SAVINGS_POTS: FakeSavingsPot[] = [
-  pot('rfs', 'RF Saúde', MERCADO_PAGO, 'Reservado', 2000),
-  pot('rfp', 'RF Pets', MERCADO_PAGO, 'Reservado', 4200),
-  pot('rfc', 'RF Casa', MERCADO_PAGO, 'Reservado', 3000),
-  pot('rft', 'RF Tech', MERCADO_PAGO, 'Reservado', 2000),
-  pot('gas', 'Gás e IPTU', MERCADO_PAGO, 'Reservado', 600),
-  pot('asa', 'Assinaturas anuais', MERCADO_PAGO, 'Reservado', 310),
-  pot('rem', 'Remédios', MERCADO_PAGO, 'Reservado', 450),
-  pot('com', 'Compras', MERCADO_PAGO, 'Reservado', 1240),
-  pot('via', 'Viagens', MERCADO_PAGO, 'Reservado', 2350),
-  pot('emg', 'Reserva de emergência', 'Nubank', 'Reservado', 18000),
-  pot('i1', 'Investimento 1', 'Nubank', 'Investido', 25000),
-  pot('i2', 'Investimento 2', 'Nubank', 'Investido', 12800),
-  pot('sn', '', 'C6', null, 500),
-  pot('i0', 'Investimento 0', 'Nubank', 'Investido', 0),
+  pot('rfs', 'RF Saúde', MERCADO_PAGO, 'Reservado', 2000, 120, { target: 2000, linkedLines: ['Rainy Fund · Saúde'] }),
+  pot('rfp', 'RF Pets', MERCADO_PAGO, 'Reservado', 4200, 120, {
+    target: 5000,
+    linkedLines: ['Rainy Fund · Pets'],
+    movements: [{ day: '2026-10-14', description: 'Retirada · veterinário', amount: -800 }],
+  }),
+  pot('rfc', 'RF Casa', MERCADO_PAGO, 'Reservado', 3000, 120, { target: 3000, linkedLines: ['Rainy Fund · Casa'] }),
+  pot('rft', 'RF Tech', MERCADO_PAGO, 'Reservado', 2000, 120, { target: 2000, linkedLines: ['Rainy Fund · Tech'] }),
+  pot('gas', 'Gás e IPTU', MERCADO_PAGO, 'Reservado', 600, 120, {
+    linkedLines: ['Gás', 'IPTU'],
+    lineShares: [
+      { line: 'Gás', amount: 240 },
+      { line: 'IPTU', amount: 360 },
+    ],
+  }),
+  pot('asa', 'Assinaturas anuais', MERCADO_PAGO, 'Reservado', 310, 120, { linkedLines: ['Assinaturas anuais'] }),
+  pot('rem', 'Remédios', MERCADO_PAGO, 'Reservado', 450, 120, { linkedLines: ['Remédios'] }),
+  pot('com', 'Compras', MERCADO_PAGO, 'Reservado', 1240, 120, { linkedLines: ['Compras'] }),
+  pot('via', 'Viagens', MERCADO_PAGO, 'Reservado', 2350, 120, {
+    linkedLines: ['Viagens'],
+    movements: [{ day: '2026-11-14', description: 'Retirada · Pousada Serra Azul', amount: -420 }],
+  }),
+  pot('emg', 'Reserva de emergência', 'Nubank', 'Reservado', 18000, 100, {
+    movements: [{ day: '2026-10-05', description: 'Depósito', amount: 1000 }],
+  }),
+  pot('i1', 'Investimento 1', 'Nubank', 'Investido', 25000, 115, {
+    maturity: '2028-03-15',
+    linkedLines: ['Investimento'],
+    investment: { applied: 22400, tax: 455 },
+    movements: [{ day: '2025-03-15', description: 'Aplicação', amount: 22400 }],
+  }),
+  pot('i2', 'Investimento 2', 'Nubank', 'Investido', 12800, 115, {
+    maturity: '2027-08-02',
+    linkedLines: ['Investimento'],
+    investment: { applied: 12000, tax: 160 },
+    movements: [{ day: '2025-08-02', description: 'Aplicação', amount: 12000 }],
+  }),
+  pot('sn', '', 'C6', null, 500, 100),
+  pot('i0', 'Investimento 0', 'Nubank', 'Investido', 0, 110, {
+    maturity: '2026-09-10',
+    closed: true,
+    investment: { applied: 8000, tax: 0 },
+  }),
+];
+
+const PLANNED_CONTRIBUTIONS: FakePlannedContribution[] = [
+  { name: 'RF Casa', amount: 0, state: 'on-target', doneOn: null },
+  { name: 'Gás e IPTU', amount: 120, state: 'done', doneOn: '2026-11-05' },
+  { name: 'Assinaturas anuais', amount: 50, state: 'done', doneOn: '2026-11-05' },
+  { name: 'Remédios', amount: 150, state: 'done', doneOn: '2026-11-05' },
+  { name: 'Compras', amount: 500, state: 'pending', doneOn: null },
+  { name: 'Viagens', amount: 600, state: 'pending', doneOn: null },
+  { name: 'Investimento', amount: 3800, state: 'pending', doneOn: null },
 ];
 
 const ACCOUNTS: FakeAccount[] = [
@@ -362,6 +421,7 @@ export function prototypeState(): FakeState {
     spentBaseline: SPENT_BASELINE,
     savingsPots: SAVINGS_POTS,
     accounts: ACCOUNTS,
+    plannedContributions: PLANNED_CONTRIBUTIONS,
     tags: ['#viagem', '#com-ana', '#trabalho', '#presente', '#casa-nova'],
     weeks: [
       { label: '01–07', guide: 500, spent: 620, current: false },

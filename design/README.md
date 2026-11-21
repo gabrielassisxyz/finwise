@@ -34,7 +34,10 @@ npm --prefix web run parity -- inicio    # one state
 ```
 
 builds the app, renders each state in `web/scripts/parity/states.mjs` at 1440 and 390 pixels wide,
-and counts the pixels that differ from the reference by more than 16 per channel. Candidates and a
+and counts the pixels that differ from the reference by more than 16 per channel. A state can also
+ask for a 1024 pixel `tablet` viewport (`viewports: ['tablet']`), because the layout between the two
+breakpoints, 820 and 1200 pixels, is reached by neither of the default two; a state that does not
+list `viewports` is still shot on desktop and phone only. Candidates and a
 heatmap per state are written to `work/parity/`. A page that comes out taller or shorter than its
 reference is still measured: the area one side lacks counts as differing.
 

@@ -57,3 +57,96 @@ textarea::placeholder {
     display: none !important;
   }
 }
+
+/* Wide layouts hide their secondary columns below this width, and the phone
+   card repeats that data under the name. */
+@media (max-width: 1199px) {
+  .wide-only {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  .narrow-only {
+    display: none !important;
+  }
+}
+
+/* Two columns that become one on a phone. */
+.split-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-16);
+  align-items: start;
+}
+
+/* A strip of bordered cells that wraps. A cell sizes itself through
+   --cell-flex and --cell-padding, which the screen sets on it. */
+.cell-strip {
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.cell-strip > .cell {
+  flex: var(--cell-flex, 1 1 170px);
+  box-sizing: border-box;
+  padding: var(--cell-padding, var(--space-16) var(--space-20));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  border: 0;
+  border-left: 1px solid var(--color-border-divider);
+  border-top: 1px solid var(--color-border-divider);
+  margin: -1px 0 0 -1px;
+}
+
+/* A table row that becomes a card on a phone: a grid of two columns where
+   each value carries its column's label above it. A table using it marks
+   the row `.stack-row`, the cell that spans both columns `.stack-full`, a
+   labelled cell with `data-label`, and the wrapper that sets a minimum
+   width `.stack-table`. */
+.stack-table {
+  min-width: var(--table-min-width, 0);
+}
+
+@media (max-width: 820px) {
+  .split-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stack-table {
+    min-width: 0;
+  }
+
+  .stack-row {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    height: auto !important;
+    padding: var(--space-12) var(--space-14) !important;
+    gap: var(--space-8) var(--space-12) !important;
+  }
+
+  .stack-row > * {
+    width: auto !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+  }
+
+  .stack-row > .stack-full {
+    grid-column: 1 / -1;
+  }
+
+  .stack-row > [data-label]::before {
+    content: attr(data-label);
+    display: block;
+    width: 100%;
+    flex: none;
+    font-size: var(--font-size-badge);
+    font-weight: var(--font-weight-regular);
+    color: var(--color-text-muted-2);
+  }
+}
