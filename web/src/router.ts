@@ -5,6 +5,7 @@ import AssinaturasScreen from './screens/assinaturas/AssinaturasScreen.vue';
 import BudgetScreen from './screens/budget/BudgetScreen.vue';
 import ScenariosScreen from './screens/budget/ScenariosScreen.vue';
 import AccountScreen from './screens/contas/AccountScreen.vue';
+import CardScreen from './screens/contas/CardScreen.vue';
 import ContasScreen from './screens/contas/ContasScreen.vue';
 import CofrinhoScreen from './screens/cofrinhos/CofrinhoScreen.vue';
 import CofrinhosScreen from './screens/cofrinhos/CofrinhosScreen.vue';
@@ -29,7 +30,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/assinaturas/:id', component: AssinaturaScreen, meta: { nav: 'assinaturas' } },
   { path: '/patrimonio', component: PatrimonioScreen, meta: { nav: 'patrimonio' } },
   { path: '/contas', component: ContasScreen, meta: { nav: 'contas' } },
-  { path: '/contas/cartao', component: ScreenPlaceholder, props: { title: 'Cartão' }, meta: { nav: 'contas' } },
+  { path: '/contas/cartao', component: CardScreen, meta: { nav: 'contas' } },
   { path: '/contas/:id', component: AccountScreen, meta: { nav: 'contas' } },
   { path: '/config', component: ScreenPlaceholder, props: { title: 'Configuração' }, meta: { nav: 'config' } },
 ];

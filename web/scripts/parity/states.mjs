@@ -62,6 +62,8 @@ const inPanel = {
   switch: (name) => (page) => panelOf(page).getByRole('switch', { name }).click(),
 };
 
+const openCard = (page) => page.getByText('C6 Carbon · final 1234', { exact: true }).first().click();
+
 export const STATES = [
   { name: 'pin', prototype: { seed: { locked: true, screen: 'inicio' } }, app: { path: '/', locked: true } },
   { name: 'inicio', prototype: unlocked('inicio'), app: { path: '/' } },
@@ -191,8 +193,13 @@ export const STATES = [
   ].map(([name, steps]) => ({ name, prototype: unlocked('assinaturas'), app: { path: '/assinaturas' }, steps })),
   { name: 'assinaturas-tablet', prototype: unlocked('assinaturas'), app: { path: '/assinaturas' }, viewports: ['tablet'] },
   // The accounts, the card and the settings. An account is opened from the list by its bank's name.
+  // The card by its own, and a previous bill by its month.
   ...[
     ['contas-conta-itau', [(page) => page.getByText('Itaú', { exact: true }).first().click()]],
     ['contas-conta-parada', [(page) => page.getByText('Nubank', { exact: true }).first().click()]],
+    ['contas-cartao', [openCard]],
+    ['contas-cartao-fatura-aberta', [openCard, click.button(/Novembro de 2026/)]],
   ].map(([name, steps]) => ({ name, prototype: unlocked('contas'), app: { path: '/contas' }, steps })),
+  // Between 820 and 1200 pixels the strip of the card wraps differently.
+  { name: 'contas-cartao-tablet', prototype: unlocked('contas'), app: { path: '/contas' }, viewports: ['tablet'], steps: [openCard] },
 ];
