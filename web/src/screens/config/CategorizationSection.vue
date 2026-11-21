@@ -8,7 +8,7 @@ import { useSettingsWrites } from './useSettingsWrites';
 
 const props = defineProps<{ categorization: CategorizationSettings }>();
 
-const { api, write, stored } = useSettingsWrites();
+const { api, write } = useSettingsWrites();
 
 // The label and the marker follow the slider while it moves; the write waits for it to be released.
 const threshold = ref(props.categorization.threshold);
@@ -26,10 +26,8 @@ function useSuggested(): Promise<void> {
   return write(() => api.settings.setThreshold(suggested), `Limite alterado para ${suggested}% de confiança.`);
 }
 
-async function commitMinExamples(event: Event): Promise<void> {
-  const input = event.target as HTMLInputElement;
-  await write(() => api.settings.setMinExamples(Number(input.value)));
-  input.value = String((await stored()).categorization.minExamples);
+function commitMinExamples(event: Event): Promise<void> {
+  return write(() => api.settings.setMinExamples(Number((event.target as HTMLInputElement).value)));
 }
 </script>
 

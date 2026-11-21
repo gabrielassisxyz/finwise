@@ -56,8 +56,9 @@ describe('settings overview', () => {
 
   it('does not list a movement between own accounts', async () => {
     const state = prototypeState();
+    state.transactions = state.transactions.filter((transaction) => transaction.movement || transaction.id === 't35');
     const { establishments } = await createFakeApi({ state }).settings.overview();
-    expect(JSON.stringify(establishments)).not.toContain('Pagamento da fatura');
+    expect(establishments.map((row) => row.key)).toEqual(['Salário']);
   });
 });
 

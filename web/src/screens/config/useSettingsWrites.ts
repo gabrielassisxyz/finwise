@@ -1,5 +1,5 @@
 import { useApi } from '@/api/context';
-import type { BudgetLineOption, ChangeResult, SettingsOverview } from '@/api/types';
+import type { BudgetLineOption, ChangeResult } from '@/api/types';
 import { useOverlayStore } from '@/stores/overlay';
 import { useRevisionStore } from '@/stores/revision';
 
@@ -25,11 +25,6 @@ export function useSettingsWrites() {
     if (toast) overlay.showToast(toast, [{ label: 'Desfazer', run: () => void undo(changeId) }]);
   }
 
-  /** What the backend holds now, for a field whose typed value it may have bounded. */
-  async function stored(): Promise<SettingsOverview> {
-    return api.settings.overview();
-  }
-
   /** The menu of budget lines, the same one the transaction list offers. */
   async function openLineMenu(anchor: HTMLElement, pick: (line: string) => void): Promise<void> {
     const { lines }: { lines: BudgetLineOption[] } = await api.transactions.filterOptions();
@@ -40,5 +35,5 @@ export function useSettingsWrites() {
     });
   }
 
-  return { api, overlay, write, stored, openLineMenu };
+  return { api, overlay, write, openLineMenu };
 }

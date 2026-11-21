@@ -7,7 +7,7 @@ import { useSettingsWrites } from './useSettingsWrites';
 
 const props = defineProps<{ title: string; closing: CardClosing }>();
 
-const { api, write, stored } = useSettingsWrites();
+const { api, write } = useSettingsWrites();
 
 const manualDay = ref(props.closing.manualDay);
 watch(
@@ -19,10 +19,8 @@ function choose(mode: ClosingMode): Promise<void> {
   return write(() => api.settings.setClosing(mode, props.closing.manualDay));
 }
 
-async function commitDay(event: Event): Promise<void> {
-  const input = event.target as HTMLInputElement;
-  await write(() => api.settings.setClosing('manual', Number(input.value)));
-  input.value = String((await stored()).closing.manualDay);
+function commitDay(event: Event): Promise<void> {
+  return write(() => api.settings.setClosing('manual', Number((event.target as HTMLInputElement).value)));
 }
 </script>
 

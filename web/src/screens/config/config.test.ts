@@ -113,6 +113,8 @@ describe('Cofrinhos section', () => {
       ['Investido', false],
     ]);
     await pickFromMenu(mounted, 'Investido');
+    await section(mounted.wrapper, 'cofrinhos').findAll('.bucket')[0]!.trigger('click');
+    expect(mounted.overlay.menu!.items.filter((item) => item.current).map((item) => item.label)).toEqual(['Reservado']);
     const after = section(mounted.wrapper, 'cofrinhos').findAll('.row').at(-1)!;
     expect(after.find('.bucket').text()).toBe('Investido ▾');
     expect(after.find('.bucket').classes()).not.toContain('unset');
@@ -272,6 +274,7 @@ describe('Categorização section', () => {
 
   it('writes the minimum of examples, and shows the bound the backend kept', async () => {
     const mounted = await mountConfig();
+    await type(mounted.wrapper, 'input[type="number"]', '50');
     await type(mounted.wrapper, 'input[type="number"]', '80');
     expect(mounted.state.settings.minExamples).toBe(50);
     expect((mounted.wrapper.find('input[type="number"]').element as HTMLInputElement).value).toBe('50');
@@ -303,6 +306,7 @@ describe('Cartão section', () => {
     await section(mounted.wrapper, 'cartao').findAll('input[type="radio"]')[1]!.trigger('change');
     await flushPromises();
     await type(mounted.wrapper, '[aria-label="Dia de fechamento"]', '40');
+    expect(mounted.state.settings.manualClosingDay).toBe(28);
     expect((mounted.wrapper.find('[aria-label="Dia de fechamento"]').element as HTMLInputElement).value).toBe('28');
   });
 
