@@ -47,13 +47,12 @@ type payAheadWire struct {
 
 // cardOverviewWire is the contract's CardOverview. The closing, the best
 // purchase day and the next-bill amount are null for a card whose closing is not
-// known. The due date has no null in the contract yet, so it is the empty string
-// there, which no day is.
+// known, and so is the due date of the open bill, which is placed by the closing.
 type cardOverviewWire struct {
 	Title             string             `json:"title"`
 	OpenBill          Reais              `json:"openBill"`
 	ClosesOn          *string            `json:"closesOn"`
-	DueOn             string             `json:"dueOn"`
+	DueOn             *string            `json:"dueOn"`
 	BestPurchaseDay   *string            `json:"bestPurchaseDay"`
 	Limit             Reais              `json:"limit"`
 	AvailableLimit    Reais              `json:"availableLimit"`
@@ -324,8 +323,8 @@ func (card *cardView) overview() cardOverviewWire {
 		wire.AvailableLimit = optionalReais(card.account.Credit.AvailableCreditLimit)
 	}
 	if open.known {
-		closing := string(open.closing)
-		wire.ClosesOn, wire.DueOn, wire.BestPurchaseDay = &closing, string(open.due), &closing
+		closing, due := string(open.closing), string(open.due)
+		wire.ClosesOn, wire.DueOn, wire.BestPurchaseDay = &closing, &due, &closing
 		wire.MayFallOnNextBill = card.mayFallBefore(open.closing)
 	}
 	if next := card.nextBill(brday.Month(card.today[:7])); next.Known {

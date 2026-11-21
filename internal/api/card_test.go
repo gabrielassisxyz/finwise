@@ -185,7 +185,7 @@ func TestACardOfABankWithNoClosingTableAnswersNullForTheClosingTheBestDayAndTheN
 		t.Errorf("the answer for a card with no closing table breaks the schema: %s", conformanceProblem("card.overview", body))
 	}
 	overview := answerOf(t, env, "card.overview", `[]`)
-	for _, field := range []string{"closesOn", "bestPurchaseDay"} {
+	for _, field := range []string{"closesOn", "dueOn", "bestPurchaseDay"} {
 		if value, present := overview[field]; !present || value != nil {
 			t.Errorf("%s is %v for a card whose closing is unknown, want null", field, value)
 		}
