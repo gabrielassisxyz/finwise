@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "changeId": "1"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "pot_settings",
+      "key": [
+        "reserve:acc-pots/pot-1"
+      ],
+      "column": "bucket",
+      "before": null,
+      "after": "Disponível"
+    }
+  ]
+}

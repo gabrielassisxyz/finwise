@@ -1,0 +1,20 @@
+{
+  "answer": {
+    "changeId": "2"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "pot_lines",
+      "key": [
+        1
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "line_id": 1,
+        "pot_id": "investment:inv-it-1"
+      }
+    }
+  ]
+}
