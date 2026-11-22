@@ -21,11 +21,8 @@ const changePin = "session.changePin"
 // Each piece of work that implements one removes its name here, and the list is
 // empty when every write of the contract is implemented.
 var writesWithoutHandler = []string{
-	"transactions.excludeMany",
-	"transactions.setSplit",
 	"transactions.setReimbursable", "transactions.setExpectedReimbursement",
-	"transactions.linkReimbursement", "transactions.unlinkReimbursement", "transactions.setExcluded",
-	"transactions.setExclusionReason", "transactions.setRefund", "transactions.setRefundLine",
+	"transactions.linkReimbursement", "transactions.unlinkReimbursement",
 	"subscriptions.create", "subscriptions.acceptSuggestion",
 	"subscriptions.rejectSuggestion", "subscriptions.setStatus", "subscriptions.setLine",
 	"subscriptions.setReviewDate", "subscriptions.setNote", "review.acceptPending", "review.approve",
@@ -130,15 +127,16 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 		"settings.setCardLabel", "settings.setClosing", "settings.setMinExamples", "settings.setPotBucket",
 		"settings.setThreshold", "settings.toggleLinkedLine",
 		"transactions.addFixedTag", "transactions.addTag", "transactions.addTagToMany", "transactions.applyLineToEstablishment",
-		"transactions.confirmLine", "transactions.removeFixedTag", "transactions.removeTag", "transactions.setDefaultLine",
-		"transactions.setLine", "transactions.setLineForMany", "transactions.setNickname", "transactions.setNote",
-		"transactions.setReason", "transactions.undoHistoryStep",
+		"transactions.confirmLine", "transactions.excludeMany", "transactions.removeFixedTag", "transactions.removeTag",
+		"transactions.setDefaultLine", "transactions.setExcluded", "transactions.setExclusionReason", "transactions.setLine",
+		"transactions.setLineForMany", "transactions.setNickname", "transactions.setNote", "transactions.setReason",
+		"transactions.setRefund", "transactions.setRefundLine", "transactions.setSplit", "transactions.undoHistoryStep",
 	}
 	if !slices.Equal(registered, implemented) {
 		t.Errorf("the registry implements %v, want %v", registered, implemented)
 	}
-	if len(writesWithoutHandler) != 30 || slices.Contains(writesWithoutHandler, changePin) {
-		t.Errorf("the list holds %d names, want 30 without %s", len(writesWithoutHandler), changePin)
+	if len(writesWithoutHandler) != 24 || slices.Contains(writesWithoutHandler, changePin) {
+		t.Errorf("the list holds %d names, want 24 without %s", len(writesWithoutHandler), changePin)
 	}
 }
 

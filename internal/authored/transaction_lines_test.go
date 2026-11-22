@@ -137,8 +137,8 @@ func TestTheStepsOfAChangeAreTheOnesItWroteThatAreStillThere(t *testing.T) {
 	}
 }
 
-// takeBack takes back step of the transaction at key in a change of its own.
-func takeBack(t *testing.T, database *authored.Database, key authored.TxKey, step authored.StepID) (authored.ChangeID, error) {
+// takeBackStep takes back step of the transaction at key in a change of its own.
+func takeBackStep(t *testing.T, database *authored.Database, key authored.TxKey, step authored.StepID) (authored.ChangeID, error) {
 	t.Helper()
 	kept := keptAbout(t, database, key)
 	var found authored.HistoryStep
@@ -185,7 +185,7 @@ func TestTakingAStepBackRestoresThatTransactionAloneAndClosesTheQuestion(t *test
 		return recorder.SetStepReason(context.Background(), step, "é do apartamento")
 	})
 	before := dump(t, database)
-	id, err := takeBack(t, database, key, step)
+	id, err := takeBackStep(t, database, key, step)
 	if err != nil {
 		t.Fatalf("taking the step back: %v", err)
 	}
@@ -220,7 +220,7 @@ func TestAStepChangedSinceIsNotTakenBack(t *testing.T) {
 		return recorder.SettleLine(context.Background(), key, second, authored.AuthorPerson)
 	})
 	before := dump(t, database)
-	_, err := takeBack(t, database, key, step)
+	_, err := takeBackStep(t, database, key, step)
 	assertStale(t, err, authored.CauseLaterChange)
 	if after := dump(t, database); after != before {
 		t.Errorf("a refused step's undo changed the tables:\n%s\nwas\n%s", after, before)

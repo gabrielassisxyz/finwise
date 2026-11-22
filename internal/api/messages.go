@@ -94,6 +94,18 @@ const (
 	budgetMarkOverIncome = "Budget maior que a receita"
 )
 
+// The steps a transaction's history records when the person changes what it
+// counts for.
+const (
+	countedAgainStep   = "Você voltou a contar esta transação"
+	refundMarkedStep   = "Você marcou como estorno"
+	refundUnmarkedStep = "Você desmarcou o estorno"
+)
+
+func refundLineStep(line string) string {
+	return "Você definiu que o estorno abate " + line
+}
+
 // The steps a line change leaves in a transaction's history.
 
 func lineChangedStep(line string) string { return "Você alterou para " + line }

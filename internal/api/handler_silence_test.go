@@ -81,6 +81,9 @@ var secrets = []string{
 	"Renda", "Delivery", "Academia", "Pets", "Contas da casa", "Saúde", "PACOTE",
 	// The tags, notes, nicknames and line names of the transactions' write cases.
 	"viagem", "abastecer", "Pão", "Maria", "Inexistente",
+	// The reasons of the exclusion's write cases, and the cents of the purchase the
+	// split cases divide, a form no timestamp of a log line can hold.
+	"Compra da empresa", "Marcada em lote", "20700",
 	// The reasons and the history's sentences of the transactions' line writes.
 	"apartamento", "Você alterou", "Você confirmou", "Regra aplicou", "Delivery",
 }

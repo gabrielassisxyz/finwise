@@ -1,0 +1,39 @@
+{
+  "answer": {
+    "changeId": "5"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_split_parts",
+      "key": [
+        21,
+        0
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "tx_key": 21,
+        "position": 0,
+        "line_id": 6,
+        "cents": 20700
+      }
+    },
+    {
+      "seq": 2,
+      "table": "tx_split_parts",
+      "key": [
+        21,
+        1
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "tx_key": 21,
+        "position": 1,
+        "line_id": null,
+        "cents": 0
+      }
+    }
+  ]
+}
