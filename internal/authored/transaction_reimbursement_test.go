@@ -4,15 +4,20 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"slices"
 	"testing"
+	"time"
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
+	"github.com/gabrielassisxyz/finwise/internal/brday"
 	"github.com/gabrielassisxyz/finwise/internal/money"
 )
 
-// A purchase, two credits and a second purchase, indexed, the first credit
-// waiting for a review with a suggestion.
+// A purchase, two credits and a second purchase of November, indexed over the
+// invented budget, the first credit waiting for a review whose suggestion is a
+// line of that budget: a suggestion the month lacks is a state no undo may
+// bring back.
 type reimbursementKeys struct {
 	purchase, credit, otherCredit, otherPurchase authored.TxKey
 }
@@ -22,6 +27,8 @@ const linkedStepText = "Você ligou ao PIX de Ana Exemplo · R$\u00a0150,00"
 func reimbursementDatabase(t *testing.T) (*authored.Database, reimbursementKeys) {
 	t.Helper()
 	database := openDatabase(t, databasePath(t), creationInstant, nil)
+	authoredtest.SaveBudget(t, database, time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC), "2026-11", authoredtest.InventedBudget())
+	market := marketOf(t, database, "2026-11")
 	keys := reimbursementKeys{
 		purchase:      indexed(t, database, seenRow("p-dinner", "2026-11-10", -18_000, "name:restaurante")),
 		credit:        indexed(t, database, seenRow("p-pix", "2026-11-12", 15_000, "doc:11122233344")),
@@ -29,10 +36,25 @@ func reimbursementDatabase(t *testing.T) (*authored.Database, reimbursementKeys)
 		otherPurchase: indexed(t, database, seenRow("p-lunch", "2026-11-14", -6_000, "name:restaurante")),
 	}
 	changeBy(t, database, "scratch.seed", func(recorder *authored.Recorder) error {
-		review := authored.TransactionState{PendingReason: "Estabelecimento novo", PendingLine: lineID(1), PendingConfidence: authoredtest.Some[int64](55)}
+		review := authored.TransactionState{PendingReason: "Estabelecimento novo", PendingLine: lineID(market), PendingConfidence: authoredtest.Some[int64](55)}
 		return authoredtest.WriteState(context.Background(), recorder, keys.credit, review)
 	})
 	return database, keys
+}
+
+func marketOf(t *testing.T, database *authored.Database, month brday.Month) authored.LineID {
+	t.Helper()
+	view := database.View()
+	defer view.Close()
+	budget, err := view.BudgetOf(t.Context(), month)
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := slices.IndexFunc(budget.Lines, func(line authored.BudgetLine) bool { return line.Name == "Mercado" })
+	if at < 0 {
+		t.Fatal("the invented budget has no Mercado")
+	}
+	return budget.Lines[at].ID
 }
 
 func mark(t *testing.T, database *authored.Database, key authored.TxKey, expected money.Cents) authored.ChangeID {
