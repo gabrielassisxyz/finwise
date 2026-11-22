@@ -221,6 +221,9 @@ func inventedAuthoredState(t testing.TB, scratch *authoredtest.Scratch) {
 		if err := recorder.Put(ctx, authoredtest.Children, authored.Row{"id": authored.Integer(1), "parent_id": authored.Integer(1), "label": authored.Text("nota-child")}); err != nil {
 			return err
 		}
+		if err := recorder.SetMinExamples(ctx, 3); err != nil {
+			return err
+		}
 		return authoredtest.SeedBudget(recorder)
 	})
 	if err != nil {

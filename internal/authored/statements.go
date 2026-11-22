@@ -59,4 +59,9 @@ var allStatements = map[string]string{
 	"statementMintLine":              statementMintLine,
 	"statementScenariosInOrder":      statementScenariosInOrder,
 	"statementLastScenarioPlace":     statementLastScenarioPlace,
+	"statementSettingSelect":         statementSettingSelect,
+	"statementSettingSelectAll":      statementSettingSelectAll,
+	"statementSettingInsert":         statementSettingInsert,
+	"statementSettingUpdate":         statementSettingUpdate,
+	"statementSettingDelete":         statementSettingDelete,
 }

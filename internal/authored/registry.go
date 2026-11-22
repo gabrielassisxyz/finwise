@@ -106,6 +106,7 @@ var productionTables = []Table{
 	budgetVersionLinesTable,
 	scenariosTable,
 	closedMonthsTable,
+	settingsEntry(),
 }
 
 // notJournaledTables are the tables of finwise.db deliberately kept out of the
