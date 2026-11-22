@@ -1,0 +1,14 @@
+{
+  "limit": {
+    "cap": 0.00,
+    "spent": 0.00
+  },
+  "weeks": [],
+  "netWorth": {
+    "available": 2059.66,
+    "reserved": 2075.80,
+    "invested": 10000.00
+  },
+  "pendingCount": 0,
+  "payAhead": null
+}

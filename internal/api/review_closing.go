@@ -81,7 +81,7 @@ func readClosing(ctx context.Context, args []json.RawMessage, views Views) (any,
 	if err != nil {
 		return nil, err
 	}
-	card, err := loadCard(ctx, views.Ledger)
+	card, err := loadCardWithClosingSetting(ctx, views)
 	if err != nil {
 		return nil, err
 	}

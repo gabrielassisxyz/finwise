@@ -1,15 +1,8 @@
 package api
 
-// What the settings hold before the person changes anything. The backend has
-// nowhere to keep a change yet, so these are also what every read answers. They
-// are the values the stand-in starts with, and nothing else in the package
-// restates them.
-const (
-	defaultConfidenceThreshold = 85
-	defaultMinExamples         = 5
-	defaultManualClosingDay    = 28
-	defaultClosingMode         = "auto"
-)
+// What the settings hold before the person changes anything is stated by the
+// app's database alone, whose reads answer it where nothing is stored: the
+// rules that classify new transactions read the same values below the API.
 
 // The calibration bands tile the confidence range the threshold can take: five
 // bands of ten points from the lowest threshold, the last one reaching 100.

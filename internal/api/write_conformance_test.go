@@ -89,6 +89,11 @@ type writeCase struct {
 // alone, which has tests of its own and only this refusal.
 var writeCases = append([]writeCase{
 	{method: "changes.undo", arguments: `["999"]`, expects: expectsRefusal, reason: reasonStaleChange},
+	{method: "settings.setThreshold", arguments: `[72.6]`, expects: expectsRecorded, state: startFromTheInventedState},
+	{method: "settings.setMinExamples", arguments: `[80]`, expects: expectsRecorded, state: startFromTheInventedState},
+	{method: "settings.setMinExamples", arguments: `[5]`, expects: expectsRecorded},
+	{method: "settings.setCardLabel", arguments: `["  Virtual "]`, expects: expectsRecorded, state: startFromTheInventedState},
+	{method: "settings.setClosing", arguments: `["manual",31]`, expects: expectsRecorded},
 }, budgetWriteCases...)
 
 // reasonsWithoutProducer are the reasons of the closed list that nothing

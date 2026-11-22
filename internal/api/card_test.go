@@ -2,7 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -302,6 +306,56 @@ func TestTheTieRulesOfTheCardInUse(t *testing.T) {
 	}
 }
 
+// A closing asked of the bank's table directly would ignore the person's
+// closing day while the bill it belongs to was placed by it, so every closing
+// the card shows comes from the card's rule.
+func TestNoFileOfThePackageAsksTheBanksTableForAClosing(t *testing.T) {
+	for file, parsed := range sourceFilesOfThePackage(t) {
+		ast.Inspect(parsed, func(node ast.Node) bool {
+			call, ok := node.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			if selector, ok := call.Fun.(*ast.SelectorExpr); ok && selector.Sel.Name == "ClosingDate" {
+				t.Errorf("%s calls %s.ClosingDate", file, expressionText(selector.X))
+			}
+			return true
+		})
+	}
+}
+
+// sourceFilesOfThePackage parses every file of the package but its tests.
+func sourceFilesOfThePackage(t *testing.T) map[string]*ast.File {
+	t.Helper()
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed := map[string]*ast.File{}
+	for _, file := range files {
+		if strings.HasSuffix(file, "_test.go") {
+			continue
+		}
+		if parsed[file], err = parser.ParseFile(token.NewFileSet(), file, nil, 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(parsed) < 10 {
+		t.Fatalf("only %d source files were read", len(parsed))
+	}
+	return parsed
+}
+
+func expressionText(expression ast.Expr) string {
+	if selector, ok := expression.(*ast.SelectorExpr); ok {
+		return expressionText(selector.X) + "." + selector.Sel.Name
+	}
+	if identifier, ok := expression.(*ast.Ident); ok {
+		return identifier.Name
+	}
+	return "an expression"
+}
+
 func TestOnlyMoneyOutOfTheCardCountsAsAPurchaseForTheChoice(t *testing.T) {
 	f := cardLedgerWith(t, "card-a", "2026-05-05", "card-b", "2026-04-05")
 	f.AddTransaction(ledgertest.Transaction{ID: "tx-refund", AccountID: "card-b", Date: utc(2026, time.March, 12, 15, 0),
@@ -309,5 +363,115 @@ func TestOnlyMoneyOutOfTheCardCountsAsAPurchaseForTheChoice(t *testing.T) {
 		Raw: map[string]any{"operationType": "ESTORNO", "creditCardMetadata": map[string]any{"cardNumber": "1"}}})
 	if title := titleOfTheCard(t, f); title != "Cartão card-a" {
 		t.Errorf("described %v, a refund must not make a card the one in use", title)
+	}
+}
+
+// noon is noon in Brazil of a day of 2026.
+func noon(month time.Month, day int) time.Time { return utc(2026, month, day, 15, 0) }
+
+func closingFieldsOf(t *testing.T, env *settingsEnv) map[string]any {
+	t.Helper()
+	overview := answerOf(t, env.readEnv, "card.overview", `[]`)
+	return map[string]any{
+		"closesOn": overview["closesOn"], "dueOn": overview["dueOn"], "bestPurchaseDay": overview["bestPurchaseDay"],
+		"payAhead.amount": overview["payAhead"].(map[string]any)["amount"],
+	}
+}
+
+func expectFields(t *testing.T, label string, got, want map[string]any) {
+	t.Helper()
+	for field, value := range want {
+		if got[field] != value {
+			t.Errorf("%s: %s is %v, want %v", label, field, got[field], value)
+		}
+	}
+}
+
+func TestAManualDayGivesTheCardOfABankWithNoTableAClosing(t *testing.T) {
+	env := newSettingsEnv(t, noTableLedger(t), noon(time.March, 20))
+	unknown := map[string]any{"closesOn": nil, "dueOn": nil, "bestPurchaseDay": nil, "payAhead.amount": nil}
+	expectFields(t, "nothing set", closingFieldsOf(t, env), unknown)
+
+	env.change("settings.setClosing", `["auto",22]`)
+	expectFields(t, "a day stored in auto", closingFieldsOf(t, env), unknown)
+
+	env.change("settings.setClosing", `["manual",22]`)
+	expectFields(t, "manual on the 22nd", closingFieldsOf(t, env), map[string]any{
+		"closesOn": "2026-03-22", "dueOn": "2026-03-25", "bestPurchaseDay": "2026-03-22", "payAhead.amount": float64(0),
+	})
+	if amount := env.fieldOf("card.overview", `[]`, "payAhead", "amount"); amount != "0.00" {
+		t.Errorf("manual on the 22nd: the pay-ahead is written %s, want 0.00", amount)
+	}
+	if bankDay := env.overviewField("closing", "bankDay"); bankDay != "null" {
+		t.Errorf("the bank's day is %s for a bank with no table, want null whatever the manual day", bankDay)
+	}
+}
+
+// pastBillsClosedOn is the closedOn of each past bill, by the month it is due.
+func pastBillsClosedOn(t *testing.T, env *settingsEnv) map[string]any {
+	t.Helper()
+	closedOn := map[string]any{}
+	for _, bill := range answerOf(t, env.readEnv, "card.overview", `[]`)["bills"].([]any) {
+		bill := bill.(map[string]any)
+		closedOn[bill["month"].(string)] = bill["closedOn"]
+	}
+	return closedOn
+}
+
+func TestAManualDayPlacesOnlyTheBillsTheBankGaveNoClosingDate(t *testing.T) {
+	env := newSettingsEnv(t, c6Ledger(t), noon(time.March, 20))
+	byTheBank := map[string]any{"2026-02": "2026-02-04", "2026-03": "2026-03-04"}
+	expectFields(t, "auto", pastBillsClosedOn(t, env), byTheBank)
+
+	env.change("settings.setClosing", `["manual",25]`)
+	expectFields(t, "manual on the 25th", pastBillsClosedOn(t, env), map[string]any{"2026-02": "2026-02-04", "2026-03": "2026-02-25"})
+	expectFields(t, "manual on the 25th", closingFieldsOf(t, env), map[string]any{
+		"closesOn": "2026-03-25", "dueOn": "2026-04-10", "bestPurchaseDay": "2026-03-25",
+	})
+	if bankDay := env.overviewField("closing", "bankDay"); bankDay != "3" {
+		t.Errorf("the bank's day is %s under a manual day, want the table's 3", bankDay)
+	}
+}
+
+func TestAManualDayLeavesTheCardOfALedgerThatDatesEveryBillAsItIs(t *testing.T) {
+	env := newSettingsEnv(t, newFullLedger(t), fixtureNow)
+	_, auto := env.answer("card.overview", `[]`)
+	env.change("settings.setClosing", `["manual",10]`)
+	_, manual := env.answer("card.overview", `[]`)
+	if string(manual) != string(auto) {
+		t.Errorf("a manual day moved the card:\n%s", differences(string(auto), string(manual)))
+	}
+	if closesOn := env.fieldOf("card.overview", `[]`, "closesOn"); closesOn != `"2026-03-28"` {
+		t.Errorf("the open bill closes on %s, want the ledger's 2026-03-28", closesOn)
+	}
+	if bankDay := env.overviewField("closing", "bankDay"); bankDay != "28" {
+		t.Errorf("the bank's day is %s, want 28", bankDay)
+	}
+}
+
+// payAheadLedger is a card of a bank with no closing table and no closing date
+// in the ledger, with purchases before, on and after the 15th of the month.
+func payAheadLedger(t *testing.T) *ledgertest.Fixture {
+	t.Helper()
+	f := noTableLedger(t)
+	addPurchaseOn(f, "card-it", "tx-before-the-day", noon(time.March, 5), 40, "")
+	addPurchaseOn(f, "card-it", "tx-on-the-day", noon(time.March, 15), 25, "")
+	return f
+}
+
+func TestTheHomeAndTheClosingChargeWhatTheCardPutsOnTheNextBill(t *testing.T) {
+	env := newSettingsEnv(t, payAheadLedger(t), noon(time.March, 20))
+	for _, field := range [][]string{{"home.summary", "payAhead"}, {"review.closing", "cardBill"}} {
+		if got := env.fieldOf(field[0], `["2026-03"]`, field[1]); got != "null" {
+			t.Errorf("auto: %s.%s is %s, want null", field[0], field[1], got)
+		}
+	}
+
+	env.change("settings.setClosing", `["manual",15]`)
+	card := env.fieldOf("card.overview", `[]`, "payAhead", "amount")
+	home := env.fieldOf("home.summary", `["2026-03"]`, "payAhead", "amount")
+	closing := env.fieldOf("review.closing", `["2026-03"]`, "cardBill", "amount")
+	if card != "85.00" || home != card || closing != card {
+		t.Errorf("manual on the 15th: the card puts %s on the next bill, the home %s and the closing %s; want 85.00 each", card, home, closing)
 	}
 }

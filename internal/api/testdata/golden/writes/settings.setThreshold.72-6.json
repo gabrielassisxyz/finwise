@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "changeId": "2"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "settings",
+      "key": [
+        "confidence_threshold"
+      ],
+      "column": "value",
+      "before": 70,
+      "after": 73
+    }
+  ]
+}

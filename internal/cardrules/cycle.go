@@ -52,7 +52,10 @@ type cycle struct {
 	predicted bool
 }
 
-func (card Card) predictedClosing(due brday.Day) (brday.Day, bool) {
+// PredictedClosing is the closing of the bill due on due for which the ledger
+// carries no closing date, which is how the cycles place it. ok is false when
+// neither a manual day nor the bank's table can say.
+func (card Card) PredictedClosing(due brday.Day) (closing brday.Day, ok bool) {
 	if card.ManualClosingDay != 0 {
 		return ManualClosingDate(due, card.ManualClosingDay)
 	}
@@ -68,7 +71,7 @@ func (card Card) ledgerCycles() []cycle {
 		if bill.Closing != nil {
 			entry.closing, entry.known = *bill.Closing, true
 		} else {
-			entry.closing, entry.known = card.predictedClosing(bill.Due)
+			entry.closing, entry.known = card.PredictedClosing(bill.Due)
 		}
 		cycles = append(cycles, entry)
 	}
@@ -89,7 +92,7 @@ func (card Card) cycles() []cycle {
 			break
 		}
 		entry := cycle{due: due, predicted: true}
-		entry.closing, entry.known = card.predictedClosing(due)
+		entry.closing, entry.known = card.PredictedClosing(due)
 		cycles = append(cycles, entry)
 	}
 	return cycles
