@@ -121,6 +121,7 @@ func serve(ctx context.Context, settings serveSettings, env environment) (err er
 	handler, err := api.NewHandler(api.Config{
 		Ledger:         ledger.New(settings.ledgerPath),
 		VerifyPIN:      settings.pinHash.Verify,
+		Now:            env.now,
 		SessionIdle:    settings.sessionIdle,
 		InsecureCookie: settings.insecureCookie,
 		Logger:         logger,

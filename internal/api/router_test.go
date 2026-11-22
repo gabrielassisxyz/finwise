@@ -270,7 +270,7 @@ func TestAHandlerCannotBeRegisteredForAWrite(t *testing.T) {
 	for _, name := range []string{"transactions.setLine", "budget.evaluateScenario", "session.unlock", "no.such"} {
 		reads := NewRegistry()
 		reads.Register(name, noop)
-		_, err := NewHandler(Config{Methods: methods, Reads: reads, VerifyPIN: func(string) bool { return false }})
+		_, err := NewHandler(Config{Methods: methods, Reads: reads, VerifyPIN: func(string) bool { return false }, Now: newFakeClock().Now})
 		if err == nil {
 			t.Errorf("a handler for %s was accepted", name)
 		}
@@ -301,7 +301,7 @@ func TestHealthzAnswers200WithoutASession(t *testing.T) {
 }
 
 func TestNewHandlerNeedsAPINVerifier(t *testing.T) {
-	if _, err := NewHandler(Config{}); err == nil {
+	if _, err := NewHandler(Config{Now: newFakeClock().Now}); err == nil {
 		t.Error("a handler without a PIN check was built")
 	}
 }

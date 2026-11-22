@@ -14,11 +14,14 @@ func withNow(ctx context.Context, now func() time.Time) context.Context {
 	return context.WithValue(ctx, nowKey{}, now)
 }
 
+// nowOf panics on a context without a clock: the router always installs one,
+// so its absence is a wiring mistake, and the host's clock is no fallback.
 func nowOf(ctx context.Context) time.Time {
-	if now, ok := ctx.Value(nowKey{}).(func() time.Time); ok {
-		return now()
+	now, ok := ctx.Value(nowKey{}).(func() time.Time)
+	if !ok {
+		panic("api: no clock in the context")
 	}
-	return time.Now()
+	return now()
 }
 
 // brazilZone formats the time of day a person reads. The day itself comes from

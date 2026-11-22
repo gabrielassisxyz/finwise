@@ -19,7 +19,8 @@ import (
 const maxBodyBytes = 1 << 20
 
 // Config is everything the HTTP layer needs from outside. Methods and Reads
-// default to the embedded manifest and the registered domains.
+// default to the embedded manifest and the registered domains. Now is
+// required: "today" comes from the caller's clock, never from the host's.
 type Config struct {
 	Methods        []contract.Method
 	Reads          *Registry
@@ -75,6 +76,9 @@ func withDefaults(config Config) (Config, error) {
 	if config.VerifyPIN == nil {
 		return config, errors.New("api: no PIN verifier configured")
 	}
+	if config.Now == nil {
+		return config, errors.New("api: no clock configured")
+	}
 	if config.Methods == nil {
 		methods, err := contract.Load()
 		if err != nil {
@@ -84,9 +88,6 @@ func withDefaults(config Config) (Config, error) {
 	}
 	if config.Reads == nil {
 		config.Reads = NewReadRegistry()
-	}
-	if config.Now == nil {
-		config.Now = time.Now
 	}
 	if config.SessionIdle <= 0 {
 		config.SessionIdle = defaultSessionIdle
@@ -197,7 +198,10 @@ func (found *router) serveRead(w http.ResponseWriter, r *http.Request, method co
 	}
 	views := openViews(found.reader)
 	defer views.close()
-	result, err := handler(withNow(r.Context(), found.now), arguments, views)
+	// One instant per request, so that an answer computed around midnight
+	// cannot place one figure on one day and the next on another.
+	instant := found.now()
+	result, err := handler(withNow(r.Context(), func() time.Time { return instant }), arguments, views)
 	if err != nil {
 		writeError(w, r, kindOfReadError(err))
 		return
