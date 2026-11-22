@@ -4,6 +4,7 @@ import { MIN_EXAMPLES_RANGE, THRESHOLD_RANGE } from '@/api/contract/settings';
 import type { CategorizationSettings } from '@/api/types';
 import TitledCard from '@/components/ui/TitledCard.vue';
 import { orUnknown } from '@/lib/format';
+import { restoreOnFailure, saveStored, vStored } from '@/lib/storedField';
 import CalibrationChart from './CalibrationChart.vue';
 import { useSettingsWrites } from './useSettingsWrites';
 
@@ -19,7 +20,10 @@ watch(
 );
 
 function commitThreshold(): Promise<void> {
-  return write(() => api.settings.setThreshold(threshold.value));
+  return restoreOnFailure(
+    () => (threshold.value = props.categorization.threshold),
+    () => write(() => api.settings.setThreshold(threshold.value)),
+  );
 }
 
 const suggestedText = computed(() => orUnknown(props.categorization.suggestedThreshold, (percent) => `${percent}%`));
@@ -31,7 +35,7 @@ function useSuggested(): Promise<void> {
 }
 
 function commitMinExamples(event: Event): Promise<void> {
-  return write(() => api.settings.setMinExamples(Number((event.target as HTMLInputElement).value)));
+  return saveStored(event, (typed) => write(() => api.settings.setMinExamples(Number(typed))));
 }
 </script>
 
@@ -58,7 +62,7 @@ function commitMinExamples(event: Event): Promise<void> {
           type="number"
           :min="MIN_EXAMPLES_RANGE.min"
           :max="MIN_EXAMPLES_RANGE.max"
-          :value="categorization.minExamples"
+          v-stored="categorization.minExamples"
           @change="commitMinExamples"
         />
       </label>
