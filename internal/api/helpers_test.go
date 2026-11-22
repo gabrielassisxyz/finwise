@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/contract"
 )
 
@@ -63,6 +64,9 @@ type request struct {
 	body    string
 	headers map[string]string
 	cookie  *http.Cookie
+	// ctx is the request's context; a test gives one a deadline to end a wait
+	// the server would otherwise sit out.
+	ctx context.Context
 }
 
 func (env *testEnv) do(req request) *httptest.ResponseRecorder {
@@ -79,6 +83,9 @@ func (env *testEnv) do(req request) *httptest.ResponseRecorder {
 	}
 	if req.cookie != nil {
 		httpRequest.AddCookie(req.cookie)
+	}
+	if req.ctx != nil {
+		httpRequest = httpRequest.WithContext(req.ctx)
 	}
 	recorder := httptest.NewRecorder()
 	env.handler.ServeHTTP(recorder, httpRequest)
@@ -152,6 +159,16 @@ func methodsOfClass(env *testEnv, classes ...contract.Class) []contract.Method {
 // withRead registers a read handler before the router is built.
 func withRead(method string, handler ReadHandler) envOption {
 	return func(config *Config) { config.Reads.Register(method, handler) }
+}
+
+// withWrite registers a write handler before the router is built.
+func withWrite(method string, handler WriteHandler) envOption {
+	return func(config *Config) { config.Reads.RegisterWrite(method, handler) }
+}
+
+// withDatabase serves over the app's database, which is what lets a write run.
+func withDatabase(database *authored.Database) envOption {
+	return func(config *Config) { config.Database = database }
 }
 
 func returnsNothing(context.Context, []json.RawMessage, Views) (any, error) { return nil, nil }

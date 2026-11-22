@@ -1,8 +1,10 @@
 // Package api serves the interface's API contract over HTTP: a router built
-// from the contract manifest, the PIN, the session and the refusal of writes.
+// from the contract manifest, the PIN, the session, the handlers of reads and
+// the dispatch of writes through the recorder.
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +14,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/santhosh-tekuri/jsonschema/v6"
+
 	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/contract"
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
@@ -20,10 +24,11 @@ import (
 const maxBodyBytes = 1 << 20
 
 // Config is everything the HTTP layer needs from outside. Methods and Reads
-// default to the embedded manifest and the registered domains. Now is
-// required: "today" comes from the caller's clock, never from the host's.
-// Database is the app's own database; without it every read is answered as if
-// the person had authored nothing.
+// default to the embedded manifest and the registered domains; Reads holds the
+// handlers of every class. Now is required: "today" comes from the caller's
+// clock, never from the host's. Database is the app's own database; without it
+// every read is answered as if the person had authored nothing and every write
+// is refused as `read_only`.
 type Config struct {
 	Methods        []contract.Method
 	Reads          *Registry
@@ -38,15 +43,17 @@ type Config struct {
 
 // router carries what the per-route functions share.
 type router struct {
-	reads    *Registry
+	handlers *Registry
+	schemas  map[string]*jsonschema.Schema
 	reader   *ledger.Reader
 	database *authored.Database
 	sessions *sessionService
 	now      func() time.Time
 }
 
-// NewHandler builds the router from the manifest. A write or an evaluation has
-// no handler anywhere: the route exists only to refuse.
+// NewHandler builds the router from the manifest. A write or an evaluation is
+// refused as `read_only` unless the server has its own database and the method
+// has a handler.
 func NewHandler(config Config) (http.Handler, error) {
 	config, err := withDefaults(config)
 	if err != nil {
@@ -55,8 +62,13 @@ func NewHandler(config Config) (http.Handler, error) {
 	if err := checkRegistered(config.Reads, config.Methods); err != nil {
 		return nil, err
 	}
+	schemas, err := compileArgumentSchemas(config.Methods)
+	if err != nil {
+		return nil, err
+	}
 	found := &router{
-		reads:    config.Reads,
+		handlers: config.Reads,
+		schemas:  schemas,
 		reader:   config.Ledger,
 		database: config.Database,
 		sessions: newSessionService(config),
@@ -104,18 +116,25 @@ func withDefaults(config Config) (Config, error) {
 	return config, nil
 }
 
-// checkRegistered refuses a handler for anything that is not a `read` method,
-// so that a write cannot be given a handler by mistake.
-func checkRegistered(reads *Registry, methods []contract.Method) error {
-	readMethods := map[string]bool{}
+// checkRegistered refuses a handler for a name the manifest does not have, for a
+// `session` method, which the session service answers, and one whose shape
+// cannot serve its method's class: a read's handler has no recorder to write
+// through, and a write's has no business answering a read.
+func checkRegistered(registry *Registry, methods []contract.Method) error {
+	classes := map[string]contract.Class{}
 	for _, method := range methods {
-		if method.Class == contract.ClassRead {
-			readMethods[method.Qualified()] = true
-		}
+		classes[method.Qualified()] = method.Class
 	}
-	for _, name := range reads.Names() {
-		if !readMethods[name] {
-			return fmt.Errorf("api: handler registered for %s, which is not a read method of the contract", name)
+	for _, name := range registry.Names() {
+		class, known := classes[name]
+		if !known {
+			return fmt.Errorf("api: handler registered for %s, which is not a method of the contract", name)
+		}
+		if class == contract.ClassSession {
+			return fmt.Errorf("api: handler registered for %s, which is a session method that the session service answers", name)
+		}
+		if registered, _ := registry.lookup(name); !registered.serves(class) {
+			return fmt.Errorf("api: the handler registered for %s is not of a shape that can serve a method of class %s", name, class)
 		}
 	}
 	return nil
@@ -140,8 +159,8 @@ func standardHeaders(next http.Handler) http.Handler {
 // serve runs the checks in a fixed order, each of which can end the request:
 // the verb, the session, the method's class, the content type, the body.
 // The session comes before the class so that a person without one learns
-// nothing but `locked`; the class comes before the body so that a write is
-// refused without its body being read.
+// nothing but `locked`; the class comes before the body so that a write with
+// no store to keep it in, or no handler, is refused without its body being read.
 func (found *router) serve(method contract.Method) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -155,10 +174,10 @@ func (found *router) serve(method contract.Method) http.HandlerFunc {
 			return
 		}
 		if method.Class == contract.ClassWrite || method.Class == contract.ClassEvaluate {
-			writeError(w, r, kindReadOnly)
+			found.serveChange(w, r, method)
 			return
 		}
-		arguments, ok := readArguments(w, r, method)
+		arguments, _, ok := readArguments(w, r, method)
 		if !ok {
 			return
 		}
@@ -175,39 +194,44 @@ func opensWithoutSession(method contract.Method) bool {
 }
 
 // readArguments checks the content type and the body, and answers the error
-// itself when either is wrong.
-func readArguments(w http.ResponseWriter, r *http.Request, method contract.Method) ([]json.RawMessage, bool) {
+// itself when either is wrong. It returns the arguments and the bytes they
+// were read from, which a schema is applied to.
+func readArguments(w http.ResponseWriter, r *http.Request, method contract.Method) ([]json.RawMessage, []byte, bool) {
 	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || mediaType != "application/json" {
 		writeError(w, r, kindBadRequest)
-		return nil, false
+		return nil, nil, false
 	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBodyBytes))
 	if err != nil {
 		writeError(w, r, kindBadRequest)
-		return nil, false
+		return nil, nil, false
 	}
 	var arguments []json.RawMessage
 	if err := json.Unmarshal(body, &arguments); err != nil || arguments == nil ||
 		len(arguments) < method.MinArguments || len(arguments) > method.MaxArguments {
 		writeError(w, r, kindBadRequest)
-		return nil, false
+		return nil, nil, false
 	}
-	return arguments, true
+	return arguments, body, true
 }
 
 func (found *router) serveRead(w http.ResponseWriter, r *http.Request, method contract.Method, arguments []json.RawMessage) {
-	handler, registered := found.reads.lookup(method.Qualified())
-	if !registered {
+	registered, ok := found.handlers.lookup(method.Qualified())
+	if !ok || registered.read == nil {
 		writeError(w, r, kindInternal)
 		return
 	}
+	found.answerRead(w, r, registered.read, arguments)
+}
+
+// answerRead runs a handler over the request's views, for a read and for an
+// evaluation, which stores nothing.
+func (found *router) answerRead(w http.ResponseWriter, r *http.Request, handler ReadHandler, arguments []json.RawMessage) {
 	views := openViews(found.reader, found.database)
 	defer views.close()
-	// One instant per request, so that an answer computed around midnight
-	// cannot place one figure on one day and the next on another.
-	instant := found.now()
-	result, err := handler(withNow(r.Context(), func() time.Time { return instant }), arguments, views)
+	ctx, _ := found.requestContext(r)
+	result, err := handler(ctx, arguments, views)
 	if err != nil {
 		writeFailure(w, r, err)
 		return
@@ -217,6 +241,12 @@ func (found *router) serveRead(w http.ResponseWriter, r *http.Request, method co
 		writeError(w, r, kindInternal)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write(encoded)
+	writeEncoded(w, encoded)
+}
+
+// requestContext reads the clock once per request, so that an answer computed
+// around midnight cannot place one figure on one day and the next on another.
+func (found *router) requestContext(r *http.Request) (context.Context, time.Time) {
+	instant := found.now()
+	return withNow(r.Context(), func() time.Time { return instant }), instant
 }

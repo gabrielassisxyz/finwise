@@ -5,48 +5,93 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+
+	"github.com/gabrielassisxyz/finwise/internal/contract"
 )
 
-// ReadHandler serves one `read` method. args are the raw elements of the
-// request's argument array, already counted against the manifest but not
-// decoded; the result is encoded as JSON, and nil becomes null. Every query of
-// one call goes through views, which are opened for the request and closed
-// after it, so a handler holds nothing between calls.
+// ReadHandler serves one `read` method or one `evaluate` method. args are the
+// raw elements of the request's argument array, already counted against the
+// manifest but not decoded; the result is encoded as JSON, and nil becomes
+// null. Every query of one call goes through views, which are opened for the
+// request and closed after it, so a handler holds nothing between calls.
 // An error is mapped by its class and its text is never logged or sent.
 type ReadHandler func(ctx context.Context, args []json.RawMessage, views Views) (any, error)
 
-// Registry maps "domain.name" to the handler of a `read` method.
+// Registry maps "domain.name" to the handler of a method of any class but
+// `session`. A handler has one of two shapes, which differ in what the router
+// opens for it and so in what it may do: ReadHandler and WriteHandler.
 type Registry struct {
-	handlers map[string]ReadHandler
+	reads  map[string]ReadHandler
+	writes map[string]WriteHandler
 }
 
 // NewRegistry returns an empty registry.
 func NewRegistry() *Registry {
-	return &Registry{handlers: map[string]ReadHandler{}}
-}
-
-// Register panics on a second handler for one method: that is a wiring mistake
-// found at start, not a condition to handle.
-func (registry *Registry) Register(method string, handler ReadHandler) {
-	if _, taken := registry.handlers[method]; taken {
-		panic(fmt.Sprintf("api: read method %s registered twice", method))
+	return &Registry{
+		reads:  map[string]ReadHandler{},
+		writes: map[string]WriteHandler{},
 	}
-	registry.handlers[method] = handler
 }
 
-// Names lists the registered methods in order.
+// Register adds the handler of a `read` method or of an `evaluate` method. It
+// panics on a second handler for one method, of any shape: that is a wiring
+// mistake found at start, not a condition to handle.
+func (registry *Registry) Register(method string, handler ReadHandler) {
+	registry.claim(method)
+	registry.reads[method] = handler
+}
+
+// RegisterWrite adds the handler of a `write` method that records what it
+// changes through the recorder it is given.
+func (registry *Registry) RegisterWrite(method string, handler WriteHandler) {
+	registry.claim(method)
+	registry.writes[method] = handler
+}
+
+func (registry *Registry) claim(method string) {
+	if _, taken := registry.lookup(method); taken {
+		panic(fmt.Sprintf("api: method %s registered twice", method))
+	}
+}
+
+// Names lists the registered methods in order, whatever their shape.
 func (registry *Registry) Names() []string {
-	names := make([]string, 0, len(registry.handlers))
-	for name := range registry.handlers {
+	names := make([]string, 0, len(registry.reads)+len(registry.writes))
+	for name := range registry.reads {
+		names = append(names, name)
+	}
+	for name := range registry.writes {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	return names
 }
 
-func (registry *Registry) lookup(method string) (ReadHandler, bool) {
-	handler, found := registry.handlers[method]
-	return handler, found
+// registration is what a method is registered with: exactly one field is set.
+type registration struct {
+	read  ReadHandler
+	write WriteHandler
+}
+
+// serves says whether a handler of this shape can answer a method of the class.
+func (found registration) serves(class contract.Class) bool {
+	switch {
+	case found.read != nil:
+		return class == contract.ClassRead || class == contract.ClassEvaluate
+	case found.write != nil:
+		return class == contract.ClassWrite
+	}
+	return false
+}
+
+func (registry *Registry) lookup(method string) (registration, bool) {
+	if read, found := registry.reads[method]; found {
+		return registration{read: read}, true
+	}
+	if write, found := registry.writes[method]; found {
+		return registration{write: write}, true
+	}
+	return registration{}, false
 }
 
 // domainRegistrations has one line per domain. A domain's handlers live in a

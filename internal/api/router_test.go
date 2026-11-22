@@ -264,29 +264,85 @@ func TestAnUnserialisableResultIsInternal(t *testing.T) {
 	expectError(t, "chan", handler.call("/api/shell/overview", `[]`, handler.unlock()), http.StatusInternalServerError, "internal")
 }
 
-func TestAHandlerCannotBeRegisteredForAWrite(t *testing.T) {
+// buildWith builds the router over a registry the test filled, as the server
+// does at start.
+func buildWith(register func(*Registry)) error {
 	methods, _ := contract.Load()
-	noop := func(context.Context, []json.RawMessage, Views) (any, error) { return nil, nil }
-	for _, name := range []string{"transactions.setLine", "budget.evaluateScenario", "session.unlock", "no.such"} {
-		reads := NewRegistry()
-		reads.Register(name, noop)
-		_, err := NewHandler(Config{Methods: methods, Reads: reads, VerifyPIN: func(string) bool { return false }, Now: newFakeClock().Now})
-		if err == nil {
-			t.Errorf("a handler for %s was accepted", name)
+	registry := NewRegistry()
+	register(registry)
+	_, err := NewHandler(Config{Methods: methods, Reads: registry, VerifyPIN: func(string) bool { return false }, Now: newFakeClock().Now})
+	return err
+}
+
+func noopWrite(context.Context, []json.RawMessage, Writes) (any, error) { return nil, nil }
+
+func TestAHandlerIsRefusedForAMethodTheManifestDoesNotHaveOrTheSessionServiceAnswers(t *testing.T) {
+	for _, name := range []string{"no.such", "session.status", "session.unlock", "session.lock"} {
+		shapes := map[string]func(*Registry){
+			"read":  func(registry *Registry) { registry.Register(name, returnsNothing) },
+			"write": func(registry *Registry) { registry.RegisterWrite(name, noopWrite) },
+		}
+		for shape, register := range shapes {
+			if buildWith(register) == nil {
+				t.Errorf("a %s handler for %s was accepted", shape, name)
+			}
 		}
 	}
 }
 
-func TestRegisteringTwiceFailsLoudly(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Error("a second registration did not panic")
+func TestAHandlerIsAcceptedForAWriteAndForAnEvaluation(t *testing.T) {
+	accepted := map[string]func(*Registry){
+		"a write handler for transactions.setLine":   func(r *Registry) { r.RegisterWrite("transactions.setLine", noopWrite) },
+		"a read handler for budget.evaluateScenario": func(r *Registry) { r.Register("budget.evaluateScenario", returnsNothing) },
+		"a read handler for shell.overview":          func(r *Registry) { r.Register("shell.overview", returnsNothing) },
+		// changePin is a write, so the registry takes a handler for it; the walk
+		// of the manifest is what keeps one from being registered.
+		"a write handler for session.changePin": func(r *Registry) { r.RegisterWrite("session.changePin", noopWrite) },
+	}
+	for label, register := range accepted {
+		if err := buildWith(register); err != nil {
+			t.Errorf("%s was refused: %v", label, err)
 		}
-	}()
-	registry := NewRegistry()
-	noop := func(context.Context, []json.RawMessage, Views) (any, error) { return nil, nil }
-	registry.Register("shell.overview", noop)
-	registry.Register("shell.overview", noop)
+	}
+}
+
+// A handler of one shape gets what its shape is given: a read's handler has no
+// recorder, so it cannot serve a write, and a write's handler would be given a
+// transaction to answer a read.
+func TestAHandlerOfTheWrongShapeIsRefusedForTheMethodsClass(t *testing.T) {
+	refused := map[string]func(*Registry){
+		"a read handler for a write":        func(r *Registry) { r.Register("transactions.setLine", returnsNothing) },
+		"a write handler for a read":        func(r *Registry) { r.RegisterWrite("shell.overview", noopWrite) },
+		"a write handler for an evaluation": func(r *Registry) { r.RegisterWrite("budget.evaluateScenario", noopWrite) },
+	}
+	for label, register := range refused {
+		if buildWith(register) == nil {
+			t.Errorf("%s was accepted", label)
+		}
+	}
+}
+
+func TestRegisteringTwiceFailsLoudlyWhateverTheShape(t *testing.T) {
+	registrations := map[string]func(*Registry){
+		"read twice": func(r *Registry) {
+			r.Register("shell.overview", returnsNothing)
+			r.Register("shell.overview", returnsNothing)
+		},
+		"read then write": func(r *Registry) {
+			r.Register("shell.overview", returnsNothing)
+			r.RegisterWrite("shell.overview", noopWrite)
+		},
+	}
+	for label, register := range registrations {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("%s did not panic", label)
+				}
+			}()
+			register(NewRegistry())
+		}()
+	}
 }
 
 func TestHealthzAnswers200WithoutASession(t *testing.T) {
