@@ -272,6 +272,7 @@ func TestEverySetterRefusesASubscriptionTheDatabaseDoesNotHave(t *testing.T) {
 			expectRefused(t, method+" of "+id, response, "not_found")
 		}
 	}
+	expectRefused(t, "an unknown line of an unknown subscription", env.call("/api/subscriptions/setLine", `["999","Inexistente"]`, env.cookie), "not_found")
 	expectRefused(t, "an unknown line", env.call("/api/subscriptions/setLine", `["1","Inexistente"]`, env.cookie), "unknown_line")
 	expectRefused(t, "the name the line had in February", env.call("/api/subscriptions/setLine", `["1","Mercado"]`, env.cookie), "unknown_line")
 	if after := env.scratch.State(t); after != before {
