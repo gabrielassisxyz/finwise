@@ -5,8 +5,10 @@ web/dist/
 # screenshots and diff heatmaps. Only the reference screenshots are versioned.
 work/
 
-# The binary `go build ./cmd/finwise` leaves in the working directory.
+# The binary `go build ./cmd/finwise` leaves in the working directory, and the one
+# a plain `go build` leaves beside the command's source.
 /finwise
+/cmd/finwise/finwise
 
 # Databases hold personal financial data, and so does the copy of the app's
 # database taken before a migration (finwise.db.before-<UTC timestamp>).

@@ -34,6 +34,24 @@ if need shellcheck "https://www.shellcheck.net"; then
   shellcheck bin/ci || { echo "  FAILED: shellcheck"; fail=1; }
 fi
 
+# `go build` run inside a command's own directory leaves the program beside its
+# source, where a broad `git add` picks it up: megabytes that stay in the history
+# for good. The first bytes say what a file is, whatever it is called.
+no_built_program_is_tracked() {
+  local path found=0
+  while IFS= read -r -d '' path; do
+    case "$(head -c 4 "$path" 2>/dev/null | od -An -tx1 | tr -d ' \n')" in
+      7f454c46 | cffaedfe | cefaedfe | feedfacf | feedface)
+        echo "  $path is a built program: git rm --cached it and add it to .gitignore"
+        found=1
+        ;;
+    esac
+  done < <(git ls-files -z)
+  return "$found"
+}
+
+step "no built program is tracked" no_built_program_is_tracked
+
 if [ ! -d web/node_modules ]; then
   echo "missing: web/node_modules (install with: npm --prefix web ci)"
   echo "bin/ci FAILED"
