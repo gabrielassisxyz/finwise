@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/gabrielassisxyz/finwise/internal/brday"
 )
@@ -86,6 +87,10 @@ func readSettingsOverview(ctx context.Context, _ []json.RawMessage, views Views)
 	if err != nil {
 		return nil, err
 	}
+	lastBackup, err := lastBackupOf(ctx, views)
+	if err != nil {
+		return nil, err
+	}
 	return settingsOverviewWire{
 		Pots:           settingsPotsOf(pots),
 		Establishments: []any{},
@@ -94,8 +99,17 @@ func readSettingsOverview(ctx context.Context, _ []json.RawMessage, views Views)
 		CardLabel:      defaultCardLabel,
 		Categorization: defaultCategorization(),
 		Closing:        cardClosingWire{Mode: defaultClosingMode, BankDay: bankClosingDayOf(card), ManualDay: defaultManualClosingDay},
-		Data:           dataSettingsOf(state, nowOf(ctx), pots.items),
+		Data:           dataSettingsOf(state, lastBackup, nowOf(ctx), pots.items),
 	}, nil
+}
+
+// lastBackupOf is nil without the app's database and before its first backup.
+func lastBackupOf(ctx context.Context, views Views) (*time.Time, error) {
+	instant, found, err := views.Authored.LastBackup(ctx)
+	if err != nil || !found {
+		return nil, err
+	}
+	return &instant, nil
 }
 
 // settingsPotsOf lists the pots still open, in the order and the bucket the pots
