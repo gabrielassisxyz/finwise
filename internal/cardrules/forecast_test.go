@@ -11,7 +11,7 @@ import (
 
 // placementsWithForecast builds an invented card ledger in which every purchase
 // carries the given billForecastDate, and returns the placement of each
-// purchase through the real reader.
+// purchase through the real view.
 func placementsWithForecast(t *testing.T, forecast any) map[string]cardrules.Placement {
 	t.Helper()
 	f := ledgertest.New(t)
@@ -41,12 +41,13 @@ func placementsWithForecast(t *testing.T, forecast any) map[string]cardrules.Pla
 		})
 	}
 
-	reader := ledger.New(f.Path)
-	bills, err := reader.Bills(t.Context())
+	view := ledger.New(f.Path).View()
+	defer view.Close()
+	bills, err := view.Bills(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
-	transactions, err := reader.CleanTransactions(t.Context(), brday.Period{First: "2026-01-01", Last: "2026-12-31"})
+	transactions, err := view.CleanTransactions(t.Context(), brday.Period{First: "2026-01-01", Last: "2026-12-31"})
 	if err != nil {
 		t.Fatal(err)
 	}

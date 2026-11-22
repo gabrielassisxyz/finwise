@@ -22,7 +22,7 @@ func TestAccountsAreTheCurrentOnesWithTheirBankAndCardFacts(t *testing.T) {
 	f.AddAccount(ledgertest.Account{ID: "acc-gone", ItemID: "item-1", Type: "BANK", Name: "Gone", Currency: "BRL"})
 	f.MarkRemoved("accounts", "acc-gone")
 
-	got, err := ledger.New(f.Path).Accounts(t.Context())
+	got, err := viewOf(t, f.Path).Accounts(t.Context())
 	if err != nil || len(got) != 2 {
 		t.Fatalf("%v, %v", got, err)
 	}
@@ -47,7 +47,7 @@ func TestBillsCarryTheirDatesAndAmounts(t *testing.T) {
 	f.AddBill(ledgertest.Bill{ID: "bill-gone", AccountID: "acc-card", DueDate: "2026-02-10", ClosingDate: "2026-02-03", Total: 1})
 	f.MarkRemoved("bills", "bill-gone")
 
-	got, err := ledger.New(f.Path).Bills(t.Context())
+	got, err := viewOf(t, f.Path).Bills(t.Context())
 	if err != nil || len(got) != 2 {
 		t.Fatalf("%v, %v", got, err)
 	}
@@ -74,9 +74,9 @@ func TestPotsAreTheLatestSightingOnOrBeforeTheDayAndNothingIsCarriedForward(t *t
 	f.AddAccount(ledgertest.Account{ID: "acc-2", ItemID: "item-1", Type: "BANK", Name: "Empty", Currency: "BRL", Reserves: []ledgertest.Reserve{}})
 	f.AddAccount(ledgertest.Account{ID: "acc-3", ItemID: "item-1", Type: "BANK", Name: "Silent", Currency: "BRL"})
 	f.ObserveAccount("acc-1", "2026-03-20", ledgertest.ReservesOverride(ledgertest.Reserve{ID: "pot-a", Name: "Trip", Amount: 120.20, CDIRatio: 1.05}))
-	reader := ledger.New(f.Path)
+	view := viewOf(t, f.Path)
 
-	onThe15th, err := reader.Pots(t.Context(), "2026-03-15")
+	onThe15th, err := view.Pots(t.Context(), "2026-03-15")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestPotsAreTheLatestSightingOnOrBeforeTheDayAndNothingIsCarriedForward(t *t
 		t.Errorf("duplicated identification reported stable: %+v %+v", onThe15th[3], onThe15th[4])
 	}
 
-	onThe20th, err := reader.Pots(t.Context(), "2026-03-20")
+	onThe20th, err := view.Pots(t.Context(), "2026-03-20")
 	if err != nil || len(onThe20th) != 1 || *onThe20th[0].Amount != 12020 || *onThe20th[0].ReserveID != "pot-a" {
 		t.Fatalf("20th: %+v, %v", onThe20th, err)
 	}
@@ -107,7 +107,7 @@ func TestPotsAreTheLatestSightingOnOrBeforeTheDayAndNothingIsCarriedForward(t *t
 
 func TestPotsBeforeAnySightingAreNone(t *testing.T) {
 	f := populated(t)
-	got, err := ledger.New(f.Path).Pots(t.Context(), "2026-03-14")
+	got, err := viewOf(t, f.Path).Pots(t.Context(), "2026-03-14")
 	if err != nil || len(got) != 0 {
 		t.Fatalf("%+v, %v", got, err)
 	}
@@ -115,7 +115,7 @@ func TestPotsBeforeAnySightingAreNone(t *testing.T) {
 
 func TestPotsRefuseAMalformedDay(t *testing.T) {
 	f := populated(t)
-	if _, err := ledger.New(f.Path).Pots(t.Context(), "15/03/2026"); err == nil {
+	if _, err := viewOf(t, f.Path).Pots(t.Context(), "15/03/2026"); err == nil {
 		t.Fatal("malformed day accepted")
 	}
 }
@@ -129,15 +129,15 @@ func TestInvestmentsAndTheirDailyHistory(t *testing.T) {
 	f.AddInvestment(ledgertest.Investment{ID: "inv-gone", ItemID: "item-1", Type: "FIXED_INCOME", Name: "Gone", Currency: "BRL", Balance: 1})
 	f.MarkRemoved("investments", "inv-gone")
 	f.ObserveInvestment("inv-1", "2026-03-10", map[string]any{"amount": 1000.1, "taxes": 0, "amountWithdrawal": 1000.1, "status": "PENDING"})
-	reader := ledger.New(f.Path)
+	view := viewOf(t, f.Path)
 
-	investments, err := reader.Investments(t.Context())
+	investments, err := view.Investments(t.Context())
 	if err != nil || len(investments) != 2 || investments[0].ID != "inv-1" || investments[0].Balance != 100050 ||
 		investments[0].Subtype != "CDB" || investments[0].Name != "Test CDB" {
 		t.Fatalf("%+v, %v", investments, err)
 	}
 
-	history, err := reader.InvestmentHistory(t.Context(), "inv-1")
+	history, err := view.InvestmentHistory(t.Context(), "inv-1")
 	if err != nil || len(history) != 2 {
 		t.Fatalf("%+v, %v", history, err)
 	}
@@ -158,7 +158,7 @@ func TestIdentitiesAreTheCurrentOnes(t *testing.T) {
 	f.AddIdentity(ledgertest.Identity{ID: "idn-gone", ItemID: "item-1", Document: "99999999999", FullName: "Gone Person"})
 	f.MarkRemoved("identities", "idn-gone")
 
-	got, err := ledger.New(f.Path).Identities(t.Context())
+	got, err := viewOf(t, f.Path).Identities(t.Context())
 	want := []ledger.Identity{{ID: "idn-1", ItemID: "item-1", Document: "00000000000", FullName: "Test Person"}}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("%+v, %v", got, err)
@@ -171,7 +171,7 @@ func TestSyncStateReportsTheLastCompleteRunEvenWhenALaterOneIsPartial(t *testing
 	f.AddRun(ledgertest.Run{Outcome: "partial", FinishedAt: instant(t, "2026-03-21T06:00:00Z")})
 	f.AddRun(ledgertest.Run{Outcome: "failed", FinishedAt: instant(t, "2026-03-22T06:00:00Z")})
 
-	state, err := ledger.New(f.Path).SyncState(t.Context())
+	state, err := viewOf(t, f.Path).SyncState(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +186,7 @@ func TestSyncStateReportsTheLastCompleteRunEvenWhenALaterOneIsPartial(t *testing
 func TestSyncStateWithoutAnyCompleteRunHasNoLastSync(t *testing.T) {
 	f := ledgertest.NewWithFirstRunOutcome(t, "failed")
 
-	state, err := ledger.New(f.Path).SyncState(t.Context())
+	state, err := viewOf(t, f.Path).SyncState(t.Context())
 	if err != nil || state.LastCompleteSync != nil {
 		t.Fatalf("%+v, %v", state, err)
 	}
@@ -201,7 +201,7 @@ func TestConsentExpiryComesFromTheItemBodyNotTheConsentsTable(t *testing.T) {
 		LastUpdated: instant(t, "2026-03-15T02:00:00Z"), NextAutoSync: instant(t, "2026-03-16T02:00:00Z")})
 	f.AddConsent(ledgertest.Consent{ID: "consent-1", ItemID: "item-1"})
 
-	state, err := ledger.New(f.Path).SyncState(t.Context())
+	state, err := viewOf(t, f.Path).SyncState(t.Context())
 	if err != nil || len(state.Connections) != 2 {
 		t.Fatalf("%+v, %v", state, err)
 	}
@@ -244,11 +244,11 @@ func TestMoneyArrivesAsCentsWhateverTheFloatsLookLike(t *testing.T) {
 		}
 	})
 
-	accounts, err := ledger.New(f.Path).Accounts(t.Context())
+	accounts, err := viewOf(t, f.Path).Accounts(t.Context())
 	if err != nil || accounts[0].Balance != 1999 {
 		t.Fatalf("%+v, %v", accounts, err)
 	}
-	bills, err := ledger.New(f.Path).Bills(t.Context())
+	bills, err := viewOf(t, f.Path).Bills(t.Context())
 	if err != nil || len(bills) != 1000 {
 		t.Fatalf("%d bills, %v", len(bills), err)
 	}

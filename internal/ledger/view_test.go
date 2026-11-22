@@ -74,6 +74,15 @@ func viewLedger(t *testing.T) *ledgertest.Fixture {
 	return f
 }
 
+// everyAnswerOnAViewOfItsOwn is the baseline a long-lived view is compared with:
+// every query on a view opened just for it and closed after.
+func everyAnswerOnAViewOfItsOwn(t *testing.T, reader *ledger.Reader) map[string]queryAnswer {
+	t.Helper()
+	view := reader.View()
+	defer view.Close()
+	return everyAnswer(t, view)
+}
+
 func renameOver(t *testing.T, replacement *ledgertest.Fixture, path string) {
 	t.Helper()
 	if err := os.Rename(replacement.Path, path); err != nil {
@@ -85,13 +94,13 @@ func renameOver(t *testing.T, replacement *ledgertest.Fixture, path string) {
 // query that ran on a handle of its own would answer from it and differ. The
 // empty one is projected to a later run, not the populated one, because
 // projecting past the fixture's first run uncovers every document it holds.
-func TestEveryQueryOnOneViewAnswersAsTheReaderDoes(t *testing.T) {
+func TestEveryQueryOnOneViewAnswersAsAViewOfItsOwnDoes(t *testing.T) {
 	f := viewLedger(t)
 	reader := ledger.New(f.Path)
-	want := everyAnswer(t, reader)
+	want := everyAnswerOnAViewOfItsOwn(t, reader)
 	replacement := ledgertest.NewAt(t, f.Path+".next")
 	replacement.ProjectTo(replacement.AddRun(ledgertest.Run{Outcome: "complete", FinishedAt: instant(t, "2026-03-16T03:00:00Z")}))
-	other := everyAnswer(t, ledger.New(replacement.Path))
+	other := everyAnswerOnAViewOfItsOwn(t, ledger.New(replacement.Path))
 	for name, answer := range want {
 		if answer.err != nil {
 			t.Fatalf("reader %s: %v", name, answer.err)

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/gabrielassisxyz/finwise/internal/brday"
-	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
 // The whole query set over a real snapshot, opt-in. Only counts are logged: the
@@ -15,42 +14,42 @@ func TestEveryQueryRunsOverARealSnapshot(t *testing.T) {
 	if path == "" {
 		t.Skip("FINWISE_LEDGER_SNAPSHOT is not set")
 	}
-	reader, ctx := ledger.New(path), t.Context()
+	view, ctx := viewOf(t, path), t.Context()
 
-	accounts, err := reader.Accounts(ctx)
+	accounts, err := view.Accounts(ctx)
 	if err != nil {
 		failWithoutValues(t, "accounts", err)
 	}
 	period := brday.Period{First: "1970-01-01", Last: "2999-12-31"}
-	transactions, err := reader.CleanTransactions(ctx, period)
+	transactions, err := view.CleanTransactions(ctx, period)
 	if err != nil {
 		failWithoutValues(t, "transactions", err)
 	}
-	bills, err := reader.Bills(ctx)
+	bills, err := view.Bills(ctx)
 	if err != nil {
 		failWithoutValues(t, "bills", err)
 	}
-	pots, err := reader.Pots(ctx, "2999-12-31")
+	pots, err := view.Pots(ctx, "2999-12-31")
 	if err != nil {
 		failWithoutValues(t, "pots", err)
 	}
-	investments, err := reader.Investments(ctx)
+	investments, err := view.Investments(ctx)
 	if err != nil {
 		failWithoutValues(t, "investments", err)
 	}
 	historyDays := 0
 	for _, investment := range investments {
-		days, err := reader.InvestmentHistory(ctx, investment.ID)
+		days, err := view.InvestmentHistory(ctx, investment.ID)
 		if err != nil {
 			failWithoutValues(t, "investment history", err)
 		}
 		historyDays += len(days)
 	}
-	identities, err := reader.Identities(ctx)
+	identities, err := view.Identities(ctx)
 	if err != nil {
 		failWithoutValues(t, "identities", err)
 	}
-	state, err := reader.SyncState(ctx)
+	state, err := view.SyncState(ctx)
 	if err != nil {
 		failWithoutValues(t, "sync state", err)
 	}
