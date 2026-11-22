@@ -75,6 +75,19 @@ func (store *sessionStore) Remove(token string) {
 	delete(store.lastSeen, digest(token))
 }
 
+// KeepOnly ends every session but the one token names. A token that names none
+// ends them all.
+func (store *sessionStore) KeepOnly(token string) {
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+	kept := digest(token)
+	for key := range store.lastSeen {
+		if key != kept {
+			delete(store.lastSeen, key)
+		}
+	}
+}
+
 func (store *sessionStore) dropExpiredLocked() {
 	now := store.now()
 	for key, seen := range store.lastSeen {
