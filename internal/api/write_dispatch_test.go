@@ -100,20 +100,28 @@ func TestAWriteThatRecordsNothingAndAnswersNullLeavesNoTrace(t *testing.T) {
 // then the whole of what a router that commits too early would keep.
 func TestAWriteThatFailsAfterRecordingAnEffectKeepsNothing(t *testing.T) {
 	cases := map[string]struct {
-		fail   func() (any, error)
+		fail   func(context.Context, Writes) (any, error)
 		status int
 		body   string
 	}{
-		"returns an error": {func() (any, error) { return nil, errors.New("row 4711 exploded") },
+		"returns an error": {func(context.Context, Writes) (any, error) { return nil, errors.New("row 4711 exploded") },
 			http.StatusInternalServerError, `{"error":{"kind":"internal"}}`},
-		"panics": {func() (any, error) { panic("row 4711 exploded") },
+		"panics": {func(context.Context, Writes) (any, error) { panic("row 4711 exploded") },
 			http.StatusInternalServerError, `{"error":{"kind":"internal"}}`},
-		"returns a refusal": {func() (any, error) { return nil, refuse(reasonMonthClosed) },
+		"returns a refusal": {func(context.Context, Writes) (any, error) { return nil, refuse(reasonMonthClosed) },
 			http.StatusConflict, `{"error":{"kind":"refused","reason":"month_closed"}}`},
-		"returns a result that cannot be encoded": {func() (any, error) { return make(chan int), nil },
+		"returns a result that cannot be encoded": {func(context.Context, Writes) (any, error) { return make(chan int), nil },
 			http.StatusInternalServerError, `{"error":{"kind":"internal"}}`},
-		"returns arguments it cannot read": {func() (any, error) { return nil, &badArgumentsError{} },
+		"returns arguments it cannot read": {func(context.Context, Writes) (any, error) { return nil, &badArgumentsError{} },
 			http.StatusBadRequest, `{"error":{"kind":"bad_request"}}`},
+		// The recorder refuses a row that is already there and remembers it, so
+		// the change is rolled back even though the handler answers success.
+		"ignores a failure of the recorder": {func(ctx context.Context, writes Writes) (any, error) {
+			row := authored.Row{"id": integer(1), "name": text("a"), "amount": integer(0)}
+			_ = writes.Recorder.Create(ctx, authoredtest.Things, row)
+			_ = writes.Recorder.Create(ctx, authoredtest.Things, row)
+			return map[string]string{"changeId": "1"}, nil
+		}, http.StatusInternalServerError, `{"error":{"kind":"internal"}}`},
 	}
 	for label, tc := range cases {
 		t.Run(label, func(t *testing.T) {

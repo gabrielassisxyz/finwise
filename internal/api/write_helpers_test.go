@@ -107,12 +107,12 @@ func setFactAmount(fact string, amount int64) WriteHandler {
 
 // failingAfterAnEffect is a write handler that records an effect and the
 // change's row, and then does what fail says.
-func failingAfterAnEffect(fail func() (any, error)) WriteHandler {
+func failingAfterAnEffect(fail func(context.Context, Writes) (any, error)) WriteHandler {
 	return func(ctx context.Context, args []json.RawMessage, writes Writes) (any, error) {
 		if _, err := setFactAmount("x", 5)(ctx, args, writes); err != nil {
 			return nil, err
 		}
-		return fail()
+		return fail(ctx, writes)
 	}
 }
 
