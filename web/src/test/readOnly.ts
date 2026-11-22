@@ -8,6 +8,7 @@ import { apiKey } from '@/api/context';
 import { failureListeners } from '@/api/failures';
 import { createFakeApi, type FakeApiOptions } from '@/api/fake';
 import { METHOD_CLASSES } from '@/api/contract/classification';
+import type { ApiErrorKind, RefusalReason } from '@/api/contract/errors';
 import { ApiFailure } from '@/api/http/failure';
 import type { FinwiseApi } from '@/api/types';
 import { useMonthStore } from '@/stores/month';
@@ -31,6 +32,27 @@ export function readOnlyApi(api: FinwiseApi): FinwiseApi {
     );
   }
   return wrapped as unknown as FinwiseApi;
+}
+
+/** Every method of the contract as `domain.name`, so a name the contract lacks does not compile. */
+export type ApiMethodName = {
+  [Domain in keyof FinwiseApi & string]: `${Domain}.${keyof FinwiseApi[Domain] & string}`;
+}[keyof FinwiseApi & string];
+
+/**
+ * The API with one method failing as a server would fail it: with the kind given, the reason given for `refused`,
+ * and the class the method has in the contract. Every other method is the wrapped API's own.
+ */
+export function failingOne(api: FinwiseApi, method: ApiMethodName, kind: ApiErrorKind, reason?: RefusalReason): FinwiseApi {
+  const [domain = '', name = ''] = method.split('.');
+  const classes = METHOD_CLASSES as unknown as Record<string, Record<string, ApiFailure['methodClass']> | undefined>;
+  const methodClass = classes[domain]?.[name];
+  if (!methodClass) throw new Error(`failingOne: the contract has no method ${method}`);
+  const methods = api as unknown as Record<string, Record<string, Method>>;
+  const failing: Method = async () => {
+    throw new ApiFailure(kind, { methodClass, reason });
+  };
+  return { ...methods, [domain]: { ...methods[domain], [name]: failing } } as unknown as FinwiseApi;
 }
 
 /**
