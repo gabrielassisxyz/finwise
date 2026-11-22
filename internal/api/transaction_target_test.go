@@ -159,6 +159,13 @@ func TestTheLookupFindsNothingAndWritesNothingForAnIDTheListDoesNotShow(t *testi
 	}
 }
 
+// A method of the manifest that takes two strings and has no handler of its own,
+// which these tests lend a handler of theirs over the real registry.
+const (
+	unhandledMethod = "settings.setNickname"
+	unhandledRoute  = "/api/settings/setNickname"
+)
+
 // lookingUpThenFailing is a write handler that finds the transaction its first
 // argument names, and then fails as a write can after its lookup.
 func lookingUpThenFailing(looked *bool) WriteHandler {
@@ -179,9 +186,9 @@ func TestAWriteThatFailsAfterItsLookupLeavesTheIndexAsItWas(t *testing.T) {
 	scratch := authoredtest.Open(t, fixtureClock)
 	var looked bool
 	env := newTestEnv(t, withLedger(newFullLedger(t).Path, fixtureNow), withDatabase(scratch.Database),
-		withWrite("transactions.setNote", lookingUpThenFailing(&looked)))
+		withWrite(unhandledMethod, lookingUpThenFailing(&looked)))
 	before := scratch.Everything(t)
-	response := env.call("/api/transactions/setNote", `["tx-month-end","nota"]`, env.unlock())
+	response := env.call(unhandledRoute, `["tx-month-end","nota"]`, env.unlock())
 	if !looked || response.Code != http.StatusInternalServerError {
 		t.Fatalf("the write looked up its target %v and answered %d, want true and 500", looked, response.Code)
 	}
@@ -199,10 +206,10 @@ func TestOverASnapshotThatCannotBeReadTheLookupAndTheReadsAnswerLedgerUnavailabl
 	inventedAuthoredState(t, scratch)
 	var looked bool
 	env := newTestEnv(t, withLedger(path, fixtureNow), withDatabase(scratch.Database),
-		withWrite("transactions.setNote", lookingUpThenFailing(&looked)))
+		withWrite(unhandledMethod, lookingUpThenFailing(&looked)))
 	cookie := env.unlock()
 	before := scratch.Everything(t)
-	expectError(t, "the lookup", env.call("/api/transactions/setNote", `["tx-month-end","nota"]`, cookie), http.StatusServiceUnavailable, "ledger_unavailable")
+	expectError(t, "the lookup", env.call(unhandledRoute, `["tx-month-end","nota"]`, cookie), http.StatusServiceUnavailable, "ledger_unavailable")
 	if after := scratch.Everything(t); after != before || looked {
 		t.Errorf("a lookup over an unreadable snapshot found its target %v or wrote %v", looked, linesAdded(before, after))
 	}

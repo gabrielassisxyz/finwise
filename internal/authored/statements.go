@@ -126,6 +126,9 @@ var allStatements = map[string]string{
 	"statementPotLineUpdate":         statementPotLineUpdate,
 	"statementPotLineDelete":         statementPotLineDelete,
 	"statementLinesOfPot":            statementLinesOfPot,
-	"statementStateLineReferences":   statementStateLineReferences,
-	"statementSplitLineReferences":   statementSplitLineReferences,
+
+	"statementNextTagPosition":      statementNextTagPosition,
+	"statementNextFixedTagPosition": statementNextFixedTagPosition,
+	"statementStateLineReferences":  statementStateLineReferences,
+	"statementSplitLineReferences":  statementSplitLineReferences,
 }

@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "changeId": "4"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_tags",
+      "key": [
+        1,
+        "#viagem-de-trabalho"
+      ],
+      "column": null,
+      "before": {
+        "tx_key": 1,
+        "tag": "#viagem-de-trabalho",
+        "position": 1
+      },
+      "after": null
+    }
+  ]
+}

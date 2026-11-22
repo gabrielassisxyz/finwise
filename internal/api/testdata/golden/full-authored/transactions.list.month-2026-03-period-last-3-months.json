@@ -256,7 +256,7 @@
       "reason": "Confiança abaixo do limite",
       "suggestion": "Contas da casa",
       "confidence": 64,
-      "justification": ""
+      "justification": null
     },
     "posted": true,
     "tags": [],
@@ -266,7 +266,7 @@
     "reimbursementIncome": false,
     "reimbursed": false,
     "excluded": false,
-    "split": false,
+    "split": true,
     "installment": null,
     "bill": null,
     "originalAmount": null,

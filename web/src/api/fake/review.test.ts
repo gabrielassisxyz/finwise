@@ -158,7 +158,7 @@ describe('the queue of pending reviews', () => {
   it('empties the queue after every review is answered', async () => {
     const api = createFakeApi();
     for (const item of (await api.review.weekly(MONTH)).queue.items) {
-      await api.review.acceptPending(item.transactionId, answer(item.pending.suggestion));
+      await api.review.acceptPending(item.transactionId, answer(item.pending.suggestion!));
     }
     const { queue } = await api.review.weekly(MONTH);
     expect(queue.items).toEqual([]);
@@ -192,7 +192,7 @@ describe('the changes waiting for approval', () => {
     const api = createFakeApi();
     await api.review.markStepDone(MONTH, 'leftover');
     for (const item of (await api.review.weekly(MONTH)).queue.items) {
-      await api.review.acceptPending(item.transactionId, answer(item.pending.suggestion));
+      await api.review.acceptPending(item.transactionId, answer(item.pending.suggestion!));
     }
     await api.review.closeMonth(MONTH);
     await api.review.approve('teto');

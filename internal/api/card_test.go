@@ -475,3 +475,64 @@ func TestTheHomeAndTheClosingChargeWhatTheCardPutsOnTheNextBill(t *testing.T) {
 		t.Errorf("manual on the 15th: the card puts %s on the next bill, the home %s and the closing %s; want 85.00 each", card, home, closing)
 	}
 }
+
+// The name a person gave an establishment is the name wherever the card shows a
+// purchase: the items of a past bill, what falls on the next bill, what may fall
+// on either, and the closing's card bill. Each purchase here is of an
+// establishment of its own, so the nickname given to one reaches that one alone.
+func TestANicknameIsTheNameOfACardPurchaseInEveryListTheCardShows(t *testing.T) {
+	const nickname = "Mercado do bairro"
+	t.Run("the items of a past bill, the pay-ahead and the closing's card bill", func(t *testing.T) {
+		f := c6Ledger(t)
+		addCardPurchase(f, "tx-on-feb", utc(2026, time.February, 20, 15, 0), 33.3, "bill-feb")
+		addCardPurchase(f, "tx-later", utc(2026, time.March, 12, 15, 0), 20, "")
+		addCardPurchase(f, "tx-other", utc(2026, time.March, 13, 15, 0), 10, "")
+		env := newSettingsEnv(t, f, noon(time.March, 20))
+		env.change("transactions.setNickname", argumentsOf("tx-on-feb", nickname))
+		env.change("transactions.setNickname", argumentsOf("tx-later", nickname))
+
+		overview := answerOf(t, env.readEnv, "card.overview", `[]`)
+		items := overview["bills"].([]any)[0].(map[string]any)["items"].([]any)
+		if len(items) != 1 || items[0].(map[string]any)["name"] != nickname {
+			t.Errorf("the item of the past bill is %v, want it named %s", items, nickname)
+		}
+		for label, purchases := range map[string][]any{
+			"the pay-ahead": overview["payAhead"].(map[string]any)["purchases"].([]any),
+			"the closing":   env.cardBillPurchases(t),
+		} {
+			names := map[string]bool{}
+			for _, purchase := range purchases {
+				names[purchase.(map[string]any)["name"].(string)] = true
+			}
+			if !names[nickname] || len(purchases) != 2 {
+				t.Errorf("%s lists %v, want the nickname on one of two purchases", label, purchases)
+			}
+			for _, purchase := range purchases {
+				if name := purchase.(map[string]any)["name"]; name != nickname && name != "COMPRA tx-other" {
+					t.Errorf("%s names a purchase %v, want the ledger's wording where there is no nickname", label, name)
+				}
+			}
+		}
+	})
+	t.Run("what may fall on either bill", func(t *testing.T) {
+		f := c6Ledger(t)
+		addCardPurchase(f, "tx-day-before", utc(2026, time.April, 2, 15, 0), 11, "")
+		env := newSettingsEnv(t, f, noon(time.April, 2))
+		env.change("transactions.setNickname", argumentsOf("tx-day-before", nickname))
+
+		listed := answerOf(t, env.readEnv, "card.overview", `[]`)["mayFallOnNextBill"].([]any)
+		if len(listed) != 1 || listed[0].(map[string]any)["name"] != nickname {
+			t.Errorf("what may fall on either bill is %v, want it named %s", listed, nickname)
+		}
+	})
+}
+
+func (env *settingsEnv) cardBillPurchases(t *testing.T) []any {
+	t.Helper()
+	closing := answerOf(t, env.readEnv, "review.closing", `["2026-03"]`)
+	bill, ok := closing["cardBill"].(map[string]any)
+	if !ok {
+		t.Fatalf("the closing has no card bill: %v", closing["cardBill"])
+	}
+	return bill["purchases"].([]any)
+}

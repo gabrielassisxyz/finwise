@@ -1,0 +1,37 @@
+{
+  "answer": {
+    "changeId": "5"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_state",
+      "key": [
+        14
+      ],
+      "column": "exclusion",
+      "before": null,
+      "after": "Marcada em lote"
+    },
+    {
+      "seq": 2,
+      "table": "tx_state",
+      "key": [
+        13
+      ],
+      "column": "exclusion",
+      "before": null,
+      "after": "Marcada em lote"
+    },
+    {
+      "seq": 3,
+      "table": "tx_state",
+      "key": [
+        17
+      ],
+      "column": "exclusion",
+      "before": "Empréstimo, ela devolve",
+      "after": "Marcada em lote"
+    }
+  ]
+}
