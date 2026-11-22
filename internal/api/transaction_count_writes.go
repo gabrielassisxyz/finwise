@@ -272,18 +272,3 @@ func idAndFlag(args []json.RawMessage) (string, bool, error) {
 	}
 	return id, *on, nil
 }
-
-func idAndText(args []json.RawMessage) (string, string, error) {
-	if len(args) != 2 {
-		return "", "", &badArgumentsError{}
-	}
-	id, err := textArgument(args[0])
-	if err != nil {
-		return "", "", err
-	}
-	text, err := textArgument(args[1])
-	if err != nil {
-		return "", "", err
-	}
-	return id, text, nil
-}

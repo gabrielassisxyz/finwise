@@ -5,8 +5,10 @@ import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
 import { useShellStore } from '@/stores/shell';
 import { prototypeState } from '@/api/fake/prototype-data';
+import type { PendingReview } from '@/api/types';
 import { recordLineMenu } from '@/test/lineMenu';
 import { mountAt, prototypeOverview } from '@/test/mount';
+import { FIRST_PENDING_ID, NO_SUGGESTION, stateWithPending } from '@/test/pendingStates';
 import { mountWithFailures } from '@/test/readOnly';
 import { marksOf } from './marks';
 import TransactionList from './TransactionList.vue';
@@ -48,6 +50,26 @@ describe('marksOf', () => {
     const list = await createFakeApi().transactions.list({ month: '2026-11', period: 'month' });
     const confident = { ...list.find((transaction) => transaction.id === 't4')!, belowThreshold: false };
     expect(marksOf(confident)).toEqual([]);
+  });
+});
+
+describe('marksOf for a pending review', () => {
+  const marksOver = async (pending: PendingReview) => {
+    const list = await createFakeApi({ state: stateWithPending(pending) }).transactions.list({ month: '2026-11', period: 'month' });
+    return marksOf(list.find((transaction) => transaction.id === FIRST_PENDING_ID)!);
+  };
+
+  it('names the reason where the confidence would be when there is none', async () => {
+    expect(await marksOver(NO_SUGGESTION)).toEqual([{ text: 'Estabelecimento novo', tone: 'warning' }]);
+    expect(await marksOver({ reason: 'Baixa confiança', suggestion: 'Casa', confidence: null, justification: null })).toEqual([
+      { text: 'Baixa confiança', tone: 'warning' },
+    ]);
+  });
+
+  it('keeps the confidence of a suggestion, with or without its justification', async () => {
+    const pending = { reason: 'Baixa confiança', suggestion: 'Restaurantes e bares', confidence: 58 };
+    expect(await marksOver({ ...pending, justification: null })).toEqual([{ text: 'IA 58%', tone: 'warning' }]);
+    expect(await marksOver({ ...pending, justification: 'Porque sim.' })).toEqual([{ text: 'IA 58%', tone: 'warning' }]);
   });
 });
 

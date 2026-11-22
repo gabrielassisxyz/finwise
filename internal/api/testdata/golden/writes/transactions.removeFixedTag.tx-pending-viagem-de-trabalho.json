@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "changeId": "2"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "establishment_tags",
+      "key": [
+        "text:PADARIA EXEMPLO",
+        "#viagem-de-trabalho"
+      ],
+      "column": null,
+      "before": {
+        "key": "text:PADARIA EXEMPLO",
+        "tag": "#viagem-de-trabalho",
+        "position": 0
+      },
+      "after": null
+    }
+  ]
+}

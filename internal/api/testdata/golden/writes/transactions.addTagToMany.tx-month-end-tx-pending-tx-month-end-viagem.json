@@ -1,0 +1,37 @@
+{
+  "answer": {
+    "changeId": "1"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_tags",
+      "key": [
+        1,
+        "#viagem"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "tx_key": 1,
+        "tag": "#viagem",
+        "position": 0
+      }
+    },
+    {
+      "seq": 2,
+      "table": "tx_tags",
+      "key": [
+        2,
+        "#viagem"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "tx_key": 2,
+        "tag": "#viagem",
+        "position": 0
+      }
+    }
+  ]
+}

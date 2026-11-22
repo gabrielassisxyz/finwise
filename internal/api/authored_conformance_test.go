@@ -60,6 +60,21 @@ var authoredReadCases = []authoredReadCase{
 	authoredRead("transactions.detail", `["tx-foreign"]`),
 	authoredRead("transactions.detail", `["tx-stale"]`),
 	authoredRead("transactions.detail", `["tx-first-of-march"]`),
+	// The budget's figures: the month; a draft that gives Feira its old name
+	// under its id, adds a line and leaves three groups out; and the closed
+	// month before the first version. An empty draft has no case here: its
+	// file would be the month's own. Then a line's establishments under each
+	// name a month gives it, the fees line and a name no month has.
+	authoredRead("budget.view", `["2026-03"]`),
+	authoredRead("budget.view", `["2026-03",[{"key":"rec","name":"Receita","lines":[{"id":"2","name":"Salário","amount":10000}]},`+
+		`{"key":"var","name":"Variáveis","lines":[{"id":"6","name":"Mercado","amount":500},{"name":"Pets","amount":100}]}]]`),
+	authoredRead("budget.view", `["2026-01"]`),
+	authoredRead("budget.establishments", `["2026-02","Mercado"]`),
+	authoredRead("budget.establishments", `["2026-03","Mercado"]`),
+	authoredRead("budget.establishments", `["2026-03","Feira"]`),
+	authoredRead("budget.establishments", `["2026-03","Delivery"]`),
+	authoredRead("budget.establishments", `["2026-03","Tarifas e juros"]`),
+	authoredRead("budget.establishments", `["2026-03","Academia"]`),
 	authoredRead("transactions.detail", `["tx-refund"]`),
 }
 

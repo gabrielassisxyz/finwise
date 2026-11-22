@@ -7,10 +7,12 @@ const props = defineProps<{ transaction: Transaction; roomy?: boolean }>();
 
 defineEmits<{ open: [anchor: HTMLElement] }>();
 
-// Without a line the pill shows what the model would pick, as a question.
+// Without a line the pill shows what the model would pick, as a question; a review with nothing to pick says it waits.
 const label = computed(() => {
-  if (props.transaction.line) return props.transaction.line;
-  return props.transaction.pending ? `${props.transaction.pending.suggestion}?` : '—';
+  const { line, pending } = props.transaction;
+  if (line) return line;
+  if (!pending) return '—';
+  return pending.suggestion === null ? 'Pendente' : `${pending.suggestion}?`;
 });
 
 const dotStyle = computed(() => (props.transaction.line ? { background: lineDotColor(props.transaction.line) } : {}));
