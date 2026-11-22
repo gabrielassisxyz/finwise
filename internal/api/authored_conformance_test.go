@@ -42,6 +42,10 @@ var authoredReadCases = []authoredReadCase{
 	authoredRead("card.overview", `[]`),
 	authoredRead("home.summary", `["2026-03"]`),
 	authoredRead("review.closing", `["2026-03"]`),
+	authoredRead("savingsPots.list", `[{"includeClosed":false}]`),
+	authoredRead("savingsPots.list", `[{"includeClosed":true}]`),
+	authoredRead("savingsPots.detail", `["reserve:acc-pots/pot-1"]`),
+	authoredRead("netWorth.overview", `[]`),
 }
 
 // newAuthoredReadEnv is the third state: both stores, the database holding the

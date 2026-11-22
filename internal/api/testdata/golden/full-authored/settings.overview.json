@@ -5,16 +5,20 @@
       "name": "LCI Exemplo",
       "bank": "Itaú",
       "cdiPercent": 95.00,
-      "bucket": "Investido",
-      "linkedLines": []
+      "bucket": "Reservado",
+      "linkedLines": [
+        "Viagens"
+      ]
     },
     {
       "id": "reserve:acc-pots/pot-1",
       "name": "Caixinha da casa",
       "bank": "Mercado Pago",
       "cdiPercent": 110.00,
-      "bucket": "Reservado",
-      "linkedLines": []
+      "bucket": "Disponível",
+      "linkedLines": [
+        "Remédios"
+      ]
     },
     {
       "id": "investment:inv-nu-1",
