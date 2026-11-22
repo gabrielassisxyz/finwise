@@ -7,6 +7,7 @@ import MarkBadge from '@/components/transactions/MarkBadge.vue';
 import TitledCard from '@/components/ui/TitledCard.vue';
 import { brl } from '@/lib/format';
 import { useRevisionStore } from '@/stores/revision';
+import { useShellStore } from '@/stores/shell';
 import SubscriptionCharges from './SubscriptionCharges.vue';
 import SubscriptionEditor from './SubscriptionEditor.vue';
 
@@ -14,6 +15,7 @@ const api = useApi();
 const route = useRoute();
 const router = useRouter();
 const revision = useRevisionStore();
+const shell = useShellStore();
 
 const subscription = ref<SubscriptionDetail | null>(null);
 const lines = ref<BudgetLineOption[]>([]);
@@ -33,9 +35,19 @@ watch(
   { immediate: true },
 );
 
-void api.transactions.filterOptions().then((options) => {
-  lines.value = options.lines;
-});
+// A subscription's line belongs to no month, so it is resolved in the current one.
+const currentMonth = computed(() => shell.overview?.today.slice(0, 7) ?? null);
+let latestLines = 0;
+watch(
+  [currentMonth, () => revision.current],
+  async ([current]) => {
+    if (!current) return;
+    const request = ++latestLines;
+    const options = await api.transactions.filterOptions(current);
+    if (request === latestLines) lines.value = options.lines;
+  },
+  { immediate: true },
+);
 </script>
 
 <template>

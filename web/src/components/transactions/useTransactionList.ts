@@ -107,7 +107,10 @@ export function useTransactionList(month: Ref<YearMonth>, onlyAccount?: Ref<stri
   async function load(mode: { quiet?: boolean } = {}): Promise<void> {
     if (!mode.quiet) loading.value = true;
     const requested = { month: month.value, period: filters.period };
-    const [list, filterOptions] = await Promise.all([api.transactions.list(requested), api.transactions.filterOptions()]);
+    const [list, filterOptions] = await Promise.all([
+      api.transactions.list(requested),
+      api.transactions.filterOptions(requested.month),
+    ]);
     // A slower answer for a month the user has already left must not land.
     if (requested.month !== month.value || requested.period !== filters.period) return;
     transactions.value = list;

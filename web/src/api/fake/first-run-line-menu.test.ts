@@ -8,6 +8,6 @@ describe.each([
 ])('on %s', (_name, build) => {
   it('offers no budget line to move a transaction to, the fees line included', async () => {
     const api = createFakeApi({ state: build(), startLocked: false });
-    expect((await api.transactions.filterOptions()).lines).toEqual([]);
+    expect((await api.transactions.filterOptions('2026-11')).lines).toEqual([]);
   });
 });

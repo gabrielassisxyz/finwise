@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { prototypeState } from '@/api/fake/prototype-data';
 import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
+import { createFakeApi } from '@/api/fake';
+import { useRevisionStore } from '@/stores/revision';
+import { lineNamed, recordLineMenu } from '@/test/lineMenu';
 import { prototypeOverview } from '@/test/mount';
+import { mountWithFailures } from '@/test/readOnly';
 import { mountRouted } from '@/test/mountRouted';
 import WeeklyTab from './WeeklyTab.vue';
 
@@ -252,5 +256,72 @@ describe('Semanal, the warnings', () => {
     expect(plain(wrapper.find('.side section:last-child .empty').text())).toBe(
       'Sem avisos. Aumentos de preço, renovações e cobranças estranhas aparecem aqui quando forem detectados.',
     );
+  });
+});
+
+describe('Semanal, the lines each review offers', () => {
+  const NOV = '2026-11';
+  const OCT = '2026-10';
+
+  /** One pending purchase moved to the month before, so the queue spans two months. */
+  function queueOverTwoMonths() {
+    const state = prototypeState();
+    state.transactions.find((transaction) => transaction.pending && transaction.name === 'Padaria Estrela')!.day = '2026-10-15';
+    return state;
+  }
+
+  async function mountRecorded(state = queueOverTwoMonths()) {
+    const api = createFakeApi({ startLocked: false, state });
+    const recorded = recordLineMenu(api, { named: true });
+    const mounted = await mountWithFailures(WeeklyTab, routes, '/revisao', { api });
+    return { ...mounted, ...recorded, overlay: useOverlayStore(mounted.pinia) };
+  }
+
+  const monthOfItem = (wrapper: Mounted['wrapper']) => {
+    const [, mm, yyyy] = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(plain(wrapper.find('.item .where').text()))!.slice(1);
+    return `${yyyy}-${mm}`;
+  };
+
+  it('asks for each month its items fall in, once, and offers each item the lines of its own month', async () => {
+    const m = await mountRecorded();
+    expect([...m.months].sort()).toEqual([OCT, NOV]);
+    const seen: string[] = [];
+    for (let shown = 0; shown < 7; shown += 1) {
+      const month = monthOfItem(m.wrapper);
+      seen.push(month);
+      await click(button(m.wrapper, 'Escolher outra linha'));
+      expect(m.overlay.menu!.items.map((item) => item.label), nameShown(m.wrapper)).toEqual([lineNamed(month, 1)]);
+      await click(button(m.wrapper, 'Pular'));
+    }
+    expect(new Set(seen)).toEqual(new Set([NOV, OCT]));
+    expect([...m.months].sort()).toEqual([OCT, NOV]);
+  });
+
+  it('asks again for the months still in the queue after a write', async () => {
+    const m = await mountRecorded();
+    useRevisionStore(m.pinia).bump();
+    await m.settle();
+    expect([...m.months].sort()).toEqual([OCT, OCT, NOV, NOV]);
+    await click(button(m.wrapper, 'Escolher outra linha'));
+    expect(m.overlay.menu!.items.map((item) => item.label)).toEqual([lineNamed(monthOfItem(m.wrapper), 2)]);
+  });
+
+  it('draws the queue only once the lines of its months arrived', async () => {
+    const api = createFakeApi({ startLocked: false, state: queueOverTwoMonths() });
+    const { hold } = recordLineMenu(api, { named: true });
+    const release = hold(OCT);
+    const mounted = await mountWithFailures(WeeklyTab, routes, '/revisao', { api });
+    expect(mounted.wrapper.find('.item').exists()).toBe(false);
+    release();
+    await mounted.settle();
+    expect(mounted.wrapper.find('.item').exists()).toBe(true);
+  });
+
+  it('asks nothing when the queue is empty', async () => {
+    const state = prototypeState();
+    for (const transaction of state.transactions) transaction.pending = null;
+    const m = await mountRecorded(state);
+    expect(m.wrapper.text()).toContain('Tudo revisado.');
+    expect(m.months).toEqual([]);
   });
 });

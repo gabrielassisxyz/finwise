@@ -50,10 +50,11 @@ func TestSessionMethodsAreClassifiedAsTheServerExpects(t *testing.T) {
 func TestArgumentBoundsFollowTheSchema(t *testing.T) {
 	index := byQualified(t)
 	cases := map[string][2]int{
-		"session.status":    {0, 0},
-		"session.unlock":    {1, 1},
-		"session.changePin": {3, 3},
-		"budget.view":       {1, 2},
+		"session.status":             {0, 0},
+		"session.unlock":             {1, 1},
+		"session.changePin":          {3, 3},
+		"budget.view":                {1, 2},
+		"transactions.filterOptions": {1, 1},
 	}
 	for name, bounds := range cases {
 		got := [2]int{index[name].MinArguments, index[name].MaxArguments}

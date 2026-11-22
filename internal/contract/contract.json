@@ -137,7 +137,14 @@
       "class": "read",
       "arguments": {
         "type": "array",
-        "maxItems": 0
+        "items": [
+          {
+            "$ref": "#/definitions/YearMonth"
+          }
+        ],
+        "minItems": 1,
+        "maxItems": 1,
+        "additionalItems": false
       },
       "result": {
         "$ref": "#/definitions/TransactionFilterOptions"

@@ -4,7 +4,9 @@ import { createFakeApi } from '@/api/fake';
 import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
 import { useShellStore } from '@/stores/shell';
+import { recordLineMenu } from '@/test/lineMenu';
 import { mountAt, prototypeOverview } from '@/test/mount';
+import { mountWithFailures } from '@/test/readOnly';
 import { marksOf } from './marks';
 import TransactionList from './TransactionList.vue';
 
@@ -351,7 +353,7 @@ describe('acting on the list', () => {
 
     expect(overlay.menu!.title).toBe('Adicionar tag');
     expect(overlay.menu!.search).toBeUndefined();
-    expect(overlay.menu!.items.map((item) => item.label)).toEqual((await api.transactions.filterOptions()).tags);
+    expect(overlay.menu!.items.map((item) => item.label)).toEqual((await api.transactions.filterOptions('2026-11')).tags);
 
     overlay.menu!.items.find((item) => item.label === '#viagem')!.onPick!();
     await flushPromises();
@@ -373,5 +375,29 @@ describe('acting on the list', () => {
 
     await runToastAction(overlay, 'Desfazer');
     expect(wrapper.findAll('.row.faded')).toHaveLength(0);
+  });
+});
+
+describe('the menu of lines the list draws from', () => {
+  const NOV = '2026-11';
+
+  it('is asked for the month of the list\'s query, whatever the period, and for the new month after a change', async () => {
+    const api = createFakeApi({ startLocked: false });
+    const { months } = recordLineMenu(api);
+    const mounted = await mountWithFailures(TransactionList, [{ path: '/', component: { template: '<div />' } }], '/', { api });
+    const overlay = useOverlayStore(mounted.pinia);
+    const pickPeriod = async (label: string) => {
+      await mounted.wrapper.findAll('.filter')[0]!.trigger('click');
+      overlay.menu!.items.find((item) => item.label === label)!.onPick!();
+      await mounted.settle();
+    };
+    expect(months).toEqual([NOV]);
+    await pickPeriod('Últimos 3 meses');
+    await pickPeriod('Este ano');
+    await pickPeriod('Mês selecionado');
+    expect(months).toEqual([NOV, NOV, NOV, NOV]);
+    useMonthStore(mounted.pinia).shift(-1);
+    await mounted.settle();
+    expect(months.at(-1)).toBe('2026-10');
   });
 });

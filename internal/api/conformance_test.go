@@ -33,7 +33,7 @@ var readCases = []readCase{
 	{"transactions.list", `[{"month":"2026-03","period":"last-3-months"}]`},
 	{"transactions.list", `[{"month":"2026-03","period":"year"}]`},
 	{"transactions.list", `[{"month":"2025-12","period":"month"}]`},
-	{"transactions.filterOptions", `[]`},
+	{"transactions.filterOptions", `["2026-03"]`},
 	{"transactions.detail", `["tx-instalment"]`},
 	{"transactions.detail", `["tx-foreign"]`},
 	{"transactions.detail", `["tx-month-end"]`},
