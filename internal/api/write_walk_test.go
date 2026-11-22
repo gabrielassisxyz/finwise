@@ -37,8 +37,6 @@ var writesWithoutHandler = []string{
 	"review.markStepDone", "review.keepSubscription", "review.cancelSubscription",
 	"review.closeMonth", "review.markTransferDone", "settings.setPotBucket",
 	"settings.toggleLinkedLine", "settings.setNickname", "settings.setDefaultLine",
-	"settings.setCardLabel", "settings.setThreshold", "settings.setMinExamples",
-	"settings.setClosing",
 }
 
 // sessionServiceWrites are the writes the session service answers itself. It
@@ -132,11 +130,15 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 	for _, problem := range walkProblems(changing, registered, sessionServiceWrites, writesWithoutHandler) {
 		t.Error(problem)
 	}
-	if !slices.Equal(registered, []string{"changes.undo"}) {
-		t.Errorf("the registry implements %v, want changes.undo alone", registered)
+	implemented := []string{
+		"changes.undo",
+		"settings.setCardLabel", "settings.setClosing", "settings.setMinExamples", "settings.setThreshold",
 	}
-	if len(writesWithoutHandler) != 54 || slices.Contains(writesWithoutHandler, changePin) {
-		t.Errorf("the list holds %d names, want 54 without %s", len(writesWithoutHandler), changePin)
+	if !slices.Equal(registered, implemented) {
+		t.Errorf("the registry implements %v, want %v", registered, implemented)
+	}
+	if len(writesWithoutHandler) != 50 || slices.Contains(writesWithoutHandler, changePin) {
+		t.Errorf("the list holds %d names, want 50 without %s", len(writesWithoutHandler), changePin)
 	}
 	if !slices.Contains(writesWithoutHandler, "budget.evaluateScenario") {
 		t.Error("budget.evaluateScenario has no handler yet and belongs in the list")
