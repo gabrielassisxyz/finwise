@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import type { TransactionDetail } from '@/api/types';
 import SwitchToggle from '@/components/ui/SwitchToggle.vue';
+import { saveStored, vStored } from '@/lib/storedField';
 import { usePanelActions } from './panelActions';
 import PanelSection from './PanelSection.vue';
 
@@ -25,9 +26,9 @@ const missingReason = computed(() => !!props.detail.exclusion && props.detail.ex
       <input
         class="reason"
         :class="{ missing: missingReason }"
-        :value="detail.exclusion.reason"
+        v-stored="detail.exclusion.reason"
         placeholder="Motivo (obrigatório)"
-        @change="actions.setExclusionReason(($event.target as HTMLInputElement).value)"
+        @change="saveStored($event, actions.setExclusionReason)"
       />
       <span v-if="missingReason" class="warning">Só vale depois de informar o motivo.</span>
     </template>

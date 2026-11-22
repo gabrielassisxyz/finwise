@@ -1,16 +1,17 @@
 <script setup lang="ts">
-// A text field that commits when it loses focus or Enter is pressed, and shows what was kept.
-defineProps<{ value: string; label: string; placeholder?: string }>();
-defineEmits<{ commit: [text: string] }>();
+import { saveStored, vStored } from '@/lib/storedField';
+
+// A text field that saves when it loses focus or Enter is pressed, and shows what was kept.
+defineProps<{ value: string; label: string; placeholder?: string; save: (text: string) => Promise<unknown> }>();
 </script>
 
 <template>
   <input
     class="field"
-    :value="value"
+    v-stored="value"
     :aria-label="label"
     :placeholder="placeholder"
-    @change="$emit('commit', ($event.target as HTMLInputElement).value)"
+    @change="saveStored($event, save)"
   />
 </template>
 
