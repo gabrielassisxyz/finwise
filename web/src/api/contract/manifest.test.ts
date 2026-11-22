@@ -190,7 +190,7 @@ describe.each(STATES)('the stand-in over $name against the schemas', ({ name, bu
     const pots = (await api.savingsPots.list({ includeClosed: true })).flatMap((group) => group.pots);
     const subscriptions = (await api.subscriptions.list({ grouped: true })).groups.flatMap((group) => group.subscriptions);
     const accounts = await api.accounts.list();
-    const lines = (await api.transactions.filterOptions()).lines.map((line) => line.name);
+    const lines = (await api.transactions.filterOptions(NOV)).lines.map((line) => line.name);
     calls = {
       'shell.overview': [[]],
       'home.summary': [[NOV], [CLOSED]],
@@ -200,7 +200,7 @@ describe.each(STATES)('the stand-in over $name against the schemas', ({ name, bu
         [{ month: NOV, period: 'year' }],
         [{ month: '2026-12', period: 'month' }],
       ],
-      'transactions.filterOptions': [[]],
+      'transactions.filterOptions': [[NOV], [CLOSED]],
       'transactions.detail': [...transactions.map((transaction) => [transaction.id]), ['nobody']],
       'savingsPots.list': [[{ includeClosed: true }], [{ includeClosed: false }]],
       'savingsPots.detail': [...pots.map((pot) => [pot.id]), ['nobody']],
@@ -264,6 +264,13 @@ describe.each(STATES)('the stand-in over $name against the schemas', ({ name, bu
     const view = validators.get('budget.view')!.args;
     expect(view([NOV, null])).toBe(true);
     expect(view([NOV, 'draft'])).toBe(false);
+    const line = (id: unknown) => [{ key: 'var', name: 'Variáveis', lines: [{ id, name: 'Mercado', amount: 1 }] }];
+    expect(view([NOV, line('7')])).toBe(true);
+    expect(view([NOV, line(7)])).toBe(false);
+    const menu = validators.get('transactions.filterOptions')!.args;
+    expect(menu([])).toBe(false);
+    expect(menu([NOV])).toBe(true);
+    expect(menu([NOV, NOV])).toBe(false);
     const list = validators.get('savingsPots.list')!.args;
     expect(list([{ includeClosed: 'yes' }])).toBe(false);
     expect(list([{ includeClosed: true, extra: 1 }])).toBe(false);

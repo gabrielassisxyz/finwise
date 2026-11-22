@@ -256,7 +256,7 @@ func TestTransactionsOverTheEmptyLedgerAreEmptyLists(t *testing.T) {
 			t.Errorf("%s: %d %s", c.arguments, status, body)
 		}
 	}
-	_, body := env.answer("transactions.filterOptions", `[]`)
+	_, body := env.answer("transactions.filterOptions", `["2026-03"]`)
 	if string(body) != `{"accounts":[],"tags":[],"lines":[]}` {
 		t.Errorf("filterOptions = %s", body)
 	}
@@ -271,7 +271,7 @@ func TestTransactionDetailIsNullForAnUnknownId(t *testing.T) {
 
 func TestFilterOptionsOfferEveryAccountWithAReadableLabel(t *testing.T) {
 	env := newReadEnv(t, newFullLedger(t))
-	_, body := env.answer("transactions.filterOptions", `[]`)
+	_, body := env.answer("transactions.filterOptions", `["2026-03"]`)
 	var options struct {
 		Accounts []map[string]string `json:"accounts"`
 		Tags     []string            `json:"tags"`
@@ -322,6 +322,13 @@ func TestAQueryThatIsNotWellFormedIsABadRequest(t *testing.T) {
 		`[null]`,
 	} {
 		expectError(t, arguments, env.call("/api/transactions/list", arguments, env.cookie), http.StatusBadRequest, "bad_request")
+	}
+}
+
+func TestFilterOptionsNeedAMonth(t *testing.T) {
+	env := newReadEnv(t, newFullLedger(t))
+	for _, arguments := range []string{`[]`, `["2026-13"]`, `["2026-3"]`, `[null]`, `["2026-03","2026-04"]`} {
+		expectError(t, arguments, env.call("/api/transactions/filterOptions", arguments, env.cookie), http.StatusBadRequest, "bad_request")
 	}
 }
 

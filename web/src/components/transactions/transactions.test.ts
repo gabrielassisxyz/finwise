@@ -4,7 +4,10 @@ import { createFakeApi } from '@/api/fake';
 import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
 import { useShellStore } from '@/stores/shell';
+import { prototypeState } from '@/api/fake/prototype-data';
+import { recordLineMenu } from '@/test/lineMenu';
 import { mountAt, prototypeOverview } from '@/test/mount';
+import { mountWithFailures } from '@/test/readOnly';
 import { marksOf } from './marks';
 import TransactionList from './TransactionList.vue';
 
@@ -351,7 +354,7 @@ describe('acting on the list', () => {
 
     expect(overlay.menu!.title).toBe('Adicionar tag');
     expect(overlay.menu!.search).toBeUndefined();
-    expect(overlay.menu!.items.map((item) => item.label)).toEqual((await api.transactions.filterOptions()).tags);
+    expect(overlay.menu!.items.map((item) => item.label)).toEqual((await api.transactions.filterOptions('2026-11')).tags);
 
     overlay.menu!.items.find((item) => item.label === '#viagem')!.onPick!();
     await flushPromises();
@@ -373,5 +376,83 @@ describe('acting on the list', () => {
 
     await runToastAction(overlay, 'Desfazer');
     expect(wrapper.findAll('.row.faded')).toHaveLength(0);
+  });
+});
+
+describe('the menu of lines the list draws from', () => {
+  const NOV = '2026-11';
+
+  it('is asked for the month of the list\'s query, whatever the period, and for the new month after a change', async () => {
+    const api = createFakeApi({ startLocked: false });
+    const { months } = recordLineMenu(api);
+    const mounted = await mountWithFailures(TransactionList, [{ path: '/', component: { template: '<div />' } }], '/', { api });
+    const overlay = useOverlayStore(mounted.pinia);
+    const pickPeriod = async (label: string) => {
+      await mounted.wrapper.findAll('.filter')[0]!.trigger('click');
+      overlay.menu!.items.find((item) => item.label === label)!.onPick!();
+      await mounted.settle();
+    };
+    expect(months).toEqual([NOV]);
+    await pickPeriod('Últimos 3 meses');
+    await pickPeriod('Este ano');
+    await pickPeriod('Mês selecionado');
+    expect(months).toEqual([NOV, NOV, NOV, NOV]);
+    useMonthStore(mounted.pinia).shift(-1);
+    await mounted.settle();
+    expect(months.at(-1)).toBe('2026-10');
+  });
+});
+
+describe('the filter by line', () => {
+  const OFF_BUDGET = 'Combustível de antes';
+
+  /** Two of the month's rows on a line that a later budget renamed: the month's budget no longer has it. */
+  function withRenamedLine() {
+    const state = prototypeState();
+    for (const name of ['Posto Shell', 'Cinema Belas Artes']) {
+      state.transactions.find((transaction) => transaction.name === name && transaction.day.startsWith('2026-11'))!.line = OFF_BUDGET;
+    }
+    return state;
+  }
+
+  async function mountWith(state = prototypeState()) {
+    const mounted = await mountAt(TransactionList, '/', {}, { state });
+    useShellStore().overview = prototypeOverview();
+    useMonthStore().configure(prototypeOverview());
+    await flushPromises();
+    const overlay = useOverlayStore();
+    const openFilter = async () => {
+      await mounted.wrapper.findAll('.filter')[2]!.trigger('click');
+      return overlay.menu!.items;
+    };
+    const menuLines = async () => (await mounted.api.transactions.filterOptions('2026-11')).lines.map((line) => line.name);
+    return { ...mounted, overlay, openFilter, menuLines };
+  }
+
+  it('offers a line a row is on and the menu lacks, once, after every line of the menu in its order', async () => {
+    const m = await mountWith(withRenamedLine());
+    const menu = await m.menuLines();
+    expect(menu).not.toContain(OFF_BUDGET);
+    expect((await m.openFilter()).map((item) => item.label)).toEqual([...menu, OFF_BUDGET]);
+  });
+
+  it('leaves exactly the rows on that line when it is picked, and keeps offering it while the filter is on', async () => {
+    const m = await mountWith(withRenamedLine());
+    (await m.openFilter()).find((item) => item.label === OFF_BUDGET)!.onPick!();
+    await flushPromises();
+    expect(rowNames(m.wrapper).sort()).toEqual(['Cinema Belas Artes', 'Posto Shell']);
+    const again = await m.openFilter();
+    expect(again.filter((item) => item.label === OFF_BUDGET)).toHaveLength(1);
+    expect(again.find((item) => item.current)?.label).toBe(OFF_BUDGET);
+
+    again.find((item) => item.label === 'Delivery')!.onPick!();
+    await flushPromises();
+    expect(rowNames(m.wrapper)).toEqual(['iFood', 'Rappi', 'iFood']);
+    expect((await m.openFilter()).map((item) => item.label)).toContain(OFF_BUDGET);
+  });
+
+  it('lists the menu and nothing more when every row is on a line of the menu', async () => {
+    const m = await mountWith();
+    expect((await m.openFilter()).map((item) => item.label)).toEqual(await m.menuLines());
   });
 });

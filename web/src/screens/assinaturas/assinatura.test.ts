@@ -1,6 +1,13 @@
 import { flushPromises } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { useOverlayStore } from '@/stores/overlay';
+import { useShellStore } from '@/stores/shell';
+import { createFakeApi } from '@/api/fake';
+import { useMonthStore } from '@/stores/month';
+import { useRevisionStore } from '@/stores/revision';
+import { lineNamed, recordLineMenu } from '@/test/lineMenu';
+import { prototypeOverview } from '@/test/mount';
+import { mountWithFailures } from '@/test/readOnly';
 import { mountRouted } from '@/test/mountRouted';
 import AssinaturaScreen from './AssinaturaScreen.vue';
 
@@ -14,6 +21,7 @@ const plain = (text: string) => text.replace(/ /g, ' ').replace(/\s+/g, ' ').tr
 
 async function mountPage(id: string) {
   const mounted = await mountRouted(AssinaturaScreen, routes, `/assinaturas/${id}`);
+  useShellStore().overview = prototypeOverview();
   await flushPromises();
   return { ...mounted, overlay: useOverlayStore() };
 }
@@ -163,5 +171,31 @@ describe('Assinatura, the alternatives', () => {
     expect(wrapper.findAll('.alternative').map((item) => item.text())).toEqual([
       'Nenhuma alternativa encontrada ainda. A IA procura planos mais baratos a cada renovação.',
     ]);
+  });
+});
+
+describe('Assinatura, the menu of lines', () => {
+  it('asks for the current month while the screen shows another, and again after a write', async () => {
+    const api = createFakeApi({ startLocked: false });
+    const { months } = recordLineMenu(api, { named: true });
+    const mounted = await mountWithFailures(AssinaturaScreen, routes, '/assinaturas/sp', { api, frame: false });
+    const month = useMonthStore(mounted.pinia);
+    month.configure(prototypeOverview());
+    month.shift(-1);
+    useShellStore(mounted.pinia).overview = prototypeOverview();
+    await mounted.settle();
+    expect(month.selected).toBe('2026-10');
+    expect(months).toEqual(['2026-11']);
+    const overlay = useOverlayStore(mounted.pinia);
+    const menu = async () => {
+      await mounted.wrapper.find('.line-button').trigger('click');
+      return overlay.menu!.items.map((item) => item.label);
+    };
+    expect(await menu()).toEqual([lineNamed('2026-11', 1)]);
+
+    useRevisionStore(mounted.pinia).bump();
+    await mounted.settle();
+    expect(months).toEqual(['2026-11', '2026-11']);
+    expect(await menu()).toEqual([lineNamed('2026-11', 2)]);
   });
 });
