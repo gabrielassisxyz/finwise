@@ -27,9 +27,8 @@ func authoredRead(method, arguments string) authoredReadCase {
 // authoredReadCases are answered over the full ledger and the invented authored
 // state, validated against the method's result schema and compared with their
 // files in testdata/golden/full-authored. No read consults the authored store
-// yet, so each file equals what the same call answers over the full ledger; a
-// read that merges what the person authored arrives with its case here. The
-// calls are ones readCases does not make.
+// yet, so each file equals its twin in full/; a read that merges what the person
+// authored arrives with its case here.
 var authoredReadCases = []authoredReadCase{
 	authoredRead("transactions.detail", `["tx-fee"]`),
 	authoredRead("accounts.detail", `["acc-stale"]`),

@@ -112,6 +112,19 @@ func leakProblems(logs capturedLogs) []string {
 	return problems
 }
 
+// routesMissing names the methods of cases whose route is not in the request
+// log, which is how the leak test knows it ran them.
+func routesMissing(requestLog []byte, methods []string) []string {
+	var missing []string
+	for _, method := range methods {
+		domain, name, _ := strings.Cut(method, ".")
+		if !bytes.Contains(requestLog, []byte("route=/api/"+domain+"/"+name+" ")) {
+			missing = append(missing, method)
+		}
+	}
+	return missing
+}
+
 // runEveryCase answers every read case over both ledgers, every authored read
 // case over the third state and every write case, the harness's own included.
 func runEveryCase(t *testing.T, addRequestLog func([]byte)) {
@@ -128,6 +141,9 @@ func runEveryCase(t *testing.T, addRequestLog func([]byte)) {
 		authoredEnv.answer(c.method, c.arguments)
 	}
 	addRequestLog(authoredEnv.logs.Bytes())
+	if logged, want := bytes.Count(authoredEnv.logs.Bytes(), []byte("route=")), 1+len(authoredReadCases); logged != want {
+		t.Errorf("the authored state logged %d requests, want %d: its cases were not all run", logged, want)
+	}
 	for _, c := range allWriteCases() {
 		addRequestLog(runWriteCase(t, c, theRealUndo).requestLog)
 	}
@@ -140,8 +156,45 @@ func TestNoHandlerLogsWhatItReads(t *testing.T) {
 	for _, problem := range leakProblems(logs) {
 		t.Error(problem)
 	}
-	if len(logs.request) == 0 {
-		t.Error("no request was logged, so the run saw nothing")
+	var methods []string
+	for _, c := range readCases {
+		methods = append(methods, c.method)
+	}
+	for _, c := range authoredReadCases {
+		methods = append(methods, c.method)
+	}
+	for _, c := range allWriteCases() {
+		methods = append(methods, c.method)
+		for _, call := range c.before {
+			methods = append(methods, call.method)
+		}
+	}
+	// Every router of the run opened one session: one per ledger, one for the
+	// authored state and one for each write case.
+	if opened, want := bytes.Count(logs.request, []byte("route=/api/session/unlock ")), 3+len(allWriteCases()); opened != want {
+		t.Errorf("%d routers were built and %d expected, so a kind of case was not run", opened, want)
+	}
+	for _, method := range routesMissing(logs.request, methods) {
+		t.Errorf("%s was never requested, so the run did not look at it", method)
+	}
+}
+
+func TestTheLeakCheckNamesEachPlaceThatHoldsSomething(t *testing.T) {
+	if problems := leakProblems(capturedLogs{request: []byte("verb=POST route=/api/shell/overview status=200")}); len(problems) != 0 {
+		t.Errorf("a request log of routes was accused: %v", problems)
+	}
+	places := map[string]capturedLogs{
+		"a secret in the request log":      {request: []byte("route=/api/x/y argument=tx-1")},
+		"bytes in the default slog logger": {defaultLog: []byte("saved")},
+		"bytes in the standard logger":     {standardLog: []byte("saved")},
+	}
+	for label, logs := range places {
+		if len(leakProblems(logs)) == 0 {
+			t.Errorf("%s went unnoticed", label)
+		}
+	}
+	if len(routesMissing([]byte("route=/api/a/b status=200"), []string{"a.b", "c.d"})) != 1 {
+		t.Error("a route that was not requested went unnoticed")
 	}
 }
 

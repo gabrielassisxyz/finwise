@@ -416,7 +416,7 @@ func TestTheRefusalCheckRefusesARefusalThatLeftARowBehind(t *testing.T) {
 func TestTheWriteCoverageCheckFailsForAMissingCaseOrAnInventedOne(t *testing.T) {
 	modes := map[string]expectation{
 		"a.recorded": expectsRecorded, "a.evaluation": expectsEvaluation, "a.extension": expectsExtension,
-		"a.exempt": exemptFromTheHarness, "a.refusing": expectsRecorded,
+		"a.exempt": exemptFromTheHarness, "a.refusing": expectsRecorded, "a.unhandled": expectsRecorded,
 	}
 	nullable := map[string]bool{"a.recorded": true}
 	handled := []string{"a.recorded", "a.evaluation", "a.extension", "a.exempt", "a.refusing"}
@@ -432,7 +432,8 @@ func TestTheWriteCoverageCheckFailsForAMissingCaseOrAnInventedOne(t *testing.T) 
 	cases := map[string][]writeCase{
 		"a method with no case":                  complete[1:],
 		"a case of another mode":                 append(append([]writeCase(nil), complete[:3]...), writeCase{method: "a.refusing", expects: expectsEvaluation}),
-		"a case for a method with no handler":    append(append([]writeCase(nil), complete...), writeCase{method: "a.invented", expects: expectsRecorded}),
+		"a case for a method with no handler":    append(append([]writeCase(nil), complete...), writeCase{method: "a.unhandled", expects: expectsRecorded}),
+		"a case for a method of no manifest":     append(append([]writeCase(nil), complete...), writeCase{method: "a.invented", expects: expectsRecorded}),
 		"a case for an exempt method":            append(append([]writeCase(nil), complete...), writeCase{method: "a.exempt", expects: expectsRecorded}),
 		"a null where the result does not allow": append(append([]writeCase(nil), complete...), writeCase{method: "a.evaluation", expects: expectsNothing}),
 		"only a null for a recorded method":      {{method: "a.recorded", expects: expectsNothing}, complete[1], complete[2], complete[3]},
@@ -513,5 +514,13 @@ func TestTheExtensionCheckRefusesAChangeOfItsOwnAndAnotherChangesId(t *testing.T
 		if len(problemsOf(extensionCase, observed)) == 0 {
 			t.Errorf("an extension with %s went unnoticed", label)
 		}
+	}
+}
+
+func TestTheRefusalCheckValidatesTheBodyAgainstTheManifestsErrorSchema(t *testing.T) {
+	outsideTheList := refusalReason("made_up")
+	observed := writeObservation{status: 409, body: []byte(`{"error":{"kind":"refused","reason":"made_up"}}`)}
+	if problems := refusalProblems(outsideTheList, observed); len(problems) == 0 {
+		t.Error("a body that is not an envelope of the manifest went unnoticed because it was the one expected")
 	}
 }
