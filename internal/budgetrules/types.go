@@ -1,8 +1,9 @@
 // Package budgetrules decides what each listed transaction of a month counts
 // for in that month's budget: which line it adds to or takes off, what is left
-// unassigned and what reimbursement was applied inside it. It takes plain
-// values and returns plain values; the caller maps the ledger's rows and what
-// the person authored into them. It does no SQL and no I/O.
+// unassigned and what reimbursement was applied inside it; and from that, every
+// figure of the budget screen and of a scenario weighed against the month. It
+// takes plain values and returns plain values; the caller maps the ledger's
+// rows and what the person authored into them. It does no SQL and no I/O.
 package budgetrules
 
 import "github.com/gabrielassisxyz/finwise/internal/money"
