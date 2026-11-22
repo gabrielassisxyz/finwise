@@ -106,6 +106,16 @@ func refundLineStep(line string) string {
 	return "Você definiu que o estorno abate " + line
 }
 
+// The steps a line change leaves in a transaction's history.
+
+func lineChangedStep(line string) string { return "Você alterou para " + line }
+
+func lineConfirmedStep(line string) string { return "Você confirmou " + line }
+
+func lineAppliedByRuleStep(line, establishment string) string {
+	return "Regra aplicou " + line + " (você pediu para todas em " + establishment + ")"
+}
+
 // The cycles of a subscription, the contract's SubscriptionCycle.
 const (
 	cycleMonthly    = "Mensal"

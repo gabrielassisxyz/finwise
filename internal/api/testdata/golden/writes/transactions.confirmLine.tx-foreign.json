@@ -1,0 +1,44 @@
+{
+  "answer": {
+    "changeId": "5"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_state",
+      "key": [
+        2
+      ],
+      "column": "classified_by",
+      "before": "model",
+      "after": "person"
+    },
+    {
+      "seq": 2,
+      "table": "tx_state",
+      "key": [
+        2
+      ],
+      "column": "confidence",
+      "before": 91,
+      "after": null
+    },
+    {
+      "seq": 3,
+      "table": "history_steps",
+      "key": [
+        1
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "id": 1,
+        "tx_key": 2,
+        "change_id": 5,
+        "kind": "step",
+        "text": "Você confirmou Delivery",
+        "day": "2026-03-20"
+      }
+    }
+  ]
+}
