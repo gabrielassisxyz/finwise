@@ -39,6 +39,8 @@ type Config struct {
 	SessionIdle    time.Duration
 	InsecureCookie bool
 	Logger         *slog.Logger
+	// PINStore keeps a PIN changed in the app; it defaults to Database.
+	PINStore PINStore
 }
 
 // router carries what the per-route functions share.
@@ -107,6 +109,9 @@ func withDefaults(config Config) (Config, error) {
 	if config.Reads == nil {
 		config.Reads = NewReadRegistry()
 	}
+	if config.PINStore == nil && config.Database != nil {
+		config.PINStore = config.Database
+	}
 	if config.SessionIdle <= 0 {
 		config.SessionIdle = defaultSessionIdle
 	}
@@ -173,6 +178,10 @@ func (found *router) serve(method contract.Method) http.HandlerFunc {
 			writeError(w, r, kindLocked)
 			return
 		}
+		if method.Qualified() == sessionChangePin {
+			found.serveChangePin(w, r, method)
+			return
+		}
 		if method.Class == contract.ClassWrite || method.Class == contract.ClassEvaluate {
 			found.serveChange(w, r, method)
 			return
@@ -187,6 +196,28 @@ func (found *router) serve(method contract.Method) http.HandlerFunc {
 		}
 		found.serveRead(w, r, method, arguments)
 	}
+}
+
+// sessionChangePin is handed to the session service rather than to a handler:
+// it needs the caller's token, the lockout and the sessions, and it is not a
+// recorded change.
+const sessionChangePin = "session.changePin"
+
+func (found *router) serveChangePin(w http.ResponseWriter, r *http.Request, method contract.Method) {
+	if found.database == nil || found.sessions.pins == nil {
+		writeError(w, r, kindReadOnly)
+		return
+	}
+	arguments, body, ok := readArguments(w, r, method)
+	if !ok {
+		return
+	}
+	if !argumentsMatch(found.schemas[method.Qualified()], body) {
+		writeError(w, r, kindBadRequest)
+		return
+	}
+	ctx, instant := found.requestContext(r)
+	found.sessions.changePin(ctx, w, r, arguments, instant)
 }
 
 func opensWithoutSession(method contract.Method) bool {

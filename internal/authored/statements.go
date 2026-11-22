@@ -29,4 +29,6 @@ var allStatements = map[string]string{
 	"statementSavepointRestore":      statementSavepointRestore,
 	"statementReleaseRestore":        statementReleaseRestore,
 	"statementRollbackRestore":       statementRollbackRestore,
+	"statementStoredPIN":             statementStoredPIN,
+	"statementStorePIN":              statementStorePIN,
 }

@@ -118,6 +118,11 @@ func requireCreatedDatabase(t *testing.T, path string) {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256(journal)
+	session, err := os.ReadFile(filepath.Join("..", "..", "internal", "authored", "migrations", "0008_session.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessionSum := sha256.Sum256(session)
 	database := inspectDatabase(t, path)
 	var id int64
 	var mode string
@@ -128,11 +133,11 @@ func requireCreatedDatabase(t *testing.T, path string) {
 		t.Errorf("journal_mode = %q (%v)", mode, err)
 	}
 	tables := columnValues(t, database, "SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name")
-	if want := []string{"change_effects", "changes", "meta", "schema_migrations", "sqlite_sequence"}; !slices.Equal(tables, want) {
+	if want := []string{"change_effects", "changes", "meta", "pin", "schema_migrations", "sqlite_sequence"}; !slices.Equal(tables, want) {
 		t.Errorf("tables = %v, want %v", tables, want)
 	}
-	recorded := columnValues(t, database, "SELECT name || '=' || sha256 FROM schema_migrations")
-	if want := []string{"0001_journal=" + hex.EncodeToString(sum[:])}; !slices.Equal(recorded, want) {
+	recorded := columnValues(t, database, "SELECT name || '=' || sha256 FROM schema_migrations ORDER BY name")
+	if want := []string{"0001_journal=" + hex.EncodeToString(sum[:]), "0008_session=" + hex.EncodeToString(sessionSum[:])}; !slices.Equal(recorded, want) {
 		t.Errorf("schema_migrations = %v, want %v", recorded, want)
 	}
 	month := columnValues(t, database, "SELECT value FROM meta WHERE key = 'tracking_start_month'")
