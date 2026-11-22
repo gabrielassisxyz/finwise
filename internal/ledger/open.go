@@ -11,8 +11,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/url"
 	"os"
+	"path/filepath"
 
 	"modernc.org/sqlite"
 )
@@ -89,11 +91,17 @@ func openReadOnly(path string) (*sql.DB, error) {
 	if _, err := os.Stat(path); err != nil {
 		return nil, fmt.Errorf("ledger: snapshot: %w", err)
 	}
+	// Printed from a relative path, a file: address reads its first segment as a
+	// host name, which SQLite refuses.
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("ledger: snapshot: %w", &fs.PathError{Op: "abs", Path: path, Err: err})
+	}
 	query := url.Values{}
 	query.Set("mode", "ro")
 	query.Add("_pragma", "query_only(1)")
 	query.Add("_pragma", "busy_timeout(5000)")
-	dsn := (&url.URL{Scheme: "file", Path: path, RawQuery: query.Encode()}).String()
+	dsn := (&url.URL{Scheme: "file", Path: absolute, RawQuery: query.Encode()}).String()
 
 	database, err := sql.Open("sqlite", dsn)
 	if err != nil {
