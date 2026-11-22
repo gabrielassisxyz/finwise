@@ -31,7 +31,7 @@ const stepHead = (wrapper: VueWrapper, title: string) =>
 
 async function answerEverything({ api, revision }: App) {
   for (const item of (await api.review.weekly('2026-11')).queue.items) {
-    await api.review.acceptPending(item.transactionId, { line: item.pending.suggestion, always: false, nickname: '', reason: '' });
+    await api.review.acceptPending(item.transactionId, { line: item.pending.suggestion!, always: false, nickname: '', reason: '' });
   }
   revision.bump();
   await flushPromises();

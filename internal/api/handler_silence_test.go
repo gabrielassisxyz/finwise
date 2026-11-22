@@ -77,6 +77,8 @@ var secrets = []string{
 	inventedLabel, "Virtual", "manual",
 	// The pots, the buckets and the line names of the pots' write cases.
 	"inv-", "pot-", "Disponível", "Reservado", "Investido", "Remédios", "Viagens", "Tarifas",
+	// The line and establishment names of the budget's figures and its scenario.
+	"Renda", "Delivery", "Academia", "Pets", "Contas da casa", "Saúde", "PACOTE",
 	// The tags, notes, nicknames and line names of the transactions' write cases.
 	"viagem", "abastecer", "Pão", "Maria", "Inexistente",
 }
