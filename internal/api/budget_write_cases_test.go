@@ -36,6 +36,11 @@ const (
 	oneIncome = `[{"key":"rec","name":"Receita","lines":[{"name":"Salário","amount":1000,"flag":"Não garantida"}]}]`
 	// Two lines of one name.
 	twiceTheName = `[{"key":"var","name":"Variáveis","lines":[{"name":"Mercado","amount":1},{"name":"Mercado","amount":2}]}]`
+	// Of the invented authored state's budget only Mercado, or only Viagens, is
+	// kept: Salário and Renda extra, the lines its February transactions are on,
+	// go.
+	onlyMercado = `[{"key":"var","name":"Variáveis","lines":[{"id":"6","name":"Mercado","amount":400}]}]`
+	onlyViagens = `[{"key":"res","name":"Reservas de desejo","lines":[{"id":"9","name":"Viagens","amount":600}]}]`
 )
 
 // budgetWriteCases are the three budget writes, each recorded and undone, and
@@ -51,6 +56,11 @@ var budgetWriteCases = []writeCase{
 	{method: "budget.save", arguments: `["2026-03",` + twiceTheName + `]`, expects: expectsRefusal, reason: reasonInvalidBudget, state: budgetState()},
 	{method: "budget.saveScenario", arguments: `["Antes",` + twiceTheName + `]`, expects: expectsRefusal, reason: reasonInvalidBudget, state: budgetState()},
 	{method: "budget.evaluateScenario", arguments: `["2026-03",` + withoutTheExtra + `]`, expects: expectsEvaluation, state: budgetState()},
+	// A save that removes lines transactions are on clears them in its own change:
+	// every kind of reference, while the establishment's default line and the
+	// pots' links stay.
+	{method: "budget.save", arguments: `["2026-02",` + onlyMercado + `]`, expects: expectsRecorded, state: startFromTheInventedState},
+	{method: "budget.applyScenario", arguments: `["2026-02",` + onlyViagens + `]`, expects: expectsRecorded, state: startFromTheInventedState},
 }
 
 // withoutTheExtra is a scenario of the invented budget in which the extra

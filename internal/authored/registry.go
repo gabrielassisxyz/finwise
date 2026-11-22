@@ -133,12 +133,20 @@ var notJournaledTables = map[string]string{
 	"pin":               "changing the PIN is not a recorded change and has no undo",
 }
 
+// productionChecks are the checks every undo of the app runs.
+var productionChecks = []RestoreCheck{noStrayLineReferences}
+
 // AppTables is a copy of the app's own journaled tables, for a registry that
 // adds tables of its own to them.
 func AppTables() []Table { return slices.Clone(productionTables) }
 
+// AppChecks is a copy of the checks every undo of the app runs, for a registry
+// that journals the app's tables beside its own: an undo over them must refuse
+// what the app's own refuses.
+func AppChecks() []RestoreCheck { return slices.Clone(productionChecks) }
+
 func productionRegistry() (*Registry, error) {
-	return NewRegistry(productionTables)
+	return NewRegistry(productionTables, productionChecks...)
 }
 
 // NewRegistry validates tables and returns the registry they form.
