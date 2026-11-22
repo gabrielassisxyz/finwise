@@ -525,3 +525,62 @@ func TestTheRefusalCheckValidatesTheBodyAgainstTheManifestsErrorSchema(t *testin
 		t.Error("a body that is not an envelope of the manifest went unnoticed because it was the one expected")
 	}
 }
+
+// Each check of a mode is fed an observation that only it can refuse: the
+// control observation with one thing made wrong, which must be reported under
+// the name of that thing and not merely reported.
+func TestEveryCheckOfEveryModeNamesTheProblemOnlyItCanSee(t *testing.T) {
+	type mutation struct {
+		label   string
+		c       writeCase
+		mutate  func(o *writeObservation)
+		problem string
+	}
+	mutations := []mutation{
+		{"recorded: a change with no effect", singleCase, func(o *writeObservation) { o.effects = nil }, "recorded no effect"},
+		{"recorded: an undo that answers another status", singleCase, func(o *writeObservation) { o.undoStatus = 409 }, "the undo answered"},
+		{"recorded: an undo that answers a body that is not null", singleCase, func(o *writeObservation) { o.undoBody = `{}` }, "the undo answered"},
+		{"recorded: no change id", singleCase, func(o *writeObservation) { o.changeID = "" }, "holds no change id"},
+		{"recorded: another status", singleCase, func(o *writeObservation) { o.status = 500 }, "want 200"},
+		{"extension: an undo that answers another status", extensionCase, func(o *writeObservation) { o.undoStatus = 409 }, "the undo answered"},
+		{"extension: an undo that answers a body that is not null", extensionCase, func(o *writeObservation) { o.undoBody = `{}` }, "the undo answered"},
+		{"nothing: an answer that is not null", nothingCase, func(o *writeObservation) { o.body = []byte(`{"changeId":"1"}`) }, "want 200 null"},
+		{"nothing: another status", nothingCase, func(o *writeObservation) { o.status = 500 }, "want 200 null"},
+		{"nothing: a journal that differs with the same count", nothingCase, func(o *writeObservation) { o.journalAfter += "\nchange 9" }, "the journal changed"},
+		{"evaluation: another status", evaluationCase, func(o *writeObservation) { o.status = 500 }, "want 200"},
+		{"evaluation: an answer that does not conform", evaluationCase, func(o *writeObservation) { o.body = []byte(`{}`) }, "does not conform"},
+		{"refusal: another status", refusalCase, func(o *writeObservation) { o.status = 500 }, "want 409"},
+		{"refusal: another body", refusalCase, func(o *writeObservation) { o.body = []byte(`{"error":{"kind":"read_only"}}`) }, "want 409"},
+	}
+	for _, m := range mutations {
+		control := runWriteCase(t, m.c, theRealUndo)
+		if problems := problemsOf(m.c, control); len(problems) != 0 {
+			t.Fatalf("%s: the control was refused: %v", m.label, problems)
+		}
+		observed := control
+		m.mutate(&observed)
+		if joined := strings.Join(problemsOf(m.c, observed), "\n"); !strings.Contains(joined, m.problem) {
+			t.Errorf("%s: reported as %q, want a problem naming %q", m.label, joined, m.problem)
+		}
+	}
+}
+
+// A handler that asks for the change's id and writes nothing leaves an empty
+// change that undoes to the same tables; only the effects count refuses it.
+func TestARecordedCaseWhoseHandlerWritesNothingIsRefused(t *testing.T) {
+	empty := singleCase
+	empty.handlers = withProofHandlers(func(registry *Registry, _ *authoredtest.Scratch) {
+		registry.RegisterWrite(setFactMethod, func(ctx context.Context, _ []json.RawMessage, writes Writes) (any, error) {
+			return answerWithChange(ctx, writes)
+		})
+	})
+	empty.held = ""
+
+	o := runWriteCase(t, empty, theRealUndo)
+	if restoredProblem(o.canonicalBefore, o.canonicalAfterUndo) != "" || o.undoStatus != 200 {
+		t.Fatalf("the empty change was expected to undo cleanly")
+	}
+	if joined := strings.Join(recordedProblems(empty.method, o), "\n"); !strings.Contains(joined, "recorded no effect") {
+		t.Errorf("an empty recorded change was reported as %q", joined)
+	}
+}
