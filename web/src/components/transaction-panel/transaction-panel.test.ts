@@ -222,11 +222,13 @@ describe('the line menus ask for the month they are for', () => {
     return state;
   }
 
-  async function mountPanel(options: { named?: boolean } = { named: true }) {
+  /** `frame: false` mounts the panel before the shell has its overview, so the current month is not known yet. */
+  async function mountPanel(options: { named?: boolean; frame?: boolean } = { named: true }) {
     const api = createFakeApi({ startLocked: false, state: octoberWithSplitAndRefund() });
     const recorded = recordLineMenu(api, options);
     const mounted = await mountWithFailures(PanelOnly, [{ path: '/', component: { template: '<div />' } }], '/', {
       api,
+      frame: options.frame ?? true,
       mounting: { attachTo: document.body },
     });
     const overlay = useOverlayStore(mounted.pinia);
@@ -247,6 +249,20 @@ describe('the line menus ask for the month they are for', () => {
     useRevisionStore(m.pinia).bump();
     await m.settle();
     expect(m.months).toEqual([]);
+  });
+
+  it('waits for the current month when the shell has no overview yet, then asks for both months and shows', async () => {
+    const m = await mountPanel({ named: true, frame: false });
+    await m.open('t60');
+    expect(m.months).toEqual([]);
+    expect(m.wrapper.find('.panel').exists()).toBe(false);
+
+    useShellStore(m.pinia).overview = prototypeOverview();
+    await m.settle();
+    expect([...m.months].sort()).toEqual([OCT, NOV]);
+    expect(m.wrapper.find('.panel .name').text()).toBe('Pão de Açúcar');
+    expect(await m.menuOf('.panel .line-button')).toEqual([lineNamed(OCT, 1)]);
+    expect(await m.defaultLineMenu()).toEqual([lineNamed(NOV, 1)]);
   });
 
   it('asks once for a transaction of the current month, whose answer serves every menu', async () => {
