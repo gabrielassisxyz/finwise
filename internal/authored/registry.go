@@ -107,6 +107,13 @@ var productionTables = []Table{
 	scenariosTable,
 	closedMonthsTable,
 	settingsEntry(),
+	txStateEntry,
+	txTagsEntry,
+	txSplitPartsEntry,
+	establishmentsEntry,
+	establishmentTagsEntry,
+	historyStepsEntry,
+	historyReasonsEntry,
 	potSettingsEntry(),
 	potLinesEntry(),
 }
