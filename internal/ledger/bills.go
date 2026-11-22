@@ -21,9 +21,9 @@ type Bill struct {
 }
 
 // Bills returns every current bill, by account and due date.
-func (reader *Reader) Bills(ctx context.Context) ([]Bill, error) {
+func (view *View) Bills(ctx context.Context) ([]Bill, error) {
 	var bills []Bill
-	err := reader.read(ctx, func(tx *sql.Tx) error {
+	err := view.read(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, queryBills)
 		if err != nil {
 			return fmt.Errorf("ledger: bills: %w", err)
