@@ -179,6 +179,7 @@ type coverage struct {
 	dispositions  map[Disposition]int
 	splits        map[string]int
 	reimbursement map[string]int
+	markedDebits  map[string]int
 }
 
 func relation(got, want money.Cents) int {
@@ -207,7 +208,20 @@ func (seen coverage) note(transaction Transaction, outcome Outcome) {
 		if transaction.LinkedCredit > 0 {
 			seen.reimbursement[fmt.Sprintf("%s, credit %s the purchase", outcome.Disposition, relationNames[relation(transaction.LinkedCredit, outcome.Magnitude)])]++
 		}
+		if mark := refundMark(transaction); mark != "" {
+			seen.markedDebits[fmt.Sprintf("%s, %s, refund line set %t", outcome.Disposition, mark, transaction.RefundLine.Set)]++
+		}
 	}
+}
+
+func refundMark(transaction Transaction) string {
+	switch {
+	case transaction.RefundOverride == RefundYes:
+		return "override yes"
+	case transaction.RefundOverride == RefundAsLedgerSays && transaction.LedgerRefund:
+		return "the ledger's rule"
+	}
+	return ""
 }
 
 // wrongWith says what is wrong with one outcome, or nothing.
@@ -217,6 +231,9 @@ func wrongWith(outcome Outcome, transaction Transaction) string {
 	}
 	if outcome.Magnitude != listedMagnitude(transaction) {
 		return fmt.Sprintf("weighs %d, want %d", outcome.Magnitude, listedMagnitude(transaction))
+	}
+	if problem := wrongSide(outcome.Disposition, transaction.Amount > 0); problem != "" {
+		return problem
 	}
 	switch outcome.Disposition {
 	case Split, OnALine, Uncategorised:
@@ -241,13 +258,29 @@ func wrongWith(outcome Outcome, transaction Transaction) string {
 	return ""
 }
 
+// wrongSide refuses a debit in a disposition only a credit can have, and the
+// reverse; invariant 1 sees a debit only in the dispositions of debits.
+func wrongSide(disposition Disposition, isCredit bool) string {
+	switch disposition {
+	case Reimbursement, Refund, Income, OtherCredit:
+		if !isCredit {
+			return "is a debit in a disposition of credits"
+		}
+	case Split, OnALine, Uncategorised:
+		if isCredit {
+			return "is a credit in a disposition of debits"
+		}
+	}
+	return ""
+}
+
 func TestNoTransactionIsDroppedOrCountedTwice(t *testing.T) {
 	seed := *seedFlag
 	if seed == 0 {
 		seed = rand.Uint64()
 	}
 	reproduce := fmt.Sprintf("reproduce with: go test ./internal/budgetrules -run %s -seed=%d", t.Name(), seed)
-	seen := coverage{map[Disposition]int{}, map[string]int{}, map[string]int{}}
+	seen := coverage{map[Disposition]int{}, map[string]int{}, map[string]int{}, map[string]int{}}
 	failures := 0
 	fail := func(format string, args ...any) {
 		failures++
@@ -285,6 +318,7 @@ func TestNoTransactionIsDroppedOrCountedTwice(t *testing.T) {
 	}
 	requireReached(t, "split", seen.splits, 6, fail)
 	requireReached(t, "reimbursement", seen.reimbursement, 6, fail)
+	requireReached(t, "debit with the refund mark", seen.markedDebits, 8, fail)
 }
 
 func requireReached(t *testing.T, what string, seen map[string]int, want int, fail func(string, ...any)) {

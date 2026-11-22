@@ -1,6 +1,7 @@
 package budgetrules
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -217,6 +218,36 @@ func TestARefundTakesOffItsLineAndTheOverrideDecidesWhatIsOne(t *testing.T) {
 		{"an override of no on a ledger refund on no line is an other credit", overriddenNoOtherCredit, nothing(OtherCredit, 12000)},
 		{"an override of yes makes a refund of a credit the ledger does not mark", overriddenYes, Outcome{Disposition: Refund, Lines: []LineAmount{takesOff(marketLine, 4000)}, Magnitude: 4000}},
 	})
+}
+
+// Only a credit can be a refund: a purchase carrying the mark that became one
+// would leave its line and, with no refund line, every total.
+func TestADebitWithTheRefundMarkIsNoRefund(t *testing.T) {
+	marks := map[string]func(Transaction) Transaction{
+		"the override set to yes": func(transaction Transaction) Transaction {
+			transaction.RefundOverride = RefundYes
+			return transaction
+		},
+		"the ledger's refund rule": func(transaction Transaction) Transaction {
+			transaction.LedgerRefund = true
+			return transaction
+		},
+	}
+	var cases []dispositionCase
+	for mark, marked := range marks {
+		for _, refundLine := range []LineRef{{}, OnLine(rentLine)} {
+			suffix := " with " + mark + fmt.Sprintf(", refund line %+v", refundLine)
+			purchase := marked(on(marketLine, debit(5000)))
+			purchase.RefundLine = refundLine
+			uncategorised := marked(debit(5000))
+			uncategorised.RefundLine = refundLine
+			cases = append(cases,
+				dispositionCase{"a debit on a line" + suffix, purchase, Outcome{Disposition: OnALine, Lines: []LineAmount{adds(marketLine, 5000)}, Magnitude: 5000}},
+				dispositionCase{"a debit on no line" + suffix, uncategorised, Outcome{Disposition: Uncategorised, Unassigned: 5000, Magnitude: 5000}},
+			)
+		}
+	}
+	checkCases(t, cases)
 }
 
 func TestTheOtherAuthoredFieldsCountAsTheTableSays(t *testing.T) {
