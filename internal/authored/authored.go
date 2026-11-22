@@ -22,14 +22,18 @@ type Options struct {
 	// Migrations is the set of migration files; nil means the set embedded in
 	// the binary. A test hands it a changed, unknown, failing or reordered set.
 	Migrations fs.FS
+	// Journal is the registry of journaled tables; nil means the package's
+	// own. A test hands it one naming the scratch tables its migrations add.
+	Journal *Registry
 }
 
 // Database is the app's database, open for the life of the process. Unlike the
 // ledger snapshot, nobody swaps this file, so it is not reopened per call.
 type Database struct {
-	path string
-	pool *sql.DB
-	now  func() time.Time
+	path    string
+	pool    *sql.DB
+	now     func() time.Time
+	journal *Registry
 }
 
 // Open recognises the file at path, creates it if it is missing or empty,
@@ -42,6 +46,12 @@ func Open(ctx context.Context, path string, options Options) (*Database, error) 
 	set, err := loadMigrations(options.Migrations)
 	if err != nil {
 		return nil, &OpenError{Path: path, Failure: FailureOpen, cause: err}
+	}
+	journal := options.Journal
+	if journal == nil {
+		if journal, err = productionRegistry(); err != nil {
+			return nil, &OpenError{Path: path, Failure: FailureOpen, cause: err}
+		}
 	}
 	kind, err := recognize(path)
 	if err != nil {
@@ -59,6 +69,11 @@ func Open(ctx context.Context, path string, options Options) (*Database, error) 
 	if err := database.migrate(ctx, set); err != nil {
 		database.pool.Close()
 		return nil, err
+	}
+	database.journal = journal
+	if err := database.read(ctx, func(tx *sql.Tx) error { return journal.verify(ctx, tx) }); err != nil {
+		database.pool.Close()
+		return nil, &OpenError{Path: path, Failure: FailureOpen, cause: err}
 	}
 	return database, nil
 }
