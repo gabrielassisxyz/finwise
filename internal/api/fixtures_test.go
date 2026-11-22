@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gabrielassisxyz/finwise/internal/authored"
+	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
 	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 )
 
@@ -192,4 +194,33 @@ func ledgerNamed(t testing.TB, name string) *ledgertest.Fixture {
 	}
 	t.Fatalf("no fixture ledger called %q", name)
 	return nil
+}
+
+// inventedAuthoredState is what a person who has used the app for a while
+// would have authored, written through the recorder in one change: a fact, a
+// created row, a tag and a parent with a child. Nothing of it is real. A test
+// that builds on it checks that it holds something, so a state that silently
+// holds nothing cannot make a comparison pass.
+func inventedAuthoredState(t testing.TB, scratch *authoredtest.Scratch) {
+	t.Helper()
+	facts := authored.ChangeFacts{Author: authored.AuthorPerson, Method: "scratch.seed", At: fixtureNow}
+	err := scratch.Database.Change(t.Context(), facts, func(recorder *authored.Recorder) error {
+		ctx := t.Context()
+		if err := recorder.Set(ctx, authoredtest.Facts, []authored.Value{authored.Text("fact-seed")}, authored.Row{"amount": authored.Integer(1200)}); err != nil {
+			return err
+		}
+		if err := recorder.Create(ctx, authoredtest.Things, authored.Row{"id": authored.Integer(1), "name": authored.Text("nota-seed"), "amount": authored.Integer(350)}); err != nil {
+			return err
+		}
+		if err := recorder.Put(ctx, authoredtest.Tags, authored.Row{"tx": authored.Text("tx-fee"), "tag": authored.Text("tag-seed")}); err != nil {
+			return err
+		}
+		if err := recorder.Put(ctx, authoredtest.Parents, authored.Row{"id": authored.Integer(1), "name": authored.Text("nota-parent")}); err != nil {
+			return err
+		}
+		return recorder.Put(ctx, authoredtest.Children, authored.Row{"id": authored.Integer(1), "parent_id": authored.Integer(1), "label": authored.Text("nota-child")})
+	})
+	if err != nil {
+		t.Fatalf("the invented authored state: %v", err)
+	}
 }
