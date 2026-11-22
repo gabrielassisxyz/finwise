@@ -86,3 +86,10 @@ const (
 	budgetGroupFees       = "Tarifas e juros"
 	budgetGroupInvestment = "Investimento"
 )
+
+// The marks of the budget screen: a variable line past its cap, and a budget
+// that plans more than its income.
+const (
+	budgetMarkOverspent  = "Estourou"
+	budgetMarkOverIncome = "Budget maior que a receita"
+)

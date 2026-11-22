@@ -77,6 +77,8 @@ var secrets = []string{
 	inventedLabel, "Virtual", "manual",
 	// The pots, the buckets and the line names of the pots' write cases.
 	"inv-", "pot-", "Disponível", "Reservado", "Investido", "Remédios", "Viagens", "Tarifas",
+	// The line and establishment names of the budget's figures and its scenario.
+	"Renda", "Delivery", "Academia", "Pets", "Contas da casa", "Saúde", "PACOTE",
 }
 
 // capturedLogs is what reached each of the three places a log could go.

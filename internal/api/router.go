@@ -186,7 +186,7 @@ func (found *router) serve(method contract.Method) http.HandlerFunc {
 			found.serveChange(w, r, method)
 			return
 		}
-		arguments, _, ok := readArguments(w, r, method)
+		arguments, body, ok := readArguments(w, r, method)
 		if !ok {
 			return
 		}
@@ -194,8 +194,22 @@ func (found *router) serve(method contract.Method) http.HandlerFunc {
 			found.sessions.dispatch(w, r, method, arguments, live)
 			return
 		}
+		if validatedBySchema(method) && !argumentsMatch(found.schemas[method.Qualified()], body) {
+			writeError(w, r, kindBadRequest)
+			return
+		}
 		found.serveRead(w, r, method, arguments)
 	}
+}
+
+// schemaValidatedRead is the one read whose arguments the manifest's schema
+// checks before its handler runs, as a write's are: its draft is a whole budget
+// document, which the schema checks from the bytes that arrived, so no amount
+// passes through a float. Every other read keeps its own strict decoding.
+const schemaValidatedRead = "budget.view"
+
+func validatedBySchema(method contract.Method) bool {
+	return method.Class == contract.ClassRead && method.Qualified() == schemaValidatedRead
 }
 
 // sessionChangePin is handed to the session service rather than to a handler:
