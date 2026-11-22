@@ -48,12 +48,14 @@ type transactionWire struct {
 }
 
 // pendingReview is the contract's shape for a classification waiting for a
-// decision.
+// decision. A review the app has no line to propose for carries neither a
+// suggestion nor a confidence, and no justification exists until a model
+// writes one.
 type pendingReview struct {
-	Reason        string `json:"reason"`
-	Suggestion    string `json:"suggestion"`
-	Confidence    int    `json:"confidence"`
-	Justification string `json:"justification"`
+	Reason        string  `json:"reason"`
+	Suggestion    *string `json:"suggestion"`
+	Confidence    *int    `json:"confidence"`
+	Justification *string `json:"justification"`
 }
 
 // transactionFrom carries one interpreted row to the wire as the ledger alone
