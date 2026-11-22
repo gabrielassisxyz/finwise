@@ -226,6 +226,11 @@ func foreignFile(t *testing.T, kind string) string {
 		return foreignWithPendingWAL(t)
 	case "text":
 		writeTestFile(t, path, strings.Repeat("a note that is not a database, "+sentinel+"\n", 4))
+	case "not SQLite, our id at bytes 68 to 71":
+		content := []byte(strings.Repeat(".", 128))
+		copy(content, "plain text, "+sentinel)
+		copy(content[68:], "FINW")
+		writeTestFile(t, path, string(content))
 	case "ten bytes":
 		writeTestFile(t, path, "SENTINEL!!")
 	default:
@@ -288,7 +293,7 @@ func writeTestFile(t *testing.T, path, content string) {
 }
 
 func TestServeRefusesEveryFileThatIsNotItsOwnAndLeavesItUntouched(t *testing.T) {
-	for _, kind := range []string{"write-ahead", "write-ahead, -wal never checkpointed", "collector snapshot", "application id 1", "no table, no id", "text", "ten bytes"} {
+	for _, kind := range []string{"write-ahead", "write-ahead, -wal never checkpointed", "collector snapshot", "application id 1", "no table, no id", "text", "not SQLite, our id at bytes 68 to 71", "ten bytes"} {
 		t.Run(kind, func(t *testing.T) {
 			path := foreignFile(t, kind)
 			directory := filepath.Dir(path)
@@ -298,6 +303,9 @@ func TestServeRefusesEveryFileThatIsNotItsOwnAndLeavesItUntouched(t *testing.T) 
 			output := result.stdout + result.stderr
 			if !strings.Contains(result.stderr, path) || strings.Contains(output, sentinel) || strings.Contains(output, "SENTINEL") {
 				t.Errorf("the message must name the path and nothing from the file: %q", result.stderr)
+			}
+			if !strings.Contains(result.stderr, "is not finwise's database") {
+				t.Errorf("the file was not refused as foreign: %q", result.stderr)
 			}
 			if hashAfter := fileHash(t, path); hashAfter != hashBefore {
 				t.Errorf("the file changed: %s -> %s", hashBefore, hashAfter)

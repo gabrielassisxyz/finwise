@@ -39,6 +39,12 @@ var foreignFiles = map[string]func(t *testing.T) string{
 		writeFile(t, path, strings.Repeat("this is a note and not a database, "+sentinel+"\n", 4))
 		return path
 	},
+	// Recognition must not rest on the id alone: a file needs SQLite's magic too.
+	"file that is not SQLite with our id at bytes 68 to 71": func(t *testing.T) string {
+		path := filepath.Join(t.TempDir(), "finwise.db")
+		writeFile(t, path, string(idWithoutMagic("plain text, not a database, "+sentinel)))
+		return path
+	},
 	"file of ten bytes": func(t *testing.T) string {
 		path := filepath.Join(t.TempDir(), "finwise.db")
 		writeFile(t, path, "SENTINEL!!")
@@ -69,6 +75,15 @@ func foreignWithPendingWAL(t *testing.T) string {
 	copyFile(t, source, path)
 	copyFile(t, source+"-wal", path+"-wal")
 	return path
+}
+
+// idWithoutMagic is 128 bytes that begin with text instead of SQLite's magic
+// and carry finwise's application id, "FINW", at bytes 68 to 71.
+func idWithoutMagic(text string) []byte {
+	content := []byte(strings.Repeat(".", 128))
+	copy(content, text)
+	copy(content[68:], "FINW")
+	return content
 }
 
 func writeFile(t testing.TB, path, content string) {
