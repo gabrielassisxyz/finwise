@@ -15,10 +15,18 @@ export function lineLabel(detail: TransactionDetail): string {
 /** Who is behind the line, in the sentence that follows its name; nothing while nobody has classified it. */
 export function originSentence(detail: TransactionDetail): string | null {
   if (detail.movement && !detail.line) return 'movimentação não entra no budget';
-  if (detail.pending) return `sugestão da IA, ${detail.pending.confidence}% de confiança`;
+  if (detail.pending) {
+    return detail.pending.confidence === null ? detail.pending.reason : `sugestão da IA, ${detail.pending.confidence}% de confiança`;
+  }
   if (detail.classifiedBy === null) return null;
   if (detail.classifiedBy === 'IA') return `IA, ${detail.confidence}% de confiança`;
   return `definida por ${detail.classifiedBy}`;
+}
+
+/** Whether the panel has a line to confirm: the suggestion of a pending review, or a line the model set. */
+export function hasLineToConfirm(detail: TransactionDetail): boolean {
+  if (detail.pending) return detail.pending.suggestion !== null;
+  return detail.classifiedBy === 'IA';
 }
 
 /** The key and value pairs of the panel's details, by the way the money moved. */
