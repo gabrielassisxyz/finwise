@@ -8,9 +8,11 @@ work/
 # The binary `go build ./cmd/finwise` leaves in the working directory.
 /finwise
 
-# Databases hold personal financial data.
+# Databases hold personal financial data, and so does the copy of the app's
+# database taken before a migration (finwise.db.before-<UTC timestamp>).
 *.db
 *.db-*
+*.db.before-*
 
 .env
 .env.*
