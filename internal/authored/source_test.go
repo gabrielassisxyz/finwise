@@ -95,7 +95,18 @@ var statementArgument = map[string]int{
 // A migration file's body is checked by its checksum instead, and is the one.
 var namedExceptions = map[string]string{
 	"migration.body": "a migration file, vouched for by the checksum recorded in schema_migrations",
+	// A journaled table's statements are named by its registry entry, and a
+	// production entry names registered constants: see
+	// TestEveryJournaledTableStatementIsRegistered.
+	"statements.SelectRow":   journaledStatement,
+	"statements.SelectAll":   journaledStatement,
+	"statements.SelectOwned": journaledStatement,
+	"statements.Insert":      journaledStatement,
+	"statements.Update":      journaledStatement,
+	"statements.Delete":      journaledStatement,
 }
+
+const journaledStatement = "a journaled table's statement, executed through its registry entry"
 
 // Every statement the package executes must be a registered constant, or the
 // preparation test could not have seen it.
