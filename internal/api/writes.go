@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/contract"
@@ -30,6 +31,19 @@ type Writes struct {
 	Recorder *authored.Recorder
 }
 
+// JournalHandler serves a `write` method that acts on changes already
+// committed. Each call of the engine is a transaction of its own, so the router
+// opens none around it: a change begun inside another change's transaction
+// would wait for a lock its own caller holds. For the same reason what the
+// handler returns is encoded after the engine's call has committed, so its
+// result must not be one that can fail to encode.
+type JournalHandler func(ctx context.Context, args []json.RawMessage, journal Journal) (any, error)
+
+// Journal is the engine's calls on committed changes.
+type Journal interface {
+	Undo(ctx context.Context, id authored.ChangeID, at time.Time) error
+}
+
 // serveChange answers a `write` or an `evaluate` method. The app's own database
 // and a handler for the method are both needed: without either the answer is
 // `read_only`, and it is given before the body is read.
@@ -50,6 +64,8 @@ func (found *router) serveChange(w http.ResponseWriter, r *http.Request, method 
 	switch {
 	case registered.write != nil:
 		found.serveWrite(w, r, method, registered.write, arguments)
+	case registered.journal != nil:
+		found.serveJournal(w, r, registered.journal, arguments)
 	default:
 		found.answerRead(w, r, registered.read, arguments)
 	}
@@ -92,6 +108,21 @@ func callWrite(ctx context.Context, handler WriteHandler, arguments []json.RawMe
 		}
 	}()
 	return handler(ctx, arguments, writes)
+}
+
+func (found *router) serveJournal(w http.ResponseWriter, r *http.Request, handler JournalHandler, arguments []json.RawMessage) {
+	ctx, _ := found.requestContext(r)
+	result, err := handler(ctx, arguments, found.database)
+	if err != nil {
+		writeFailure(w, r, err)
+		return
+	}
+	encoded, err := json.Marshal(result)
+	if err != nil {
+		writeError(w, r, kindInternal)
+		return
+	}
+	writeEncoded(w, encoded)
 }
 
 func writeEncoded(w http.ResponseWriter, encoded []byte) {

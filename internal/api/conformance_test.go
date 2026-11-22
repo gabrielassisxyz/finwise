@@ -130,14 +130,12 @@ func TestEveryRegisteredReadHasAConformanceCase(t *testing.T) {
 	for _, c := range readCases {
 		covered[c.method] = true
 	}
-	for _, name := range NewReadRegistry().Names() {
+	registered := map[string]bool{}
+	for _, name := range registeredReadNames(t) {
+		registered[name] = true
 		if !covered[name] {
 			t.Errorf("%s is registered and has no entry in readCases", name)
 		}
-	}
-	registered := map[string]bool{}
-	for _, name := range NewReadRegistry().Names() {
-		registered[name] = true
 	}
 	for _, c := range readCases {
 		if !registered[c.method] {

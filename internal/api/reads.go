@@ -18,18 +18,21 @@ import (
 type ReadHandler func(ctx context.Context, args []json.RawMessage, views Views) (any, error)
 
 // Registry maps "domain.name" to the handler of a method of any class but
-// `session`. A handler has one of two shapes, which differ in what the router
-// opens for it and so in what it may do: ReadHandler and WriteHandler.
+// `session`. A handler has one of three shapes, which differ in what the router
+// opens for it and so in what it may do: ReadHandler, WriteHandler and
+// JournalHandler.
 type Registry struct {
-	reads  map[string]ReadHandler
-	writes map[string]WriteHandler
+	reads   map[string]ReadHandler
+	writes  map[string]WriteHandler
+	journal map[string]JournalHandler
 }
 
 // NewRegistry returns an empty registry.
 func NewRegistry() *Registry {
 	return &Registry{
-		reads:  map[string]ReadHandler{},
-		writes: map[string]WriteHandler{},
+		reads:   map[string]ReadHandler{},
+		writes:  map[string]WriteHandler{},
+		journal: map[string]JournalHandler{},
 	}
 }
 
@@ -48,6 +51,13 @@ func (registry *Registry) RegisterWrite(method string, handler WriteHandler) {
 	registry.writes[method] = handler
 }
 
+// RegisterJournal adds the handler of a `write` method that acts on changes
+// that are already committed.
+func (registry *Registry) RegisterJournal(method string, handler JournalHandler) {
+	registry.claim(method)
+	registry.journal[method] = handler
+}
+
 func (registry *Registry) claim(method string) {
 	if _, taken := registry.lookup(method); taken {
 		panic(fmt.Sprintf("api: method %s registered twice", method))
@@ -56,11 +66,14 @@ func (registry *Registry) claim(method string) {
 
 // Names lists the registered methods in order, whatever their shape.
 func (registry *Registry) Names() []string {
-	names := make([]string, 0, len(registry.reads)+len(registry.writes))
+	names := make([]string, 0, len(registry.reads)+len(registry.writes)+len(registry.journal))
 	for name := range registry.reads {
 		names = append(names, name)
 	}
 	for name := range registry.writes {
+		names = append(names, name)
+	}
+	for name := range registry.journal {
 		names = append(names, name)
 	}
 	sort.Strings(names)
@@ -69,8 +82,9 @@ func (registry *Registry) Names() []string {
 
 // registration is what a method is registered with: exactly one field is set.
 type registration struct {
-	read  ReadHandler
-	write WriteHandler
+	read    ReadHandler
+	write   WriteHandler
+	journal JournalHandler
 }
 
 // serves says whether a handler of this shape can answer a method of the class.
@@ -78,7 +92,7 @@ func (found registration) serves(class contract.Class) bool {
 	switch {
 	case found.read != nil:
 		return class == contract.ClassRead || class == contract.ClassEvaluate
-	case found.write != nil:
+	case found.write != nil, found.journal != nil:
 		return class == contract.ClassWrite
 	}
 	return false
@@ -90,6 +104,9 @@ func (registry *Registry) lookup(method string) (registration, bool) {
 	}
 	if write, found := registry.writes[method]; found {
 		return registration{write: write}, true
+	}
+	if journal, found := registry.journal[method]; found {
+		return registration{journal: journal}, true
 	}
 	return registration{}, false
 }
@@ -110,6 +127,7 @@ var domainRegistrations = []func(*Registry){
 	registerReview,
 	registerClosing,
 	registerSettings,
+	registerChanges,
 }
 
 // NewReadRegistry returns the registry every domain's handlers are in.

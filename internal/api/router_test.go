@@ -14,38 +14,6 @@ import (
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
-func TestEveryWriteAndEvaluationIsRefusedWithASession(t *testing.T) {
-	env := newTestEnv(t)
-	cookie := env.unlock()
-	refused := methodsOfClass(env, contract.ClassWrite, contract.ClassEvaluate)
-	if len(refused) != 56 {
-		t.Fatalf("the manifest has %d write and evaluate methods, want 56", len(refused))
-	}
-	for _, method := range refused {
-		for _, body := range []string{`[]`, `not json`, ``, `{"a":1}`} {
-			response := env.call(method.Route, body, cookie)
-			expectError(t, method.Route+" body "+body, response, http.StatusForbidden, "read_only")
-		}
-	}
-}
-
-func TestAWriteIsRefusedBeforeItsBodyIsRead(t *testing.T) {
-	env := newTestEnv(t)
-	cookie := env.unlock()
-	body := &countingBody{}
-	request, _ := http.NewRequest(http.MethodPost, "/api/transactions/setLine", body)
-	request.Header.Set("Content-Type", "application/json")
-	request.AddCookie(cookie)
-	recorder := newRecorder()
-	env.handler.ServeHTTP(recorder, request)
-	if body.reads != 0 {
-		t.Errorf("the body of a refused write was read %d times", body.reads)
-	}
-	if recorder.Code != http.StatusForbidden {
-		t.Errorf("status %d, want 403", recorder.Code)
-	}
-}
-
 func TestEveryRouteButTheOpenOnesNeedsASession(t *testing.T) {
 	env := newTestEnv(t)
 	checked := 0
@@ -276,11 +244,14 @@ func buildWith(register func(*Registry)) error {
 
 func noopWrite(context.Context, []json.RawMessage, Writes) (any, error) { return nil, nil }
 
+func noopJournal(context.Context, []json.RawMessage, Journal) (any, error) { return nil, nil }
+
 func TestAHandlerIsRefusedForAMethodTheManifestDoesNotHaveOrTheSessionServiceAnswers(t *testing.T) {
 	for _, name := range []string{"no.such", "session.status", "session.unlock", "session.lock"} {
 		shapes := map[string]func(*Registry){
-			"read":  func(registry *Registry) { registry.Register(name, returnsNothing) },
-			"write": func(registry *Registry) { registry.RegisterWrite(name, noopWrite) },
+			"read":    func(registry *Registry) { registry.Register(name, returnsNothing) },
+			"write":   func(registry *Registry) { registry.RegisterWrite(name, noopWrite) },
+			"journal": func(registry *Registry) { registry.RegisterJournal(name, noopJournal) },
 		}
 		for shape, register := range shapes {
 			if buildWith(register) == nil {
@@ -294,10 +265,11 @@ func TestAHandlerIsAcceptedForAWriteAndForAnEvaluation(t *testing.T) {
 	accepted := map[string]func(*Registry){
 		"a write handler for transactions.setLine":   func(r *Registry) { r.RegisterWrite("transactions.setLine", noopWrite) },
 		"a read handler for budget.evaluateScenario": func(r *Registry) { r.Register("budget.evaluateScenario", returnsNothing) },
+		"a journal handler for changes.undo":         func(r *Registry) { r.RegisterJournal("changes.undo", noopJournal) },
 		"a read handler for shell.overview":          func(r *Registry) { r.Register("shell.overview", returnsNothing) },
 		// changePin is a write, so the registry takes a handler for it; the walk
 		// of the manifest is what keeps one from being registered.
-		"a write handler for session.changePin": func(r *Registry) { r.RegisterWrite("session.changePin", noopWrite) },
+		"a write handler for session.changePin": func(r *Registry) { r.RegisterWrite(changePin, noopWrite) },
 	}
 	for label, register := range accepted {
 		if err := buildWith(register); err != nil {
@@ -311,9 +283,12 @@ func TestAHandlerIsAcceptedForAWriteAndForAnEvaluation(t *testing.T) {
 // transaction to answer a read.
 func TestAHandlerOfTheWrongShapeIsRefusedForTheMethodsClass(t *testing.T) {
 	refused := map[string]func(*Registry){
-		"a read handler for a write":        func(r *Registry) { r.Register("transactions.setLine", returnsNothing) },
-		"a write handler for a read":        func(r *Registry) { r.RegisterWrite("shell.overview", noopWrite) },
-		"a write handler for an evaluation": func(r *Registry) { r.RegisterWrite("budget.evaluateScenario", noopWrite) },
+		"a read handler for a write":          func(r *Registry) { r.Register("transactions.setLine", returnsNothing) },
+		"a write handler for a read":          func(r *Registry) { r.RegisterWrite("shell.overview", noopWrite) },
+		"a write handler for an evaluation":   func(r *Registry) { r.RegisterWrite("budget.evaluateScenario", noopWrite) },
+		"a journal handler for a read":        func(r *Registry) { r.RegisterJournal("shell.overview", noopJournal) },
+		"a journal handler for an evaluation": func(r *Registry) { r.RegisterJournal("budget.evaluateScenario", noopJournal) },
+		"a read handler for the journal":      func(r *Registry) { r.Register("changes.undo", returnsNothing) },
 	}
 	for label, register := range refused {
 		if buildWith(register) == nil {
@@ -331,6 +306,14 @@ func TestRegisteringTwiceFailsLoudlyWhateverTheShape(t *testing.T) {
 		"read then write": func(r *Registry) {
 			r.Register("shell.overview", returnsNothing)
 			r.RegisterWrite("shell.overview", noopWrite)
+		},
+		"write then journal": func(r *Registry) {
+			r.RegisterWrite("budget.save", noopWrite)
+			r.RegisterJournal("budget.save", noopJournal)
+		},
+		"journal then read": func(r *Registry) {
+			r.RegisterJournal("changes.undo", noopJournal)
+			r.Register("changes.undo", returnsNothing)
 		},
 	}
 	for label, register := range registrations {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -12,8 +13,9 @@ import (
 	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
 )
 
-// writeEnv is a router over a scratch app database with a session already open.
-// A test registers the write handlers it needs.
+// writeEnv is a router over a scratch app database, with the one handler of the
+// journal registered and a session already open. A test registers the write
+// handlers it needs on top.
 type writeEnv struct {
 	*testEnv
 	scratch *authoredtest.Scratch
@@ -23,7 +25,7 @@ type writeEnv struct {
 func newWriteEnv(t *testing.T, options ...envOption) *writeEnv {
 	t.Helper()
 	scratch := authoredtest.Open(t, newFakeClock().Now)
-	all := append([]envOption{withDatabase(scratch.Database)}, options...)
+	all := append([]envOption{withDatabase(scratch.Database), func(config *Config) { registerChanges(config.Reads) }}, options...)
 	env := newTestEnv(t, all...)
 	return &writeEnv{testEnv: env, scratch: scratch, cookie: env.unlock()}
 }
@@ -111,5 +113,156 @@ func failingAfterAnEffect(fail func() (any, error)) WriteHandler {
 			return nil, err
 		}
 		return fail()
+	}
+}
+
+// The scratch writers: write methods of two strings that the tests borrow, each
+// registered with a handler that records one kind of change on the scratch
+// tables. They are how the undo tests make changes of every shape.
+const (
+	setFactMethod      = "settings.setNickname"
+	addTagMethod       = "transactions.addTag"
+	removeTagMethod    = "transactions.removeTag"
+	createThingMethod  = "subscriptions.setNote"
+	setThingMethod     = "subscriptions.setLine"
+	createParentMethod = "settings.setDefaultLine"
+	createChildMethod  = "settings.toggleLinkedLine"
+)
+
+func twoStrings(args []json.RawMessage) (first, second string, err error) {
+	if len(args) != 2 {
+		return "", "", &badArgumentsError{}
+	}
+	if err := decodeArgument(args[0], &first); err != nil {
+		return "", "", err
+	}
+	if err := decodeArgument(args[1], &second); err != nil {
+		return "", "", err
+	}
+	return first, second, nil
+}
+
+func twoNumbersOf(args []json.RawMessage) (first, second int64, err error) {
+	a, b, err := twoStrings(args)
+	if err != nil {
+		return 0, 0, err
+	}
+	if first, err = strconv.ParseInt(a, 10, 64); err != nil {
+		return 0, 0, &badArgumentsError{}
+	}
+	if second, err = strconv.ParseInt(b, 10, 64); err != nil {
+		return 0, 0, &badArgumentsError{}
+	}
+	return first, second, nil
+}
+
+// scratchWriter turns what a write records into a handler that answers the
+// change it made.
+func scratchWriter(record func(ctx context.Context, recorder *authored.Recorder, args []json.RawMessage) error) WriteHandler {
+	return func(ctx context.Context, args []json.RawMessage, writes Writes) (any, error) {
+		if err := record(ctx, writes.Recorder, args); err != nil {
+			return nil, err
+		}
+		return answerWithChange(ctx, writes)
+	}
+}
+
+// withScratchWriters registers every scratch writer.
+func withScratchWriters(config *Config) {
+	registry := config.Reads
+	registry.RegisterWrite(setFactMethod, scratchWriter(func(ctx context.Context, recorder *authored.Recorder, args []json.RawMessage) error {
+		fact, amount, err := twoStrings(args)
+		if err != nil {
+			return err
+		}
+		cents, err := strconv.ParseInt(amount, 10, 64)
+		if err != nil {
+			return &badArgumentsError{}
+		}
+		return recorder.Set(ctx, authoredtest.Facts, key(text(fact)), authored.Row{"amount": integer(cents)})
+	}))
+	registry.RegisterWrite(addTagMethod, scratchWriter(func(ctx context.Context, recorder *authored.Recorder, args []json.RawMessage) error {
+		tx, tag, err := twoStrings(args)
+		if err != nil {
+			return err
+		}
+		return recorder.Put(ctx, authoredtest.Tags, authored.Row{"tx": text(tx), "tag": text(tag)})
+	}))
+	registry.RegisterWrite(removeTagMethod, scratchWriter(func(ctx context.Context, recorder *authored.Recorder, args []json.RawMessage) error {
+		tx, tag, err := twoStrings(args)
+		if err != nil {
+			return err
+		}
+		return recorder.Delete(ctx, authoredtest.Tags, key(text(tx), text(tag)))
+	}))
+	registry.RegisterWrite(createThingMethod, scratchWriter(func(ctx context.Context, recorder *authored.Recorder, args []json.RawMessage) error {
+		id, name, err := twoNumbersOrName(args)
+		if err != nil {
+			return err
+		}
+		return recorder.Create(ctx, authoredtest.Things, authored.Row{"id": integer(id), "name": text(name), "amount": integer(0)})
+	}))
+	registry.RegisterWrite(setThingMethod, scratchWriter(func(ctx context.Context, recorder *authored.Recorder, args []json.RawMessage) error {
+		id, amount, err := twoNumbersOf(args)
+		if err != nil {
+			return err
+		}
+		return recorder.Set(ctx, authoredtest.Things, key(integer(id)), authored.Row{"amount": integer(amount)})
+	}))
+	registry.RegisterWrite(createParentMethod, scratchWriter(func(ctx context.Context, recorder *authored.Recorder, args []json.RawMessage) error {
+		id, name, err := twoNumbersOrName(args)
+		if err != nil {
+			return err
+		}
+		return recorder.Put(ctx, authoredtest.Parents, authored.Row{"id": integer(id), "name": text(name)})
+	}))
+	registry.RegisterWrite(createChildMethod, scratchWriter(func(ctx context.Context, recorder *authored.Recorder, args []json.RawMessage) error {
+		id, parent, err := twoNumbersOf(args)
+		if err != nil {
+			return err
+		}
+		return recorder.Put(ctx, authoredtest.Children, authored.Row{"id": integer(id), "parent_id": integer(parent), "label": text("child")})
+	}))
+}
+
+// twoNumbersOrName reads an id and a name.
+func twoNumbersOrName(args []json.RawMessage) (int64, string, error) {
+	id, name, err := twoStrings(args)
+	if err != nil {
+		return 0, "", err
+	}
+	number, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return 0, "", &badArgumentsError{}
+	}
+	return number, name, nil
+}
+
+func (env *writeEnv) setFact(fact string, cents int) string {
+	env.t.Helper()
+	return changeIDOfAnswer(env.t, env.post(setFactMethod, `["`+fact+`","`+strconv.Itoa(cents)+`"]`))
+}
+
+func (env *writeEnv) undo(id string) *httptest.ResponseRecorder {
+	env.t.Helper()
+	return env.post("changes.undo", `["`+id+`"]`)
+}
+
+// dump is the scratch tables' content in the canonical form the engine's own
+// tests compare.
+func (env *writeEnv) dump() string {
+	env.t.Helper()
+	content, err := env.scratch.Database.Dump(env.t.Context())
+	if err != nil {
+		env.t.Fatal(err)
+	}
+	return content
+}
+
+// expectUndone checks that an undo succeeded: 200 and null.
+func expectUndone(t *testing.T, label string, response *httptest.ResponseRecorder) {
+	t.Helper()
+	if response.Code != http.StatusOK || response.Body.String() != "null" {
+		t.Errorf("%s: status %d body %q, want 200 null", label, response.Code, response.Body.String())
 	}
 }
