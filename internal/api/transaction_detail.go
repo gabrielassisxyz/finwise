@@ -91,28 +91,11 @@ func readTransactionDetail(ctx context.Context, args []json.RawMessage, views Vi
 	if err != nil {
 		return nil, err
 	}
-	all, err := views.Ledger.CleanTransactions(ctx, wholeLedger)
-	if err != nil {
+	row, found, err := findListed(ctx, views.Ledger, id)
+	if err != nil || !found {
 		return nil, err
 	}
-	source, found := rowWithID(all, id)
-	if !found {
-		return nil, nil
-	}
-	around, err := loadContext(ctx, views.Ledger)
-	if err != nil {
-		return nil, err
-	}
-	view, err := interpretMonthOf(all, source, around)
-	if err != nil {
-		return nil, err
-	}
-	for _, listed := range view.listed {
-		if listed.ID == id {
-			return detailFrom(listed, source, around), nil
-		}
-	}
-	return nil, nil
+	return detailFrom(row.listed, row.source, row.around), nil
 }
 
 func rowWithID(rows []ledger.Transaction, id string) (ledger.Transaction, bool) {
