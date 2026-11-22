@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"path/filepath"
+	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"github.com/gabrielassisxyz/finwise/internal/brday"
 	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 	"github.com/gabrielassisxyz/finwise/internal/money"
+	"github.com/gabrielassisxyz/finwise/internal/subrules"
 )
 
 // Ledgers built for these tests: one card and one bank account of an invented
@@ -182,6 +185,31 @@ func TestTheCandidatesLeaveOutWhatCannotBecomeASubscription(t *testing.T) {
 	}
 }
 
+// The stand-in takes a purchase whose name already is a subscription's for
+// that subscription; here only the establishment decides, so another one
+// shown under the same name is still offered, and can be made one.
+func TestAnEstablishmentAndNotANameIsWhatAlreadyHasASubscription(t *testing.T) {
+	fixture := newSubscriptionsLedger(t)
+	cardPurchase(fixture, "tx-stream", november(10, 15), "STREAMSVC", 39.9)
+	cardPurchase(fixture, "tx-stream-br", november(12, 15), "STREAMSVC BRASIL", 39.9)
+	env := newSubscriptionsEnv(t, fixture)
+	facts := authored.ChangeFacts{Author: authored.AuthorPerson, Method: "scratch.nickname", At: subscriptionsNow}
+	err := env.scratch.Database.Change(t.Context(), facts, func(recorder *authored.Recorder) error {
+		return authoredtest.WriteEstablishment(t.Context(), recorder, "text:STREAMSVC BRASIL", "STREAMSVC", nil)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	createdOf(t, env, "tx-stream")
+	want := []subscriptionCandidate{{TransactionID: "tx-stream-br", Name: "STREAMSVC", Amount: 3_990}}
+	if got := candidatesOf(t, env.readEnv); !slices.Equal(got, want) {
+		t.Errorf("candidates %+v, want %+v", got, want)
+	}
+	if created := createdOf(t, env, "tx-stream-br"); created.Name != "STREAMSVC" {
+		t.Errorf("the second establishment was made a subscription named %q", created.Name)
+	}
+}
+
 // subscriptionAnswer is a read's answer as the server wrote it, checked
 // against the manifest.
 func subscriptionAnswer(t *testing.T, env *readEnv, method, arguments string, into any) {
@@ -267,6 +295,82 @@ func TestASubscriptionWithSeveralChargeDaysIsWorkedOutFromTheCardAlone(t *testin
 	row := list.Groups[0].Subscriptions[0]
 	if row.Amount != "49.90" || row.NextCharge != "2026-12-14" || string(row.Marks) != wantMarks || string(list.Suggestion) != "null" {
 		t.Errorf("row %+v, marks %s", row, row.Marks)
+	}
+}
+
+// The stand-in's mark was a stored flag; here it is the status Cancelar and a
+// charge after the day it was set, whatever the other statuses' days.
+func TestChargedAfterCancellingIsDerivedFromTheStatusDayAndOnlyForCancelar(t *testing.T) {
+	fixture := newSubscriptionsLedger(t)
+	cases := []struct {
+		description string
+		charged     brday.Day
+		status      authored.SubscriptionStatus
+		marks       string
+	}{
+		{"LOJA A", "2026-11-11", authored.StatusKeep, `[]`},
+		{"LOJA B", "2026-11-11", authored.StatusReview, `[]`},
+		{"LOJA C", "2026-11-11", authored.StatusBackUpAndCancel, `[]`},
+		{"LOJA D", "2026-11-11", authored.StatusCancel, `[{"text":"Cobrou após cancelar","tone":"bad"}]`},
+		{"LOJA E", "2026-11-10", authored.StatusCancel, `[]`},
+		{"LOJA F", "2026-11-09", authored.StatusCancel, `[]`},
+	}
+	for index, c := range cases {
+		day, _ := strconv.Atoi(string(c.charged[8:]))
+		cardPurchase(fixture, "tx-loja-"+strconv.Itoa(index), november(day, 15), c.description, 25)
+	}
+	env := newSubscriptionsEnv(t, fixture)
+	for index, c := range cases {
+		subscription := keptSubscription("text:"+c.description, c.description, c.charged, 2_500, c.status)
+		subscription.StatusDay = "2026-11-10"
+		keepSubscription(t, env.scratch.Database, "tx-loja-"+strconv.Itoa(index), subscription)
+	}
+	var list listAnswer
+	subscriptionAnswer(t, env.readEnv, "subscriptions.list", `[{"grouped":false}]`, &list)
+	rows := list.Groups[0].Subscriptions
+	for index, c := range cases {
+		if string(rows[index].Marks) != c.marks || rows[index].Amount != "25.00" {
+			t.Errorf("%s, %s and charged on %s: amount %s, marks %s, want 25.00 and %s", c.description, c.status, c.charged, rows[index].Amount, rows[index].Marks, c.marks)
+		}
+	}
+}
+
+func TestAYearlyPlanDueWithinThirtyDaysIsMarkedWithTheDaysToItsRenewal(t *testing.T) {
+	fixture := newSubscriptionsLedger(t)
+	cardPurchase(fixture, "tx-av-2024", utc(2024, time.December, 5, 15, 0), "ANTIVIRUS", 166.8)
+	cardPurchase(fixture, "tx-av-2025", utc(2025, time.December, 5, 15, 0), "ANTIVIRUS", 166.8)
+	env := newSubscriptionsEnv(t, fixture)
+	keepSubscription(t, env.scratch.Database, "tx-av-2025", keptSubscription("text:ANTIVIRUS", "ANTIVIRUS", "2025-12-05", 16_680, authored.StatusKeep))
+	var detail detailAnswer
+	subscriptionAnswer(t, env.readEnv, "subscriptions.detail", `["1"]`, &detail)
+	if detail.Cycle != "Anual" || detail.NextCharge != "2026-12-05" || detail.MonthlyEquivalent != "13.90" ||
+		detail.AnnualEquivalent != "166.80" || string(detail.Marks) != `[{"text":"Renova em 13 dias","tone":"warning"}]` {
+		t.Errorf("the yearly plan: %+v, marks %s", detail, detail.Marks)
+	}
+}
+
+// The sentences are the server's, in messages.go; the rules only say which
+// marks hold and how many days are left.
+func TestTheMarksAreWrittenInTheirOrderWithTheirSentencesAndTones(t *testing.T) {
+	renews := func(days int) subrules.Marks { return subrules.Marks{Renews: true, RenewsIn: days} }
+	warning := func(text string) []subscriptionMark { return []subscriptionMark{{Text: text, Tone: "warning"}} }
+	cases := []struct {
+		marks subrules.Marks
+		want  []subscriptionMark
+	}{
+		{subrules.Marks{}, []subscriptionMark{}},
+		{renews(0), warning("Renova hoje")},
+		{renews(1), warning("Renova em 1 dia")},
+		{renews(2), warning("Renova em 2 dias")},
+		{renews(30), warning("Renova em 30 dias")},
+		{subrules.Marks{PriceRose: true, Renews: true, RenewsIn: 9, ChargedAfterCancel: true}, []subscriptionMark{
+			{Text: "Preço subiu", Tone: "warning"}, {Text: "Renova em 9 dias", Tone: "warning"}, {Text: "Cobrou após cancelar", Tone: "bad"},
+		}},
+	}
+	for _, c := range cases {
+		if got := subscriptionMarksOf(c.marks); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("marks %+v are written %#v, want %#v", c.marks, got, c.want)
+		}
 	}
 }
 
