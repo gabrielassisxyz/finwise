@@ -66,6 +66,8 @@ type potEntry struct {
 	// yieldAsked is false for what the yield rules do not apply to: an
 	// investment, and an entry with no identity to follow.
 	yieldAsked bool
+	// linkedLines are the names of the budget lines the person linked to the pot.
+	linkedLines []string
 }
 
 // potsView is what the pots, the net worth and the home summary read from.

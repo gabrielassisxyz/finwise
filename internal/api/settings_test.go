@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"go/ast"
 	"go/token"
 	"maps"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
+	"github.com/gabrielassisxyz/finwise/internal/brday"
 	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 )
 
@@ -403,4 +405,133 @@ func TestEachPotOfTheSettingsIsInTheBucketThePersonChoseAsTheListShowsIt(t *test
 	if settled[potCaixinha] != "Disponível" || settled[potLCI] != "Reservado" || settled[potCDB] != "Investido" {
 		t.Errorf("the settings place the pots %v", settled)
 	}
+}
+
+// budgetLineID is the id the budget in force for a month gives a line's name.
+func budgetLineID(t *testing.T, database *authored.Database, month brday.Month, name string) authored.LineID {
+	t.Helper()
+	view := database.View()
+	defer view.Close()
+	budget, err := view.BudgetOf(t.Context(), month)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range budget.Lines {
+		if line.Name == name {
+			return line.ID
+		}
+	}
+	t.Fatalf("the budget of %s has no line %q", month, name)
+	return 0
+}
+
+// linkedLinesIn is what the settings and a pot's page answer for a pot's lines.
+func linkedLinesIn(t *testing.T, env *readEnv, potID string) (settings, page string) {
+	t.Helper()
+	for _, pot := range settingsOf(t, env)["pots"].([]any) {
+		if pot.(map[string]any)["id"] == potID {
+			settings = string(mustMarshal(t, pot.(map[string]any)["linkedLines"]))
+		}
+	}
+	return settings, string(mustMarshal(t, answerOf(t, env, "savingsPots.detail", `["`+potID+`"]`)["linkedLines"]))
+}
+
+func TestTheLinesOfAPotAreNamedInTheCurrentMonthsBudgetInTheBudgetsOrder(t *testing.T) {
+	scratch := authoredtest.Open(t, fixtureClock)
+	authoredtest.SaveBudget(t, scratch.Database, fixtureNow, "2026-02", authoredtest.InventedBudget())
+	// Linked in an order that is neither the budget's nor the lines' ids.
+	for _, line := range []authored.LineID{
+		budgetLineID(t, scratch.Database, "2026-03", "Viagens"), budgetLineID(t, scratch.Database, "2026-03", "Salário"),
+		feesLineID, budgetLineID(t, scratch.Database, "2026-03", "Remédios"),
+	} {
+		authoredtest.ToggleLink(t, scratch.Database, fixtureNow, line, potCaixinha)
+	}
+	env := newReadEnvOver(t, newFullLedger(t), scratch.Database)
+
+	settings, page := linkedLinesIn(t, env, potCaixinha)
+	if want := `["Salário","Remédios","Viagens","Tarifas e juros"]`; settings != want {
+		t.Errorf("the settings name the lines %s, want %s", settings, want)
+	}
+	if want := `[{"name":"Salário","share":null},{"name":"Remédios","share":null},{"name":"Viagens","share":null},` +
+		`{"name":"Tarifas e juros","share":null}]`; page != want {
+		t.Errorf("the pot's page names the lines %s, want %s", page, want)
+	}
+	if settings, page := linkedLinesIn(t, env, potReserva); settings != `[]` || page != `[]` {
+		t.Errorf("a pot with no line answers %s and %s", settings, page)
+	}
+}
+
+// savedFrom2026_03 saves for 2026-03 the budget in force for it, changed by edit.
+func savedFrom2026_03(t *testing.T, database *authored.Database, edit func(document authored.Document) authored.Document) {
+	t.Helper()
+	view := database.View()
+	budget, err := view.BudgetOf(t.Context(), "2026-03")
+	view.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	authoredtest.SaveBudget(t, database, fixtureNow, "2026-03", edit(authoredtest.DocumentOf(budget)))
+}
+
+func TestARenamedLineShowsItsNewNameAndARemovedOneIsHiddenWhileItsLinkStays(t *testing.T) {
+	scratch := authoredtest.Open(t, fixtureClock)
+	authoredtest.SaveBudget(t, scratch.Database, fixtureNow, "2026-02", authoredtest.InventedBudget())
+	remedios := budgetLineID(t, scratch.Database, "2026-03", "Remédios")
+	authoredtest.ToggleLink(t, scratch.Database, fixtureNow, remedios, potCaixinha)
+	env := newReadEnvOver(t, newFullLedger(t), scratch.Database)
+
+	savedFrom2026_03(t, scratch.Database, func(document authored.Document) authored.Document {
+		for _, group := range document {
+			for index := range group.Lines {
+				if group.Lines[index].Name == "Remédios" {
+					group.Lines[index].Name = "Farmácia"
+				}
+			}
+		}
+		return document
+	})
+	if settings, page := linkedLinesIn(t, env, potCaixinha); settings != `["Farmácia"]` || page != `[{"name":"Farmácia","share":null}]` {
+		t.Errorf("after the rename the pot's lines are %s and %s", settings, page)
+	}
+
+	savedFrom2026_03(t, scratch.Database, func(document authored.Document) authored.Document {
+		for index := range document {
+			if document[index].Key == "prov" {
+				document[index].Lines = []authored.DocumentLine{}
+			}
+		}
+		return document
+	})
+	if settings, page := linkedLinesIn(t, env, potCaixinha); settings != `[]` || page != `[]` {
+		t.Errorf("after the line left the budget the pot's lines are %s and %s", settings, page)
+	}
+	view := scratch.Database.View()
+	defer view.Close()
+	if pot, linked, err := view.PotOfLine(t.Context(), remedios); err != nil || !linked || pot != potCaixinha {
+		t.Errorf("the link's row is %q %v %v, want it kept on %s", pot, linked, err, potCaixinha)
+	}
+}
+
+// The fees line has no row in any version, so its id is the one fact of the
+// budget's migration the API states itself: it is a line that exists and that
+// no document may carry, which is what the built-in line is.
+func TestTheFeesLineIDIsTheBuiltInLineOfTheStore(t *testing.T) {
+	database := authoredtest.Fresh(t, fixtureClock)
+	authoredtest.SaveBudget(t, database, fixtureNow, "2026-02", authoredtest.InventedBudget())
+	view := database.View()
+	defer view.Close()
+	carrying := func(id authored.LineID) error {
+		text := id.String()
+		return view.ValidateDocument(t.Context(), authored.Document{authoredtest.Group("fix",
+			authored.DocumentLine{ID: &text, Name: "Outra", Cents: 100})})
+	}
+	var invalid *authored.InvalidBudgetError
+	if err := carrying(feesLineID); !errors.As(err, &invalid) {
+		t.Errorf("a document may carry the line %s: %v", feesLineID, err)
+	}
+	if err := carrying(budgetLineID(t, database, "2026-02", "Salário")); err != nil {
+		t.Fatalf("a document may not carry a line of the budget either, so the check says nothing: %v", err)
+	}
+	view.Close()
+	authoredtest.ToggleLink(t, database, fixtureNow, feesLineID, potCaixinha)
 }

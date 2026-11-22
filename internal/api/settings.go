@@ -150,7 +150,7 @@ func lastBackupOf(ctx context.Context, views Views) (*time.Time, error) {
 }
 
 // settingsPotsOf lists the pots still open, in the order and the bucket the pots
-// screen gives them.
+// screen gives them, each with the names of the lines linked to it.
 func settingsPotsOf(view *potsView) []settingsPotWire {
 	pots := []settingsPotWire{}
 	for _, entry := range view.entries {
@@ -159,7 +159,7 @@ func settingsPotsOf(view *potsView) []settingsPotWire {
 		}
 		pots = append(pots, settingsPotWire{
 			ID: entry.id, Name: entry.name, Bank: entry.bank, CDIPercent: entry.cdiPercent,
-			Bucket: textPointer(entry.bucket), LinkedLines: []string{},
+			Bucket: textPointer(entry.bucket), LinkedLines: append([]string{}, entry.linkedLines...),
 		})
 	}
 	return pots
