@@ -64,11 +64,32 @@ func TestTheSettingsHoldTheDefaultsWhereThePersonHasChosenNothing(t *testing.T) 
 			t.Errorf("%s: cardLabel = %v", name, overview["cardLabel"])
 		}
 		for _, field := range []string{"establishments", "people"} {
-			if list, ok := overview[field].([]any); !ok || len(list) != 0 {
-				t.Errorf("%s: %s = %v, want []", name, field, overview[field])
+			list, ok := overview[field].([]any)
+			if !ok || (len(list) == 0) != (name == "empty") {
+				t.Errorf("%s: %s = %v, want [] over the empty ledger alone", name, field, overview[field])
+			}
+			for _, entry := range list {
+				if problem := nothingSetIn(entry.(map[string]any)); problem != "" {
+					t.Errorf("%s: %s: %s", name, field, problem)
+				}
 			}
 		}
 	}
+}
+
+// nothingSetIn is empty for a row of the establishments or the people that
+// carries no value of the person's: no nickname, no default line, no fixed tag.
+func nothingSetIn(row map[string]any) string {
+	if row["nickname"] != nil {
+		return "the nickname of " + row["key"].(string) + " is set"
+	}
+	if line, present := row["defaultLine"]; present && line != nil {
+		return "the default line of " + row["key"].(string) + " is set"
+	}
+	if tags, present := row["fixedTags"]; present && len(tags.([]any)) != 0 {
+		return "the fixed tags of " + row["key"].(string) + " are set"
+	}
+	return ""
 }
 
 func TestTheCalibrationBandsTileTheRangeOfTheThresholdAndAreAllUnjudged(t *testing.T) {
