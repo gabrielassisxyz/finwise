@@ -33,6 +33,9 @@ var authoredReadCases = []authoredReadCase{
 	authoredRead("transactions.detail", `["tx-fee"]`),
 	authoredRead("accounts.detail", `["acc-stale"]`),
 	authoredRead("settings.overview", `[]`),
+	authoredRead("card.overview", `[]`),
+	authoredRead("home.summary", `["2026-03"]`),
+	authoredRead("review.closing", `["2026-03"]`),
 }
 
 // newAuthoredReadEnv is the third state: both stores, the database holding the

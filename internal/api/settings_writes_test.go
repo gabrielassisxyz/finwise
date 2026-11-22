@@ -57,9 +57,16 @@ func (env *settingsEnv) undo(id string) {
 // overviewField is one field of settings.overview as the server wrote it.
 func (env *settingsEnv) overviewField(path ...string) string {
 	env.t.Helper()
-	status, body := env.answer("settings.overview", `[]`)
+	return env.fieldOf("settings.overview", `[]`, path...)
+}
+
+// fieldOf is one field of a read's answer as the server wrote it; a field under
+// a null is null.
+func (env *settingsEnv) fieldOf(method, arguments string, path ...string) string {
+	env.t.Helper()
+	status, body := env.answer(method, arguments)
 	if status != http.StatusOK {
-		env.t.Fatalf("settings.overview answered %d", status)
+		env.t.Fatalf("%s answered %d", method, status)
 	}
 	raw := json.RawMessage(body)
 	for _, field := range path {
@@ -67,7 +74,12 @@ func (env *settingsEnv) overviewField(path ...string) string {
 		if err := json.Unmarshal(raw, &object); err != nil {
 			env.t.Fatalf("%s is not an object: %v", strings.Join(path, "."), err)
 		}
-		raw = object[field]
+		if object == nil {
+			return "null"
+		}
+		if raw = object[field]; raw == nil {
+			env.t.Fatalf("%s %s has no %s", method, arguments, strings.Join(path, "."))
+		}
 	}
 	var compact bytes.Buffer
 	if err := json.Compact(&compact, raw); err != nil {

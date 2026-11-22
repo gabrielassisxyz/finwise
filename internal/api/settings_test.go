@@ -357,3 +357,29 @@ func TestThePackageStatesNoDefaultOfTheSettingsOfItsOwn(t *testing.T) {
 		})
 	}
 }
+
+// The bank's day is shown beside the manual day as what the bank does, so no
+// closing setting moves it.
+func TestTheBankDayStaysTheBanksWhateverTheClosingSetting(t *testing.T) {
+	fixtures := []struct {
+		name    string
+		ledger  func(t *testing.T) *ledgertest.Fixture
+		bankDay string
+	}{
+		{"full", func(t *testing.T) *ledgertest.Fixture { return newFullLedger(t) }, "28"},
+		{"c6 table", c6Ledger, "3"},
+		{"no table", noTableLedger, "null"},
+		{"no card", func(t *testing.T) *ledgertest.Fixture { return newEmptyLedger(t) }, "null"},
+	}
+	for _, fixture := range fixtures {
+		env := newSettingsEnv(t, fixture.ledger(t), utc(2026, time.March, 20, 15, 0))
+		for _, setting := range []string{``, `["auto",12]`, `["manual",10]`, `["manual",25]`, `["manual",1]`, `["auto",25]`} {
+			if setting != `` {
+				env.change("settings.setClosing", setting)
+			}
+			if got := env.overviewField("closing", "bankDay"); got != fixture.bankDay {
+				t.Errorf("%s, closing %s: bankDay %s, want %s", fixture.name, setting, got, fixture.bankDay)
+			}
+		}
+	}
+}

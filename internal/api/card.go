@@ -7,6 +7,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/brday"
 	"github.com/gabrielassisxyz/finwise/internal/cardrules"
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
@@ -137,7 +138,32 @@ type cardView struct {
 	purchases []cardrules.Purchase
 }
 
-// loadCard returns nil when the ledger holds no card account.
+// loadCardWithClosingSetting is the card as the person's closing setting places
+// its bills: in manual mode the rules take the manual day for every bill the
+// ledger gives no closing date, in auto none, whatever day is stored.
+func loadCardWithClosingSetting(ctx context.Context, views Views) (*cardView, error) {
+	card, err := loadCard(ctx, views.Ledger)
+	if err != nil || card == nil {
+		return card, err
+	}
+	if card.rules.ManualClosingDay, err = manualClosingDayOf(ctx, views.Authored); err != nil {
+		return nil, err
+	}
+	return card, nil
+}
+
+func manualClosingDayOf(ctx context.Context, view *authored.View) (int, error) {
+	mode, err := view.CardClosingMode(ctx)
+	if err != nil || mode != authored.ClosingManual {
+		return 0, err
+	}
+	day, err := view.ManualClosingDay(ctx)
+	return int(day), err
+}
+
+// loadCard returns nil when the ledger holds no card account. It places the
+// bills as the ledger and the bank's table do, with no closing day of the
+// person's.
 func loadCard(ctx context.Context, snapshot *ledger.View) (*cardView, error) {
 	around, err := loadContext(ctx, snapshot)
 	if err != nil {
@@ -307,7 +333,7 @@ func (card *cardView) finalDigits() string {
 }
 
 func readCardOverview(ctx context.Context, _ []json.RawMessage, views Views) (any, error) {
-	card, err := loadCard(ctx, views.Ledger)
+	card, err := loadCardWithClosingSetting(ctx, views)
 	if err != nil || card == nil {
 		return nil, err
 	}

@@ -77,6 +77,8 @@ func registerSettings(registry *Registry) {
 // readSettingsOverview asks for no yield: the settings show none, and the
 // statement behind it is the slow part of reading the pots.
 func readSettingsOverview(ctx context.Context, _ []json.RawMessage, views Views) (any, error) {
+	// The bank's day is shown beside the person's, so the card is read without
+	// the person's closing day: a manual day must not pass for the bank's.
 	card, err := loadCard(ctx, views.Ledger)
 	if err != nil {
 		return nil, err
