@@ -231,6 +231,112 @@ describe('a field whose stored value moved since it was drawn', () => {
   });
 });
 
+describe('the radios of the closing mode', () => {
+  const radios = (wrapper: VueWrapper) => wrapper.find('[data-section="cartao"]').findAll('input[type="radio"]');
+  const checked = (wrapper: VueWrapper) => radios(wrapper).map((radio) => (radio.element as HTMLInputElement).checked);
+
+  /** What a click does in a browser: the radio is checked, the one that was is not, and then the change fires. */
+  async function choose(mounted: Mounted, index: number): Promise<void> {
+    (radios(mounted.wrapper)[index]!.element as HTMLInputElement).checked = true;
+    await radios(mounted.wrapper)[index]!.trigger('change');
+    await mounted.settle();
+  }
+
+  it('shows the automatic mode again when the write of the manual one fails', async () => {
+    const mounted = await mountConfig(failing('settings.setClosing', 'internal'));
+    expect(checked(mounted.wrapper)).toEqual([true, false]);
+    const at = mark(mounted);
+
+    await choose(mounted, 1);
+
+    expect(checked(mounted.wrapper)).toEqual([true, false]);
+    expect(since(mounted, at)).toEqual(shownOnce(SAVE_FAILED_MESSAGE));
+    expect(mounted.state.settings.closingMode).toBe('auto');
+    expect(closingDay(mounted.wrapper).exists()).toBe(false);
+  });
+
+  it('shows the manual mode again when the write of the automatic one fails', async () => {
+    const mounted = await mountConfig(failing('settings.setClosing', 'internal'), manual);
+    expect(checked(mounted.wrapper)).toEqual([false, true]);
+    const at = mark(mounted);
+
+    await choose(mounted, 0);
+
+    expect(checked(mounted.wrapper)).toEqual([false, true]);
+    expect(since(mounted, at)).toEqual(shownOnce(SAVE_FAILED_MESSAGE));
+    expect(mounted.state.settings.closingMode).toBe('manual');
+    expect(closingDay(mounted.wrapper).exists()).toBe(true);
+  });
+
+  const kinds: { kind: ApiErrorKind; reason?: RefusalReason; message: string }[] = [
+    { kind: 'read_only', message: READ_ONLY_MESSAGE },
+    { kind: 'refused', reason: 'not_found', message: REFUSAL_SENTENCES.not_found },
+    { kind: 'internal', message: SAVE_FAILED_MESSAGE },
+    { kind: 'network', message: SAVE_UNCONFIRMED_MESSAGE },
+  ];
+
+  it.each(kinds)('does so when the write is answered $kind', async ({ kind, reason, message }) => {
+    const mounted = await mountConfig(failing('settings.setClosing', kind, reason));
+    const at = mark(mounted);
+
+    await choose(mounted, 1);
+
+    expect(checked(mounted.wrapper)).toEqual([true, false]);
+    expect(since(mounted, at)).toEqual(shownOnce(message));
+  });
+
+  it('ends on the mode picked when the write was stored and only its answer was lost', async () => {
+    const mounted = await mountConfig((api) => storedButUnanswered(api, 'settings.setClosing'));
+    const at = mark(mounted);
+
+    await choose(mounted, 1);
+
+    expect(checked(mounted.wrapper)).toEqual([false, true]);
+    expect(mounted.state.settings.closingMode).toBe('manual');
+    expect(since(mounted, at)).toEqual(shownOnce(SAVE_UNCONFIRMED_MESSAGE));
+  });
+
+  it('shows the mode its last write stored when a later write fails', async () => {
+    const mounted = await mountConfig((api) => failingAfter(api, 'settings.setClosing', 'internal', 1));
+    await choose(mounted, 1);
+    expect(checked(mounted.wrapper)).toEqual([false, true]);
+
+    await choose(mounted, 0);
+
+    expect(checked(mounted.wrapper)).toEqual([false, true]);
+  });
+
+  it('keeps the closing day being typed when the write of the mode fails', async () => {
+    const mounted = await mountConfig(failing('settings.setClosing', 'internal'), manual);
+    typeInto(closingDay(mounted.wrapper), '17');
+
+    await choose(mounted, 0);
+
+    expect(checked(mounted.wrapper)).toEqual([false, true]);
+    expect(valueOf(closingDay(mounted.wrapper))).toBe('17');
+  });
+
+  it('keeps the minimum of examples being typed when the write of the mode fails', async () => {
+    const mounted = await mountConfig(failing('settings.setClosing', 'internal'));
+    typeInto(minExamples(mounted.wrapper), '17');
+
+    await choose(mounted, 1);
+
+    expect(checked(mounted.wrapper)).toEqual([true, false]);
+    expect(valueOf(minExamples(mounted.wrapper))).toBe('17');
+  });
+
+  it('keeps what was typed in a neighbouring field when the write of the mode goes through', async () => {
+    const mounted = await mountConfig((api) => api);
+    typeInto(minExamples(mounted.wrapper), '17');
+
+    await choose(mounted, 1);
+
+    expect(checked(mounted.wrapper)).toEqual([false, true]);
+    expect(valueOf(minExamples(mounted.wrapper))).toBe('17');
+  });
+});
+
 describe('a field being typed in while another one saves', () => {
   interface Pair {
     name: string;

@@ -4,7 +4,7 @@ import { CLOSING_DAY_RANGE } from '@/api/contract/settings';
 import type { CardClosing, ClosingMode } from '@/api/types';
 import EmptyBlock from '@/components/ui/EmptyBlock.vue';
 import TitledCard from '@/components/ui/TitledCard.vue';
-import { saveStored, vStored } from '@/lib/storedField';
+import { restoreOnFailure, saveStored, vStored } from '@/lib/storedField';
 import { useSettingsWrites } from './useSettingsWrites';
 
 const props = defineProps<{ title: string | null; closing: CardClosing }>();
@@ -17,8 +17,17 @@ watch(
   (kept) => (manualDay.value = kept),
 );
 
+const autoRadio = ref<HTMLInputElement | null>(null);
+const manualRadio = ref<HTMLInputElement | null>(null);
+
+// Picking a radio checks it in the element and unchecks the other, and neither binding moves when the write fails.
+function showStoredMode(): void {
+  if (autoRadio.value) autoRadio.value.checked = props.closing.mode === 'auto';
+  if (manualRadio.value) manualRadio.value.checked = props.closing.mode === 'manual';
+}
+
 function choose(mode: ClosingMode): Promise<void> {
-  return write(() => api.settings.setClosing(mode, props.closing.manualDay));
+  return restoreOnFailure(showStoredMode, () => write(() => api.settings.setClosing(mode, props.closing.manualDay)));
 }
 
 function commitDay(event: Event): Promise<void> {
@@ -36,11 +45,11 @@ function commitDay(event: Event): Promise<void> {
     <div v-else class="body">
       <span class="caption">Dia de fechamento · {{ title }}</span>
       <label class="option">
-        <input class="radio" type="radio" name="closing" :checked="closing.mode === 'auto'" @change="choose('auto')" />
+        <input ref="autoRadio" class="radio" type="radio" name="closing" :checked="closing.mode === 'auto'" @change="choose('auto')" />
         Automático (pela regra do banco)
       </label>
       <label class="option wrapping">
-        <input class="radio" type="radio" name="closing" :checked="closing.mode === 'manual'" @change="choose('manual')" />
+        <input ref="manualRadio" class="radio" type="radio" name="closing" :checked="closing.mode === 'manual'" @change="choose('manual')" />
         Manual
         <span v-if="closing.mode === 'manual'" class="day">
           dia
