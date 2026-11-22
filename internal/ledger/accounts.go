@@ -54,9 +54,9 @@ type accountRaw struct {
 }
 
 // Accounts returns every current account, by id.
-func (reader *Reader) Accounts(ctx context.Context) ([]Account, error) {
+func (view *View) Accounts(ctx context.Context) ([]Account, error) {
 	var accounts []Account
-	err := reader.read(ctx, func(tx *sql.Tx) error {
+	err := view.read(ctx, func(tx *sql.Tx) error {
 		var err error
 		accounts, err = queryAccountRows(ctx, tx)
 		return err

@@ -93,13 +93,13 @@ type transactionRaw struct {
 
 // CleanTransactions returns the clean list for the days of a period, newest
 // first. The period is in Brazil days and converted to UTC bounds here.
-func (reader *Reader) CleanTransactions(ctx context.Context, period brday.Period) ([]Transaction, error) {
+func (view *View) CleanTransactions(ctx context.Context, period brday.Period) ([]Transaction, error) {
 	start, end, err := period.Bounds()
 	if err != nil {
 		return nil, err
 	}
 	var transactions []Transaction
-	err = reader.read(ctx, func(tx *sql.Tx) error {
+	err = view.read(ctx, func(tx *sql.Tx) error {
 		var err error
 		transactions, err = queryCleanTransactionRows(ctx, tx, start, end)
 		return err

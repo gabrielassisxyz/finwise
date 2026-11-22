@@ -51,9 +51,9 @@ func (connection Connection) InTrouble(now time.Time) bool {
 }
 
 // SyncState reads the last synchronisation and the state of every connection.
-func (reader *Reader) SyncState(ctx context.Context) (SyncState, error) {
+func (view *View) SyncState(ctx context.Context) (SyncState, error) {
 	var state SyncState
-	err := reader.read(ctx, func(tx *sql.Tx) error {
+	err := view.read(ctx, func(tx *sql.Tx) error {
 		var err error
 		if state.LastCompleteSync, err = readLastCompleteSync(ctx, tx); err != nil {
 			return err

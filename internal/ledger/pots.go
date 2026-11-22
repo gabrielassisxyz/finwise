@@ -31,12 +31,12 @@ type Pot struct {
 // Pots returns the latest sighting of every pot of every current account as of
 // a day. A pot absent from an account's latest sighting has no balance and is
 // not carried forward from an earlier day.
-func (reader *Reader) Pots(ctx context.Context, asOf brday.Day) ([]Pot, error) {
+func (view *View) Pots(ctx context.Context, asOf brday.Day) ([]Pot, error) {
 	if _, err := brday.ParseDay(string(asOf)); err != nil {
 		return nil, err
 	}
 	var pots []Pot
-	err := reader.read(ctx, func(tx *sql.Tx) error {
+	err := view.read(ctx, func(tx *sql.Tx) error {
 		accounts, err := queryAccountRows(ctx, tx)
 		if err != nil {
 			return err
