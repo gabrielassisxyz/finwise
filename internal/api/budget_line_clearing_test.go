@@ -253,3 +253,24 @@ func TestTheLineMenuOfTheCurrentMonthKeepsALineALaterSaveRemovesAndIsEmptyOnceIt
 		t.Errorf("a month with no line offers %s", body)
 	}
 }
+
+func TestARefusedSaveOverTransactionsOnTheLineClearsNothing(t *testing.T) {
+	for _, method := range []string{"budget.save", "budget.applyScenario"} {
+		env := newLineExamplesHTTP(t, newFullLedger(t).Path)
+		authoredtest.CloseMonth(t, env.scratch.Database, fixtureNow, "2026-03", "2026-03-20")
+		refusals := []struct {
+			arguments string
+			reason    refusalReason
+		}{
+			{env.saveArguments("2026-03", authoredtest.Without("Delivery")), reasonMonthClosed},
+			{env.saveArguments("2026-04", authoredtest.Renamed("Mercado", "Delivery")), reasonInvalidBudget},
+		}
+		for _, refusal := range refusals {
+			canonical, changes, effects := env.scratch.Canonical(t), len(env.scratch.Changes(t)), env.scratch.EffectCount(t)
+			expectRefused(t, method, env.post(method, refusal.arguments), string(refusal.reason))
+			if env.scratch.Canonical(t) != canonical || len(env.scratch.Changes(t)) != changes || env.scratch.EffectCount(t) != effects {
+				t.Errorf("%s refused with %s and changed the database or the journal", method, refusal.reason)
+			}
+		}
+	}
+}
