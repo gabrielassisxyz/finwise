@@ -86,12 +86,12 @@ type transactionDetailWire struct {
 //
 // The row is interpreted in the same month window the list uses, so the panel
 // can never disagree with the line it was opened from.
-func readTransactionDetail(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
+func readTransactionDetail(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
 	id, err := stringArgument(args)
 	if err != nil {
 		return nil, err
 	}
-	all, err := reader.CleanTransactions(ctx, wholeLedger)
+	all, err := views.Ledger.CleanTransactions(ctx, wholeLedger)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func readTransactionDetail(ctx context.Context, args []json.RawMessage, reader *
 	if !found {
 		return nil, nil
 	}
-	around, err := loadContext(ctx, reader)
+	around, err := loadContext(ctx, views.Ledger)
 	if err != nil {
 		return nil, err
 	}

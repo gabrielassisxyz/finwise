@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/gabrielassisxyz/finwise/internal/ledger"
 	"github.com/gabrielassisxyz/finwise/internal/money"
 )
 
@@ -36,12 +35,12 @@ func registerPots(registry *Registry) {
 	registry.Register("savingsPots.detail", readPotDetail)
 }
 
-func readPotsList(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
+func readPotsList(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
 	includeClosed, err := includeClosedOf(args)
 	if err != nil {
 		return nil, err
 	}
-	view, err := loadPots(ctx, reader, true)
+	view, err := loadPots(ctx, views.Ledger, true)
 	if err != nil {
 		return nil, err
 	}

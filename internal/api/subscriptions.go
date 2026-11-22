@@ -3,8 +3,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-
-	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
 // A subscription is something the person confirms inside the app. Spotting
@@ -29,7 +27,7 @@ func registerSubscriptions(registry *Registry) {
 	registry.Register("subscriptions.recurring", readNothingListed)
 }
 
-func readSubscriptionsList(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
+func readSubscriptionsList(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
 	if len(args) != 1 {
 		return nil, &badArgumentsError{}
 	}
@@ -37,25 +35,25 @@ func readSubscriptionsList(ctx context.Context, args []json.RawMessage, reader *
 	if err := decodeArgument(args[0], &options); err != nil || options.Grouped == nil {
 		return nil, &badArgumentsError{}
 	}
-	if err := requireReadableLedger(ctx, reader); err != nil {
+	if err := requireReadableLedger(ctx, views.Ledger); err != nil {
 		return nil, err
 	}
 	return subscriptionList{Groups: []any{}}, nil
 }
 
 // readSubscriptionDetail answers null for any id: there is none to find.
-func readSubscriptionDetail(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
+func readSubscriptionDetail(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
 	if _, err := stringArgument(args); err != nil {
 		return nil, err
 	}
-	if err := requireReadableLedger(ctx, reader); err != nil {
+	if err := requireReadableLedger(ctx, views.Ledger); err != nil {
 		return nil, err
 	}
 	return nil, nil
 }
 
-func readNothingListed(ctx context.Context, _ []json.RawMessage, reader *ledger.Reader) (any, error) {
-	if err := requireReadableLedger(ctx, reader); err != nil {
+func readNothingListed(ctx context.Context, _ []json.RawMessage, views Views) (any, error) {
+	if err := requireReadableLedger(ctx, views.Ledger); err != nil {
 		return nil, err
 	}
 	return []any{}, nil

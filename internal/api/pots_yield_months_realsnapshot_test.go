@@ -20,7 +20,7 @@ func TestTheMonthsYieldFromItsDaysAgreesWithTheCollectorsOneWindowOverARealSnaps
 	reader := ledger.New(realSnapshotPath(t))
 	now := time.Now()
 	ctx := withNow(t.Context(), func() time.Time { return now })
-	view, err := loadPots(ctx, reader, true)
+	view, err := loadPots(ctx, viewOf(t, realSnapshotPath(t)), true)
 	withoutValues(t, "pots", err)
 	rules := rulesOfLedger(t, reader, view.sightings)
 

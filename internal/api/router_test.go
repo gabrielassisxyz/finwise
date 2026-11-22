@@ -183,24 +183,42 @@ func TestAReadWithoutAHandlerIsInternal(t *testing.T) {
 	expectError(t, "shell.overview", env.call("/api/shell/overview", `[]`, cookie), http.StatusInternalServerError, "internal")
 }
 
-func TestAReadHandlerGetsTheContextTheArgumentsAndTheReader(t *testing.T) {
-	reader := ledger.New("unused")
-	var got struct {
-		args   []json.RawMessage
-		reader *ledger.Reader
-		ctxOK  bool
+// The views are of the configured ledger and, with no app database configured,
+// the empty authored view.
+func TestAReadHandlerGetsTheContextTheArgumentsAndTheViews(t *testing.T) {
+	f := newFullLedger(t)
+	want, err := viewOf(t, f.Path).Accounts(t.Context())
+	if err != nil || len(want) == 0 {
+		t.Fatalf("the fixture's accounts: %d, %v", len(want), err)
 	}
-	record := func(ctx context.Context, args []json.RawMessage, from *ledger.Reader) (any, error) {
-		got.args, got.reader, got.ctxOK = args, from, ctx.Err() == nil
+	var got struct {
+		args          []json.RawMessage
+		accounts      int
+		ledgerErr     error
+		authoredFound bool
+		authoredErr   error
+		ctxOK         bool
+	}
+	record := func(ctx context.Context, args []json.RawMessage, from Views) (any, error) {
+		got.args, got.ctxOK = args, ctx.Err() == nil
+		accounts, err := from.Ledger.Accounts(ctx)
+		got.accounts, got.ledgerErr = len(accounts), err
+		_, got.authoredFound, got.authoredErr = from.Authored.TrackingStartMonth(ctx)
 		return map[string]any{"id": "x"}, nil
 	}
-	handler := newTestEnv(t, withRead("transactions.detail", record), func(config *Config) { config.Ledger = reader })
+	handler := newTestEnv(t, withRead("transactions.detail", record), func(config *Config) { config.Ledger = ledger.New(f.Path) })
 	response := handler.call("/api/transactions/detail", `["abc"]`, handler.unlock())
 	if response.Code != http.StatusOK || response.Body.String() != `{"id":"x"}` {
 		t.Fatalf("status %d body %s", response.Code, response.Body.String())
 	}
-	if len(got.args) != 1 || string(got.args[0]) != `"abc"` || got.reader != reader || !got.ctxOK {
+	if len(got.args) != 1 || string(got.args[0]) != `"abc"` || !got.ctxOK {
 		t.Errorf("the handler received %+v", got)
+	}
+	if got.ledgerErr != nil || got.accounts != len(want) {
+		t.Errorf("the ledger view answered %d accounts (%v), want the configured ledger's %d", got.accounts, got.ledgerErr, len(want))
+	}
+	if got.authoredFound || got.authoredErr != nil {
+		t.Errorf("with no app database the authored view answered found=%v err=%v, want nothing", got.authoredFound, got.authoredErr)
 	}
 }
 
@@ -225,14 +243,14 @@ func TestReadErrorsAreMappedByClass(t *testing.T) {
 		"anything else":       {errors.New("boom"), 500, "internal"},
 	}
 	for name, tc := range cases {
-		failing := func(context.Context, []json.RawMessage, *ledger.Reader) (any, error) { return nil, tc.err }
+		failing := func(context.Context, []json.RawMessage, Views) (any, error) { return nil, tc.err }
 		handler := newTestEnv(t, withRead("shell.overview", failing))
 		expectError(t, name, handler.call("/api/shell/overview", `[]`, handler.unlock()), tc.status, tc.kind)
 	}
 }
 
 func TestAPanickingHandlerIsAnsweredInternal(t *testing.T) {
-	exploding := func(context.Context, []json.RawMessage, *ledger.Reader) (any, error) { panic("row 4711 exploded") }
+	exploding := func(context.Context, []json.RawMessage, Views) (any, error) { panic("row 4711 exploded") }
 	handler := newTestEnv(t, withRead("shell.overview", exploding))
 	expectError(t, "panic", handler.call("/api/shell/overview", `[]`, handler.unlock()), http.StatusInternalServerError, "internal")
 	if strings.Contains(handler.logs.String(), "4711") {
@@ -241,14 +259,14 @@ func TestAPanickingHandlerIsAnsweredInternal(t *testing.T) {
 }
 
 func TestAnUnserialisableResultIsInternal(t *testing.T) {
-	channel := func(context.Context, []json.RawMessage, *ledger.Reader) (any, error) { return make(chan int), nil }
+	channel := func(context.Context, []json.RawMessage, Views) (any, error) { return make(chan int), nil }
 	handler := newTestEnv(t, withRead("shell.overview", channel))
 	expectError(t, "chan", handler.call("/api/shell/overview", `[]`, handler.unlock()), http.StatusInternalServerError, "internal")
 }
 
 func TestAHandlerCannotBeRegisteredForAWrite(t *testing.T) {
 	methods, _ := contract.Load()
-	noop := func(context.Context, []json.RawMessage, *ledger.Reader) (any, error) { return nil, nil }
+	noop := func(context.Context, []json.RawMessage, Views) (any, error) { return nil, nil }
 	for _, name := range []string{"transactions.setLine", "budget.evaluateScenario", "session.unlock", "no.such"} {
 		reads := NewRegistry()
 		reads.Register(name, noop)
@@ -266,7 +284,7 @@ func TestRegisteringTwiceFailsLoudly(t *testing.T) {
 		}
 	}()
 	registry := NewRegistry()
-	noop := func(context.Context, []json.RawMessage, *ledger.Reader) (any, error) { return nil, nil }
+	noop := func(context.Context, []json.RawMessage, Views) (any, error) { return nil, nil }
 	registry.Register("shell.overview", noop)
 	registry.Register("shell.overview", noop)
 }

@@ -16,12 +16,12 @@ import (
 //
 // A false withYield is for a reader that needs no yield, such as the home
 // summary; every pot is then left with an unknown one.
-func (view *potsView) attachYields(ctx context.Context, reader *ledger.Reader, withYield bool, reserves []potEntry) error {
+func (view *potsView) attachYields(ctx context.Context, snapshot *ledger.View, withYield bool, reserves []potEntry) error {
 	accounts := accountsToAsk(reserves)
 	if !withYield || len(accounts) == 0 {
 		return nil
 	}
-	history, err := reader.YieldHistory(ctx)
+	history, err := snapshot.YieldHistory(ctx)
 	if err != nil {
 		return err
 	}

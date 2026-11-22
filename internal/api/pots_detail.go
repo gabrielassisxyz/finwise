@@ -56,12 +56,12 @@ type potDetailWire struct {
 
 // readPotDetail answers null for an id that is neither a pot nor a bank account
 // with movements that no pot could claim.
-func readPotDetail(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
+func readPotDetail(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
 	id, err := stringArgument(args)
 	if err != nil {
 		return nil, err
 	}
-	view, err := loadPots(ctx, reader, true)
+	view, err := loadPots(ctx, views.Ledger, true)
 	if err != nil {
 		return nil, err
 	}

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 
 	"github.com/gabrielassisxyz/finwise/internal/brday"
-	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
 // The settings are mostly what the person chooses, and the backend keeps none of
@@ -74,16 +73,16 @@ func registerSettings(registry *Registry) {
 
 // readSettingsOverview asks for no yield: the settings show none, and the
 // statement behind it is the slow part of reading the pots.
-func readSettingsOverview(ctx context.Context, _ []json.RawMessage, reader *ledger.Reader) (any, error) {
-	card, err := loadCard(ctx, reader)
+func readSettingsOverview(ctx context.Context, _ []json.RawMessage, views Views) (any, error) {
+	card, err := loadCard(ctx, views.Ledger)
 	if err != nil {
 		return nil, err
 	}
-	pots, err := loadPots(ctx, reader, false)
+	pots, err := loadPots(ctx, views.Ledger, false)
 	if err != nil {
 		return nil, err
 	}
-	state, err := reader.SyncState(ctx)
+	state, err := views.Ledger.SyncState(ctx)
 	if err != nil {
 		return nil, err
 	}

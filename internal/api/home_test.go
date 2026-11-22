@@ -79,7 +79,7 @@ func TestOverTheEmptyLedgerTheHomeIsAllZeroAndOffersNoPayAhead(t *testing.T) {
 }
 
 func TestTheHomeSummaryDoesNotWorkOutAYieldItDoesNotShow(t *testing.T) {
-	view, err := loadPots(withNow(t.Context(), func() time.Time { return fixtureNow }), ledgerOf(nightlyLedger(t, 6)), false)
+	view, err := loadPots(withNow(t.Context(), func() time.Time { return fixtureNow }), ledgerOf(t, nightlyLedger(t, 6)), false)
 	if err != nil {
 		t.Fatal(err)
 	}

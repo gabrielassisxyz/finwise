@@ -196,7 +196,7 @@ func TestACardOfABankWithNoClosingTableAnswersNullForTheClosingTheBestDayAndTheN
 	if overview["limit"].(float64) != 4000 || len(overview["bills"].([]any)) != 1 {
 		t.Errorf("the limit and the past bills are still answered: %v, %v", overview["limit"], overview["bills"])
 	}
-	card, err := loadCard(withNow(t.Context(), func() time.Time { return utc(2026, time.March, 20, 15, 0) }), ledger.New(f.Path))
+	card, err := loadCard(withNow(t.Context(), func() time.Time { return utc(2026, time.March, 20, 15, 0) }), ledgerOf(t, f))
 	if err != nil || card == nil {
 		t.Fatalf("%v, %v", card, err)
 	}
@@ -254,7 +254,7 @@ func TestOverTheEmptyLedgerTheCardIsNull(t *testing.T) {
 	}
 }
 
-func ledgerOf(f *ledgertest.Fixture) *ledger.Reader { return ledger.New(f.Path) }
+func ledgerOf(t testing.TB, f *ledgertest.Fixture) *ledger.View { return viewOf(t, f.Path) }
 
 func titleOfTheCard(t *testing.T, f *ledgertest.Fixture) any {
 	t.Helper()

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 
 	"github.com/gabrielassisxyz/finwise/internal/brday"
-	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
 type monthLimitWire struct {
@@ -39,17 +38,17 @@ func registerHome(registry *Registry) {
 	registry.Register("home.summary", readHomeSummary)
 }
 
-func readHomeSummary(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
+func readHomeSummary(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
 	month, err := onlyMonthArgument(args)
 	if err != nil {
 		return nil, err
 	}
 	// The summary shows the parts and not the yield, so the statement is not asked.
-	view, err := loadPots(ctx, reader, false)
+	view, err := loadPots(ctx, views.Ledger, false)
 	if err != nil {
 		return nil, err
 	}
-	card, err := loadCard(ctx, reader)
+	card, err := loadCard(ctx, views.Ledger)
 	if err != nil {
 		return nil, err
 	}

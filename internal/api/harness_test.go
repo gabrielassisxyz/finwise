@@ -19,6 +19,14 @@ func withLedger(path string, now time.Time) envOption {
 	}
 }
 
+// viewOf is a view of the snapshot at path, closed when the test ends.
+func viewOf(t testing.TB, path string) *ledger.View {
+	t.Helper()
+	view := ledger.New(path).View()
+	t.Cleanup(func() { view.Close() })
+	return view
+}
+
 // readEnv is a router over a fixture ledger with a session already open.
 type readEnv struct {
 	*testEnv

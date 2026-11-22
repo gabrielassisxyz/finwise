@@ -69,10 +69,10 @@ func (run *realRun) answer(method, arguments string) []byte {
 
 func TestEveryHandlerOverARealSnapshot(t *testing.T) {
 	path := realSnapshotPath(t)
-	reader, ctx := ledger.New(path), t.Context()
-	around, err := loadContext(ctx, reader)
+	snapshot, ctx := viewOf(t, path), t.Context()
+	around, err := loadContext(ctx, snapshot)
 	withoutValues(t, "context", err)
-	all, err := reader.CleanTransactions(ctx, wholeLedger)
+	all, err := snapshot.CleanTransactions(ctx, wholeLedger)
 	withoutValues(t, "transactions", err)
 
 	env := newTestEnv(t, withLedger(path, time.Now()))
@@ -84,7 +84,7 @@ func TestEveryHandlerOverARealSnapshot(t *testing.T) {
 	run.answer("transactions.filterOptions", `[]`)
 	detailsAsked := run.answerEveryAccountDetail(around.accounts)
 
-	served, balanced := run.serveEveryMonth(reader, around, months)
+	served, balanced := run.serveEveryMonth(snapshot, around, months)
 	whole := txrules.Interpret(all, around.reference)
 
 	t.Logf("months=%d answers_validated=%d answers_not_conforming=%d", len(months), run.answers, run.nonConforming)
@@ -107,7 +107,7 @@ type servedMonths struct {
 
 // serveEveryMonth asks for every month the ledger holds and checks that the
 // widened read of each places every row it read.
-func (run *realRun) serveEveryMonth(reader *ledger.Reader, around ledgerContext, months []brday.Month) (servedMonths, bool) {
+func (run *realRun) serveEveryMonth(snapshot *ledger.View, around ledgerContext, months []brday.Month) (servedMonths, bool) {
 	var served servedMonths
 	balanced := true
 	for _, month := range months {
@@ -115,7 +115,7 @@ func (run *realRun) serveEveryMonth(reader *ledger.Reader, around ledgerContext,
 		withoutValues(run.t, "month period", err)
 		wide, err := widened(period, taxPairingDays)
 		withoutValues(run.t, "widened period", err)
-		rows, err := reader.CleanTransactions(run.t.Context(), wide)
+		rows, err := snapshot.CleanTransactions(run.t.Context(), wide)
 		withoutValues(run.t, "widened read", err)
 		tally := txrules.Interpret(rows, around.reference).Tally
 		if !tally.Balanced() || tally.Input != len(rows) {

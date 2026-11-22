@@ -195,7 +195,9 @@ func (found *router) serveRead(w http.ResponseWriter, r *http.Request, method co
 		writeError(w, r, kindInternal)
 		return
 	}
-	result, err := handler(withNow(r.Context(), found.now), arguments, found.reader)
+	views := openViews(found.reader)
+	defer views.close()
+	result, err := handler(withNow(r.Context(), found.now), arguments, views)
 	if err != nil {
 		writeError(w, r, kindOfReadError(err))
 		return
