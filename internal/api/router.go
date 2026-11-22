@@ -209,7 +209,7 @@ func (found *router) serveRead(w http.ResponseWriter, r *http.Request, method co
 	instant := found.now()
 	result, err := handler(withNow(r.Context(), func() time.Time { return instant }), arguments, views)
 	if err != nil {
-		writeError(w, r, kindOfReadError(err))
+		writeFailure(w, r, err)
 		return
 	}
 	encoded, err := json.Marshal(result)
