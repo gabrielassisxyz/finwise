@@ -61,7 +61,7 @@ func readPotDetail(ctx context.Context, args []json.RawMessage, views Views) (an
 	if err != nil {
 		return nil, err
 	}
-	view, err := loadPots(ctx, views.Ledger, true)
+	view, err := loadPotsWithChoices(ctx, views, true)
 	if err != nil {
 		return nil, err
 	}

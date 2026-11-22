@@ -88,6 +88,9 @@ type potsView struct {
 	// itself shows back the reserve and which are therefore not counted twice.
 	onReserveAccounts int
 	leftOut           int
+	// chosenBuckets holds the bucket of each pot the person placed, by its id;
+	// the chart reads it for the reserve rows and investment days of the past.
+	chosenBuckets map[string]string
 }
 
 func loadPots(ctx context.Context, snapshot *ledger.View, withYield bool) (*potsView, error) {

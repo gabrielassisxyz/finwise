@@ -3,13 +3,105 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"slices"
 	"testing"
 	"time"
 
+	"github.com/gabrielassisxyz/finwise/internal/authored"
+	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
 	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 )
 
 const includeClosed = `[{"includeClosed":true}]`
+
+// The pots of the full ledger a person places in another bucket in the tests.
+const (
+	potCaixinha     = "reserve:" + accountPots + "/pot-1"
+	potReserva      = "reserve:" + accountNubank + "/" + potNubankMain
+	potSlot         = "slot:" + accountNubank + "/1"
+	potLCI          = "investment:" + investmentItau
+	potCDB          = "investment:" + investmentNubank
+	potCDBWithdrawn = "investment:" + investmentWithdrawn
+)
+
+// potsPlacedEnv is a router over a fixture ledger and an app's database in which
+// each pot of placed has the bucket the person chose for it.
+func potsPlacedEnv(t *testing.T, fixture *ledgertest.Fixture, placed map[string]authored.PotBucket) *readEnv {
+	t.Helper()
+	scratch := authoredtest.Open(t, fixtureClock)
+	for id, bucket := range placed {
+		authoredtest.SetPotBucket(t, scratch.Database, fixtureNow, id, bucket)
+	}
+	return newReadEnvOver(t, fixture, scratch.Database)
+}
+
+// potGroup is a group of the list as a test compares it: its bucket, its
+// subtotal in cents and the ids of its pots in order.
+type potGroup struct {
+	bucket   string
+	subtotal int64
+	ids      []string
+}
+
+// potGroupsOf reads the list's groups, and fails a pot whose own bucket is not
+// its group's.
+func potGroupsOf(t *testing.T, groups []map[string]any) []potGroup {
+	t.Helper()
+	var read []potGroup
+	for _, group := range groups {
+		found := potGroup{bucket: group["bucket"].(string), subtotal: cents(group["subtotal"].(float64))}
+		for _, pot := range group["pots"].([]any) {
+			row := pot.(map[string]any)
+			found.ids = append(found.ids, row["id"].(string))
+			if row["bucket"] != found.bucket {
+				t.Errorf("%v is in the group %s and says %v", row["id"], found.bucket, row["bucket"])
+			}
+		}
+		read = append(read, found)
+	}
+	return read
+}
+
+func expectPotGroups(t *testing.T, label string, got, want []potGroup) {
+	t.Helper()
+	equal := len(got) == len(want)
+	for index := 0; equal && index < len(got); index++ {
+		equal = got[index].bucket == want[index].bucket && got[index].subtotal == want[index].subtotal &&
+			slices.Equal(got[index].ids, want[index].ids)
+	}
+	if !equal {
+		t.Errorf("%s: the groups are %+v, want %+v", label, got, want)
+	}
+}
+
+func TestAPotPlacedInDisponivelIsAThirdGroupAfterReservedAndInvested(t *testing.T) {
+	env := potsPlacedEnv(t, newFullLedger(t), map[string]authored.PotBucket{potCaixinha: authored.BucketAvailable})
+	expectPotGroups(t, "open pots", potGroupsOf(t, potListOf(t, env, `[{"includeClosed":false}]`)), []potGroup{
+		{"Reservado", 127580, []string{potReserva, potSlot}},
+		{"Investido", 1000000, []string{potLCI, potCDB}},
+		{"Disponível", 80000, []string{potCaixinha}},
+	})
+	if detail := answerOf(t, env, "savingsPots.detail", `["`+potCaixinha+`"]`); detail["bucket"] != "Disponível" {
+		t.Errorf("the pot's page says %v", detail["bucket"])
+	}
+}
+
+func TestAnInvestmentPlacedInReservadoAndAClosedPotPlacedInDisponivelAreListedThere(t *testing.T) {
+	env := potsPlacedEnv(t, newFullLedger(t), map[string]authored.PotBucket{
+		potLCI: authored.BucketReserved, potCDBWithdrawn: authored.BucketAvailable,
+	})
+	closedReserve := "reserve:" + accountNubank + "/" + potNubankOld
+	expectPotGroups(t, "every pot", potGroupsOf(t, potListOf(t, env, includeClosed)), []potGroup{
+		{"Reservado", 907580, []string{potLCI, potCaixinha, closedReserve, potReserva, potSlot}},
+		{"Investido", 300000, []string{potCDB}},
+		{"Disponível", 0, []string{potCDBWithdrawn}},
+	})
+	// A group whose only pot is closed is not shown with the open pots.
+	expectPotGroups(t, "open pots", potGroupsOf(t, potListOf(t, env, `[{"includeClosed":false}]`)), []potGroup{
+		{"Reservado", 907580, []string{potLCI, potCaixinha, potReserva, potSlot}},
+		{"Investido", 300000, []string{potCDB}},
+	})
+}
 
 func potListOf(t *testing.T, env *readEnv, arguments string) []map[string]any {
 	t.Helper()

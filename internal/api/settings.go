@@ -83,7 +83,7 @@ func readSettingsOverview(ctx context.Context, _ []json.RawMessage, views Views)
 	if err != nil {
 		return nil, err
 	}
-	pots, err := loadPots(ctx, views.Ledger, false)
+	pots, err := loadPotsWithChoices(ctx, views, false)
 	if err != nil {
 		return nil, err
 	}

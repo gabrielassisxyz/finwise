@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"go/ast"
 	"go/token"
+	"maps"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -381,5 +382,25 @@ func TestTheBankDayStaysTheBanksWhateverTheClosingSetting(t *testing.T) {
 				t.Errorf("%s, closing %s: bankDay %s, want %s", fixture.name, setting, got, fixture.bankDay)
 			}
 		}
+	}
+}
+
+func TestEachPotOfTheSettingsIsInTheBucketThePersonChoseAsTheListShowsIt(t *testing.T) {
+	env := potsPlacedEnv(t, newFullLedger(t), map[string]authored.PotBucket{
+		potCaixinha: authored.BucketAvailable, potLCI: authored.BucketReserved,
+	})
+	listed := map[string]any{}
+	for id, pot := range potsOf(potListOf(t, env, `[{"includeClosed":false}]`)) {
+		listed[id] = pot["bucket"]
+	}
+	settled := map[string]any{}
+	for _, pot := range settingsOf(t, env)["pots"].([]any) {
+		settled[pot.(map[string]any)["id"].(string)] = pot.(map[string]any)["bucket"]
+	}
+	if len(settled) != 5 || !maps.Equal(settled, listed) {
+		t.Errorf("the settings place the pots %v, the list %v", settled, listed)
+	}
+	if settled[potCaixinha] != "Disponível" || settled[potLCI] != "Reservado" || settled[potCDB] != "Investido" {
+		t.Errorf("the settings place the pots %v", settled)
 	}
 }
