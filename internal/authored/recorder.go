@@ -74,18 +74,19 @@ func (recorder *Recorder) run(write func(*Recorder) error) error {
 
 // journalTransaction is one immediate transaction with foreign keys checked
 // at its commit. fn's error comes back unwrapped; a failed begin or commit is
-// a TransactionError.
+// a TransactionError. However fn ends, a panic included, the transaction is
+// rolled back unless it committed, so the connection never keeps the write
+// lock; the panic itself goes on unchanged.
 func (database *Database) journalTransaction(ctx context.Context, fn func(*sql.Tx) error) error {
 	tx, err := database.beginWrite(ctx)
 	if err != nil {
 		return &TransactionError{cause: err}
 	}
+	defer tx.Rollback()
 	if _, err := tx.ExecContext(ctx, statementDeferForeignKeys); err != nil {
-		tx.Rollback()
 		return &TransactionError{cause: err}
 	}
 	if err := fn(tx); err != nil {
-		tx.Rollback()
 		return err
 	}
 	if err := tx.Commit(); err != nil {
