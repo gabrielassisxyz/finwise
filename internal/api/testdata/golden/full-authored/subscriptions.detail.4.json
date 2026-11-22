@@ -1,0 +1,22 @@
+{
+  "id": "4",
+  "name": "MERCADO EXEMPLO",
+  "cycle": "Mensal",
+  "amount": 207.00,
+  "marks": [],
+  "nextCharge": "2026-03-28",
+  "monthlyEquivalent": 207.00,
+  "annualEquivalent": 2484.00,
+  "line": null,
+  "status": "Analisar",
+  "reviewOn": "2026-03-01",
+  "note": "",
+  "charges": [
+    {
+      "day": "2026-02-28",
+      "amount": 207.00,
+      "foreign": null
+    }
+  ],
+  "alternatives": []
+}
