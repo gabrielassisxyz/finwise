@@ -1,5 +1,5 @@
 import { flushPromises } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createFakeApi } from '@/api/fake';
 import type { BudgetDoc, FinwiseApi } from '@/api/types';
 import { useRevisionStore } from '@/stores/revision';
@@ -174,5 +174,26 @@ describe('Scenarios keep each line its id', () => {
     m.overlay.confirmation!.onConfirm();
     await flushPromises();
     expect(idsOf(sent.applied[0]!)).toEqual(idsOf(kept));
+  });
+});
+
+describe('Scenario amounts', () => {
+  async function amountsAfterTyping(value: string) {
+    const m = await mountScenarios();
+    const evaluate = vi.spyOn(m.api.budget, 'evaluateScenario');
+    await typeInto(field(m, 'Renda extra'), value);
+    return evaluate.mock.calls.map(([, draft]) => draft.flatMap((group) => group.lines.map((line) => line.amount)));
+  }
+
+  it('turns a negative into 0 before the scenario is weighed', async () => {
+    const sent = await amountsAfterTyping('-50');
+    expect(sent.length).toBeGreaterThan(0);
+    expect(sent.flat().every((value) => value >= 0)).toBe(true);
+    expect(sent.at(-1)).toContain(0);
+  });
+
+  it('sends a positive amount as typed', async () => {
+    const sent = await amountsAfterTyping('150');
+    expect(sent.at(-1)).toContain(150);
   });
 });

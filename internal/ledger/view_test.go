@@ -30,6 +30,7 @@ type ledgerQueries interface {
 	SyncState(context.Context) (ledger.SyncState, error)
 	CleanTransactions(context.Context, brday.Period) ([]ledger.Transaction, error)
 	YieldHistory(context.Context) (ledger.YieldHistory, error)
+	ProjectedRun(context.Context) (int64, error)
 }
 
 type queryAnswer struct {
@@ -37,7 +38,7 @@ type queryAnswer struct {
 	err   error
 }
 
-// everyAnswer asks all 13 queries, Accounts first, and keeps what each said.
+// everyAnswer asks all 14 queries, Accounts first, and keeps what each said.
 func everyAnswer(t *testing.T, queries ledgerQueries) map[string]queryAnswer {
 	t.Helper()
 	ctx := t.Context()
@@ -58,6 +59,7 @@ func everyAnswer(t *testing.T, queries ledgerQueries) map[string]queryAnswer {
 	record("SyncState")(queries.SyncState(ctx))
 	record("CleanTransactions")(queries.CleanTransactions(ctx, february2026(t)))
 	record("YieldHistory")(queries.YieldHistory(ctx))
+	record("ProjectedRun")(queries.ProjectedRun(ctx))
 	return answers
 }
 
@@ -80,12 +82,15 @@ func renameOver(t *testing.T, replacement *ledgertest.Fixture, path string) {
 }
 
 // An empty ledger is renamed over the file after the view's first query, so a
-// query that ran on a handle of its own would answer from it and differ.
+// query that ran on a handle of its own would answer from it and differ. The
+// empty one is projected to a later run, not the populated one, because
+// projecting past the fixture's first run uncovers every document it holds.
 func TestEveryQueryOnOneViewAnswersAsTheReaderDoes(t *testing.T) {
 	f := viewLedger(t)
 	reader := ledger.New(f.Path)
 	want := everyAnswer(t, reader)
 	replacement := ledgertest.NewAt(t, f.Path+".next")
+	replacement.ProjectTo(replacement.AddRun(ledgertest.Run{Outcome: "complete", FinishedAt: instant(t, "2026-03-16T03:00:00Z")}))
 	other := everyAnswer(t, ledger.New(replacement.Path))
 	for name, answer := range want {
 		if answer.err != nil {
@@ -104,8 +109,8 @@ func TestEveryQueryOnOneViewAnswersAsTheReaderDoes(t *testing.T) {
 	renameOver(t, replacement, f.Path)
 
 	got := everyAnswer(t, view)
-	if len(got) != 13 {
-		t.Fatalf("asked %d queries, want 13", len(got))
+	if len(got) != 14 {
+		t.Fatalf("asked %d queries, want 14", len(got))
 	}
 	for name, answer := range got {
 		if answer.err != nil {
@@ -154,6 +159,31 @@ func TestAViewKeepsItsSnapshotWhenTheFileIsReplaced(t *testing.T) {
 	transactions, err = later.CleanTransactions(t.Context(), february2026(t))
 	if err != nil || len(transactions) != 1 || transactions[0].ID != "tx-new" {
 		t.Errorf("view opened after the rename: transactions %v, %v; want tx-new", transactions, err)
+	}
+}
+
+// Apart from the test above because the replacement's projected run uncovers
+// the transactions that test reads from it.
+func TestAViewKeepsItsProjectedRunWhenTheFileIsReplaced(t *testing.T) {
+	f := populated(t)
+	reader := ledger.New(f.Path)
+	view := reader.View()
+	defer view.Close()
+	if _, err := view.Accounts(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	replacement := ledgertest.NewAt(t, f.Path+".next")
+	replacement.ProjectTo(replacement.AddRun(ledgertest.Run{Outcome: "partial", FinishedAt: instant(t, "2026-03-16T03:00:00Z")}))
+	renameOver(t, replacement, f.Path)
+
+	if run, err := view.ProjectedRun(t.Context()); err != nil || run != 1 {
+		t.Errorf("same view after the rename: projected run %d, %v; want 1", run, err)
+	}
+	later := reader.View()
+	defer later.Close()
+	if run, err := later.ProjectedRun(t.Context()); err != nil || run != 2 {
+		t.Errorf("view opened after the rename: projected run %d, %v; want 2", run, err)
 	}
 }
 
