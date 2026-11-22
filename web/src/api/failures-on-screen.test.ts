@@ -8,6 +8,7 @@ import { useSessionStore } from '@/stores/session';
 import { mountWithFailures, type FailureMount } from '@/test/readOnly';
 import { LEDGER_UNAVAILABLE_MESSAGE, LOAD_FAILED_MESSAGE, RETRY_LABEL } from './failures';
 import { ApiFailure } from './http/failure';
+import type { SessionStatus } from './types';
 
 const PIN_SCREEN = '[data-screen-label="PIN"]';
 const KEYPRESS_AND_DELAY_MS = 300;
@@ -52,6 +53,40 @@ describe('a call rejected with locked', () => {
     await mounted.settle();
 
     expect(mounted.wrapper.find(PIN_SCREEN).exists()).toBe(true);
+    expect(mounted.toasts).toEqual([]);
+    expect(mounted.unclaimed).toEqual([]);
+  });
+
+  async function lockedWhileStatusAnswers(answer: () => Promise<SessionStatus>): Promise<FailureMount> {
+    const { api, mount } = openApp();
+    const mounted = await mount();
+    vi.spyOn(api.home, 'summary').mockRejectedValueOnce(new ApiFailure('locked', { methodClass: 'read' }));
+    vi.spyOn(api.session, 'status').mockImplementation(answer);
+
+    useRevisionStore(mounted.pinia).bump();
+    await mounted.settle();
+    return mounted;
+  }
+
+  const keys = (mounted: FailureMount) => mounted.wrapper.find(PIN_SCREEN).findAll('button.key');
+
+  it('brings back a PIN screen that shows the wait while the server holds every attempt', async () => {
+    const mounted = await lockedWhileStatusAnswers(async () => ({ locked: true, retryAfterSeconds: 240 }));
+
+    expect(mounted.wrapper.find(PIN_SCREEN).exists()).toBe(true);
+    expect(mounted.wrapper.find(`${PIN_SCREEN} .message`).text()).toBe('Muitas tentativas. Tente de novo em 4 minutos.');
+    expect(keys(mounted).length).toBeGreaterThan(0);
+    expect(keys(mounted).every((key) => key.attributes('disabled') !== undefined)).toBe(true);
+    expect(mounted.toasts).toEqual([]);
+    expect(mounted.unclaimed).toEqual([]);
+  });
+
+  it('brings back a free keypad and says nothing when the status call fails', async () => {
+    const mounted = await lockedWhileStatusAnswers(() => Promise.reject(new ApiFailure('network', { methodClass: 'session' })));
+
+    expect(mounted.wrapper.find(PIN_SCREEN).exists()).toBe(true);
+    expect(mounted.wrapper.find(`${PIN_SCREEN} .message`).text()).toBe('');
+    expect(keys(mounted).some((key) => key.attributes('disabled') !== undefined)).toBe(false);
     expect(mounted.toasts).toEqual([]);
     expect(mounted.unclaimed).toEqual([]);
   });
