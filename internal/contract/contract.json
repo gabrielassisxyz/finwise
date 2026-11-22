@@ -137,7 +137,14 @@
       "class": "read",
       "arguments": {
         "type": "array",
-        "maxItems": 0
+        "items": [
+          {
+            "$ref": "#/definitions/YearMonth"
+          }
+        ],
+        "minItems": 1,
+        "maxItems": 1,
+        "additionalItems": false
       },
       "result": {
         "$ref": "#/definitions/TransactionFilterOptions"
@@ -2307,6 +2314,10 @@
     "BudgetLineDoc": {
       "type": "object",
       "properties": {
+        "id": {
+          "type": "string",
+          "description": "A decimal string the server mints when a budget is saved or applied; it keeps a line's history through a rename. A line the person has just added has none."
+        },
         "name": {
           "type": "string"
         },

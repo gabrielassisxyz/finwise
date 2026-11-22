@@ -1,5 +1,6 @@
 import { flushPromises } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { useRevisionStore } from '@/stores/revision';
 import { mountRouted } from '@/test/mountRouted';
 import CofrinhosScreen from './CofrinhosScreen.vue';
 
@@ -106,5 +107,81 @@ describe('Cofrinhos list', () => {
       'Vencimento',
       'Alvo',
     ]);
+  });
+});
+
+/** Lets a read run now but hands its answer over only when released, so an answer can arrive late. */
+function holdNext<T>(read: () => Promise<T>) {
+  let release = () => {};
+  const held = read().then(
+    (answer) =>
+      new Promise<T>((resolve) => {
+        release = () => resolve(answer);
+      }),
+  );
+  return { held, release: () => release() };
+}
+
+describe('Cofrinhos list after a change', () => {
+  const heads = (wrapper: Awaited<ReturnType<typeof mountList>>['wrapper']) =>
+    wrapper.findAll('.group-name').map((head) => plain(head.text()));
+
+  it('regroups after a write and a bump, and again after its undo, without a remount', async () => {
+    const { wrapper, api } = await mountList();
+    const { changeId } = (await api.settings.setPotBucket('sn', 'Disponível'))!;
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(heads(wrapper)).toEqual(['Reservado', 'Investido', 'Disponível']);
+    await api.changes.undo(changeId);
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(heads(wrapper)).toEqual(['Reservado', 'Investido', 'Sem balde']);
+  });
+
+  it('asks once more per bump, and keeps the list while it waits', async () => {
+    const { wrapper, api } = await mountList();
+    const read = vi.spyOn(api.savingsPots, 'list').mockImplementationOnce(() => new Promise(() => {}));
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(wrapper.findAll('.row')).toHaveLength(13);
+    read.mockRestore();
+    const counted = vi.spyOn(api.savingsPots, 'list');
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(counted).toHaveBeenCalledTimes(1);
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(counted).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not show an answer for the option that is no longer selected', async () => {
+    const { wrapper, api } = await mountList();
+    const original = api.savingsPots.list.bind(api.savingsPots);
+    const late = holdNext(() => original({ includeClosed: false }));
+    let calls = 0;
+    vi.spyOn(api.savingsPots, 'list').mockImplementation((...args: Parameters<typeof original>) => (++calls === 1 ? late.held : (original as (...a: typeof args) => ReturnType<typeof original>)(...args)));
+    useRevisionStore().bump();
+    await flushPromises();
+    await wrapper.find('button.toggle').trigger('click');
+    await flushPromises();
+    late.release();
+    await flushPromises();
+    expect(wrapper.find('.head').text()).toContain('Status');
+    expect(wrapper.findAll('.row').length).toBeGreaterThan(13);
+  });
+
+  it('does not let an earlier answer replace a later one for the same option', async () => {
+    const { wrapper, api } = await mountList();
+    const original = api.savingsPots.list.bind(api.savingsPots);
+    const early = holdNext(() => original({ includeClosed: false }));
+    let calls = 0;
+    vi.spyOn(api.savingsPots, 'list').mockImplementation((...args: Parameters<typeof original>) => (++calls === 1 ? early.held : (original as (...a: typeof args) => ReturnType<typeof original>)(...args)));
+    useRevisionStore().bump();
+    await api.settings.setPotBucket('sn', 'Disponível');
+    useRevisionStore().bump();
+    await flushPromises();
+    early.release();
+    await flushPromises();
+    expect(heads(wrapper)).toEqual(['Reservado', 'Investido', 'Disponível']);
   });
 });

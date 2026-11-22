@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { BudgetLineOption, ReviewQueue } from '@/api/types';
+import type { BudgetLineOption, ReviewQueue, YearMonth } from '@/api/types';
 import { useReviewViewStore } from '@/stores/review-view';
 import PendingItem from './PendingItem.vue';
 import ReviewCard from './ReviewCard.vue';
 import { usePendingAnswer } from './usePendingAnswer';
 
-const props = defineProps<{ queue: ReviewQueue; lines: BudgetLineOption[] }>();
+const props = defineProps<{ queue: ReviewQueue; linesByMonth: Record<YearMonth, BudgetLineOption[]> }>();
 
 const view = useReviewViewStore();
-const answer = usePendingAnswer(computed(() => props.lines));
 
 const index = computed(() => (props.queue.items.length ? view.position % props.queue.items.length : 0));
 const current = computed(() => props.queue.items[index.value] ?? null);
+const answer = usePendingAnswer(computed(() => (current.value ? props.linesByMonth[current.value.day.slice(0, 7)] ?? [] : [])));
 const counter = computed(() => {
   if (!current.value) return '';
   return `${props.queue.resolved + index.value + 1} de ${props.queue.resolved + props.queue.items.length}`;

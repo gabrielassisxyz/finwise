@@ -81,7 +81,7 @@ func TestEveryHandlerOverARealSnapshot(t *testing.T) {
 
 	run.answer("shell.overview", `[]`)
 	run.answer("accounts.list", `[]`)
-	run.answer("transactions.filterOptions", `[]`)
+	run.answer("transactions.filterOptions", `["2026-03"]`)
 	detailsAsked := run.answerEveryAccountDetail(around.accounts)
 
 	served, balanced := run.serveEveryMonth(snapshot, around, months)

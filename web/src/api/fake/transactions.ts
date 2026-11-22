@@ -57,7 +57,8 @@ export function createFakeTransactions(state: FakeState, log: ChangeLog): Transa
       const found = state.transactions.find((transaction) => transaction.id === id);
       return found ? toDetail(state, found) : null;
     },
-    async filterOptions(): Promise<TransactionFilterOptions> {
+    // The menu follows the month on the server; the stand-in keeps answering its current month's budget.
+    async filterOptions(_month: YearMonth): Promise<TransactionFilterOptions> {
       const banks = state.accounts.filter((account) => account.kind === 'Conta').map((account) => account.bank);
       const card = state.accounts.some((account) => account.kind === 'Cartão')
         ? [{ value: PROTOTYPE_CARD_ACCOUNT, label: PROTOTYPE_CARD_LABEL }]
