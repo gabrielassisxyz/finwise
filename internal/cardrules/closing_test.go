@@ -114,3 +114,71 @@ func TestManualClosingDateAtMonthEnds(t *testing.T) {
 }
 
 func dayPointer(day brday.Day) *brday.Day { return &day }
+
+func TestThePredictedClosingIsTheManualDayWhenSetTheTablesWhenNotAndUnknownWithNeither(t *testing.T) {
+	// 2026-03-10 is a Tuesday, which the C6 table closes six days before.
+	const due brday.Day = "2026-03-10"
+	dated := []cardrules.Bill{{ID: "b-dated", Due: due, Closing: dayPointer("2026-03-01")}}
+	cases := []struct {
+		name  string
+		card  cardrules.Card
+		want  brday.Day
+		known bool
+	}{
+		{"the table", cardrules.Card{Table: cardrules.C6ClosingTable()}, "2026-03-04", true},
+		{"a manual day over the table", cardrules.Card{Table: cardrules.C6ClosingTable(), ManualClosingDay: 25}, "2026-02-25", true},
+		{"a manual day and no table", cardrules.Card{ManualClosingDay: 22}, "2026-02-22", true},
+		{"a manual day and a ledger date for that due", cardrules.Card{Bills: dated, ManualClosingDay: 25}, "2026-02-25", true},
+		{"neither a table nor a manual day", cardrules.Card{}, "", false},
+		{"neither, and a ledger date for that due", cardrules.Card{Bills: dated}, "", false},
+	}
+	for _, c := range cases {
+		closing, ok := c.card.PredictedClosing(due)
+		if closing != c.want || ok != c.known {
+			t.Errorf("%s: PredictedClosing(%s) = %q, %t; want %q, %t", c.name, due, closing, ok, c.want, c.known)
+		}
+	}
+}
+
+func shiftedDay(t *testing.T, day brday.Day, days int) brday.Day {
+	t.Helper()
+	parsed, err := time.Parse("2006-01-02", string(day))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return brday.Day(parsed.AddDate(0, 0, days).Format("2006-01-02"))
+}
+
+// On every cycle after the dated bill, the day before the closing the exported
+// method answers still places a purchase on that cycle, and the closing day
+// places it on the next one: the method is the closing the cycles use.
+func TestPlacePurchaseAgreesWithThePredictedClosingOnEveryCycle(t *testing.T) {
+	bills := []cardrules.Bill{
+		{ID: "b-dated", Due: "2026-02-10", Closing: dayPointer("2026-02-04")},
+		{ID: "b-undated", Due: "2026-03-10"},
+	}
+	dues := []brday.Day{"2026-03-10", "2026-04-10", "2026-05-10", "2026-06-10"}
+	for _, manualDay := range []int{0, 25, 3} {
+		card := cardrules.Card{Bills: bills, Table: cardrules.C6ClosingTable(), ManualClosingDay: manualDay}
+		if got := card.PlacePurchase(cardrules.Purchase{ID: "p", Day: "2026-02-03"}); got.BillID != "b-dated" {
+			t.Errorf("manual day %d: the day before the ledger's closing falls on %+v, want b-dated", manualDay, got)
+		}
+		for index, due := range dues {
+			closing, ok := card.PredictedClosing(due)
+			if !ok {
+				t.Fatalf("manual day %d: no closing for %s", manualDay, due)
+			}
+			before := card.PlacePurchase(cardrules.Purchase{ID: "p", Day: shiftedDay(t, closing, -1)})
+			if before.Due != due || (index == 0) != (before.BillID == "b-undated") {
+				t.Errorf("manual day %d: the day before %s falls on %+v, want the cycle due %s", manualDay, closing, before, due)
+			}
+			on := card.PlacePurchase(cardrules.Purchase{ID: "p", Day: closing})
+			switch {
+			case index+1 < len(dues) && on.Due != dues[index+1]:
+				t.Errorf("manual day %d: the closing day %s falls on %+v, want the cycle due %s", manualDay, closing, on, dues[index+1])
+			case index+1 == len(dues) && on.Source != cardrules.SourceUnknown:
+				t.Errorf("manual day %d: the closing day of the last cycle falls on %+v, want unknown", manualDay, on)
+			}
+		}
+	}
+}
