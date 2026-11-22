@@ -24,6 +24,15 @@ func (database *Database) BeginWrite(ctx context.Context) (*sql.Tx, error) {
 	return database.beginWrite(ctx)
 }
 
+// WithBackupHooks returns options whose backup calls afterCopy with the
+// temporary copy before its check, beforePublish once the copy passed its check
+// and afterPublish once it is published, before its instant is recorded. A nil
+// hook is skipped.
+func WithBackupHooks(options BackupOptions, afterCopy func(temporary string), beforePublish, afterPublish func()) BackupOptions {
+	options.hooks = backupHooks{afterCopy: afterCopy, beforePublish: beforePublish, afterPublish: afterPublish}
+	return options
+}
+
 // Write exposes the write transaction that keeps all of fn or nothing.
 func (database *Database) Write(ctx context.Context, fn func(*sql.Tx) error) error {
 	return database.write(ctx, fn)

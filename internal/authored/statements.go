@@ -13,4 +13,8 @@ var allStatements = map[string]string{
 	"statementCopyInto":              statementCopyInto,
 	"statementRecordTrackingStart":   statementRecordTrackingStart,
 	"statementTrackingStart":         statementTrackingStart,
+	"statementRecordLastBackup":      statementRecordLastBackup,
+	"statementLastBackup":            statementLastBackup,
+	"statementApplicationID":         statementApplicationID,
+	"statementIntegrityCheck":        statementIntegrityCheck,
 }
