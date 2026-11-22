@@ -56,6 +56,16 @@ func (r *run) step(name string) {
 		r.commit("things.set", true, wSet("things", k, values))
 	case "things.delete":
 		r.commit("things.delete", true, wDelete("things", integer(r.existingThing())))
+	case "things.rewrite.setDelete":
+		r.rewriteThing("set", "delete")
+	case "things.rewrite.createSet":
+		r.rewriteThing("create", "set")
+	case "things.rewrite.setDeleteCreate":
+		r.rewriteThing("set", "delete", "create")
+	case "things.rewrite.deleteCreateSet":
+		r.rewriteThing("delete", "create", "set")
+	case "things.rewrite.random":
+		r.rewriteThing()
 	case "set.insert":
 		r.commit("tags.add", true, wPut("tags", tag(r.factsID(), fmt.Sprintf("#t%d", r.fresh()))))
 	case "set.delete":
@@ -529,4 +539,48 @@ func arg(value authored.Value) any {
 		return s
 	}
 	return nil
+}
+
+// rewriteThing writes one row of things several times in one change, as a
+// whole and column by column, in the order given or, with none, in a random
+// walk of two to five writes. The change is then undone, sometimes after a
+// change to another row, which must not stop it.
+func (r *run) rewriteThing(order ...string) {
+	var id int64
+	exists := true
+	if len(order) > 0 && order[0] == "create" {
+		id, exists = r.fresh(), false
+	} else {
+		id = r.existingThing()
+	}
+	if len(order) == 0 {
+		for range 2 + r.rng.Intn(4) {
+			next := "create"
+			if exists {
+				next = []string{"set", "set", "delete"}[r.rng.Intn(3)]
+			}
+			order = append(order, next)
+			exists = next != "delete"
+		}
+	}
+	writes := make([]pwrite, len(order))
+	for i, write := range order {
+		switch write {
+		case "set":
+			writes[i] = wSet("things", key(integer(id)), []authored.Row{
+				{"amount": integer(r.rng.Int63n(9000))},
+				{"note": text(fmt.Sprintf("note %d", r.fresh()))},
+				{"name": text(fmt.Sprintf("n%d", r.fresh())), "amount": integer(r.rng.Int63n(9000))},
+			}[r.rng.Intn(3)])
+		case "delete":
+			writes[i] = wDelete("things", integer(id))
+		case "create":
+			writes[i] = wCreate(thing(id, fmt.Sprintf("n%d", r.fresh()), r.rng.Int63n(9000), null))
+		}
+	}
+	rewrite := r.commit("things.rewrite", true, writes...)
+	if r.rng.Intn(2) == 0 {
+		r.commit("facts.setAmount", true, wSet("facts", key(text(fmt.Sprintf("f%d", r.fresh()))), authored.Row{"amount": integer(3)}))
+	}
+	r.undoWanting(rewrite.id, 0)
 }

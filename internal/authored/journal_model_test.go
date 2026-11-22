@@ -277,6 +277,11 @@ func (m *model) holds(units []mCollapsed) bool {
 		table := m.tables[unit.unit.Table]
 		current, found := m.content(table, unit.unit.Key, m.keyValues(table, unit.unit.Key))
 		if unit.unit.Column != "" {
+			// A later effect on the whole row in the same change supersedes the
+			// column; the row's own check covers it.
+			if supersededByRow(units, unit) {
+				continue
+			}
 			if current == nil || current[unit.unit.Column] != unit.after.value {
 				return false
 			}
@@ -299,6 +304,15 @@ func (m *model) holds(units []mCollapsed) bool {
 		}
 	}
 	return true
+}
+
+func supersededByRow(units []mCollapsed, column mCollapsed) bool {
+	for _, other := range units {
+		if other.unit.Table == column.unit.Table && other.unit.Key == column.unit.Key && other.unit.Column == "" && other.lastSeq > column.lastSeq {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *model) keyValues(table authored.Table, key string) authored.Row {
@@ -367,7 +381,12 @@ func (m *model) restore(units []mCollapsed, recording bool) []mEffect {
 		case unit.unit.Column != "" && recording:
 			effects = append(effects, m.set(table.Name, keyValuesOf(table, key), authored.Row{unit.unit.Column: unit.before.value})...)
 		case unit.unit.Column != "":
+			// A column first written after the row's own first effect finds no
+			// row here; the row's restore, which comes after it, decides.
 			current, _ := m.content(table, unit.unit.Key, key)
+			if current == nil {
+				continue
+			}
 			current[unit.unit.Column] = unit.before.value
 			m.store(table, current)
 		case unit.before.present:

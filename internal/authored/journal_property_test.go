@@ -27,6 +27,7 @@ var mandatorySteps = []string{
 	"set.insert", "set.delete", "set.replace",
 	"owned.write", "owned.ownerRemoved",
 	"family.parentFirst", "family.childrenFirst", "family.removeParentFirst", "family.removeChildrenFirst",
+	"things.rewrite.setDelete", "things.rewrite.createSet", "things.rewrite.setDeleteCreate", "things.rewrite.deleteCreateSet",
 	"nothing", "nothing.sameContent", "empty",
 	"extend", "part", "interfere.thenUndo", "abcb", "undo", "undo.latest",
 }
@@ -36,6 +37,7 @@ var fillerChoices = []string{
 	"set.insert", "set.delete", "set.replace", "owned.write", "owned.ownerRemoved",
 	"family.parentFirst", "family.childrenFirst", "family.removeParentFirst", "family.removeChildrenFirst",
 	"extend", "part", "interfere", "undo", "undo", "undo", "undo.latest", "undo.latest",
+	"things.rewrite.random", "things.rewrite.random",
 }
 
 // outcomes counts, over every run, how undos, extensions and parts ended, so
