@@ -1,8 +1,10 @@
 import { flushPromises, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { prototypeState } from '@/api/fake/prototype-data';
+import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
 import { useShellStore } from '@/stores/shell';
+import { recordLineMenu } from '@/test/lineMenu';
 import { prototypeOverview } from '@/test/mount';
 import { mountRouted } from '@/test/mountRouted';
 import ConfigScreen from './ConfigScreen.vue';
@@ -420,5 +422,24 @@ describe('Dados section', () => {
     expect(first.find('.status').classes()).toContain('expired');
     expect(section(wrapper, 'dados').findAll('.status.expired')).toHaveLength(1);
     expect(section(wrapper, 'dados').findAll('.when span')[1]!.text()).toBe('Último backup: em 26/11 às 02:15');
+  });
+});
+
+describe('the menus of lines of the settings', () => {
+  it('ask for the current month, for a default line and for a pot\'s lines, while the screen shows another', async () => {
+    const mounted = await mountConfig();
+    const { months } = recordLineMenu(mounted.api);
+    const month = useMonthStore();
+    month.configure(prototypeOverview());
+    month.shift(-1);
+    expect(month.selected).toBe('2026-10');
+
+    await section(mounted.wrapper, 'apelidos').findAll('.row')[2]!.find('.line').trigger('click');
+    await flushPromises();
+    expect(mounted.overlay.menu!.items.length).toBeGreaterThan(0);
+    await section(mounted.wrapper, 'cofrinhos').findAll('.row')[6]!.find('.edit').trigger('click');
+    await flushPromises();
+    expect(mounted.overlay.menu!.items.length).toBeGreaterThan(0);
+    expect(months).toEqual(['2026-11', '2026-11']);
   });
 });

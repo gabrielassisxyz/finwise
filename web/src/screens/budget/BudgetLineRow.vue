@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import type { BudgetGroupView, BudgetLineDoc, BudgetLineView } from '@/api/types';
 import MarkBadge from '@/components/transactions/MarkBadge.vue';
 import { cellClasses, cellText, type Columns } from './budgetText';
+import { typedAmount } from './typedAmount';
 
 const props = defineProps<{
   group: BudgetGroupView;
@@ -59,7 +60,7 @@ function typed(event: Event): string {
         type="number"
         :value="draft.amount"
         aria-label="Valor"
-        @change="emit('setAmount', Number(typed($event)) || 0)"
+        @change="emit('setAmount', typedAmount(typed($event)))"
       />
       <template v-else>{{ cellText(line.cells[0]) }}</template>
     </span>

@@ -166,8 +166,8 @@ describe('what a fresh install and an empty ledger have no honest value for', ()
   });
 
   it('offers no account to filter by where the ledger has none, card included', async () => {
-    expect((await createFakeApi({ state: emptyLedgerState() }).transactions.filterOptions()).accounts).toEqual([]);
-    const fresh = (await createFakeApi({ state: freshInstallState() }).transactions.filterOptions()).accounts;
+    expect((await createFakeApi({ state: emptyLedgerState() }).transactions.filterOptions('2026-11')).accounts).toEqual([]);
+    const fresh = (await createFakeApi({ state: freshInstallState() }).transactions.filterOptions('2026-11')).accounts;
     expect(fresh.map((account) => account.value)).toEqual(['Itaú', 'Mercado Pago', 'C6', 'C6 Carbon']);
   });
 
@@ -194,6 +194,7 @@ describe('a transaction nobody has put on a line', () => {
 
   it('opens its panel without naming who classified it', async () => {
     const { wrapper } = await mountAt(TransactionPanel, '/', {}, { state, startLocked: false });
+    useShellStore().overview = prototypeOverview();
     usePanelStore().open('f4');
     await flushPromises();
     const section = wrapper.find('.line-button');

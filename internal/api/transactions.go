@@ -62,8 +62,11 @@ func queryPeriod(args []json.RawMessage) (brday.Period, error) {
 }
 
 // readTransactionFilterOptions offers every account. Tags and budget lines are
-// the person's to create, so there are none yet.
-func readTransactionFilterOptions(ctx context.Context, _ []json.RawMessage, reader *ledger.Reader) (any, error) {
+// the person's to create, so there are none yet, whatever the month asked for.
+func readTransactionFilterOptions(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
+	if _, err := onlyMonthArgument(args); err != nil {
+		return nil, err
+	}
 	accounts, err := reader.Accounts(ctx)
 	if err != nil {
 		return nil, err

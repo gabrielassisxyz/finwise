@@ -82,6 +82,13 @@ func (reader *Reader) SyncState(ctx context.Context) (SyncState, error) {
 	return view.SyncState(ctx)
 }
 
+// ProjectedRun is View.ProjectedRun on a view of its own.
+func (reader *Reader) ProjectedRun(ctx context.Context) (int64, error) {
+	view := reader.View()
+	defer view.Close()
+	return view.ProjectedRun(ctx)
+}
+
 // CleanTransactions is View.CleanTransactions on a view of its own.
 func (reader *Reader) CleanTransactions(ctx context.Context, period brday.Period) ([]Transaction, error) {
 	view := reader.View()

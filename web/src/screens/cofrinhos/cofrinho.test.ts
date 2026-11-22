@@ -1,8 +1,9 @@
 import { flushPromises } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 import { RouterView } from 'vue-router';
 import { prototypeState } from '@/api/fake/prototype-data';
+import { useRevisionStore } from '@/stores/revision';
 import { mountRouted } from '@/test/mountRouted';
 import CofrinhoScreen from './CofrinhoScreen.vue';
 import CofrinhosScreen from './CofrinhosScreen.vue';
@@ -169,5 +170,61 @@ describe('moving between the list and a pot', () => {
     await flushPromises();
     expect(wrapper.find('button.toggle').attributes('aria-pressed')).toBe('true');
     expect(wrapper.text()).toContain('Investimento 0');
+  });
+});
+
+/** Lets a read run now but hands its answer over only when released, so an answer can arrive late. */
+function holdNext<T>(read: () => Promise<T>) {
+  let release = () => {};
+  const held = read().then(
+    (answer) =>
+      new Promise<T>((resolve) => {
+        release = () => resolve(answer);
+      }),
+  );
+  return { held, release: () => release() };
+}
+
+describe('Cofrinho page after a change', () => {
+  it('shows the new bucket after a write and a bump, without a remount', async () => {
+    const { wrapper, api } = await mountPot('rfp');
+    await api.settings.setPotBucket('rfp', 'Investido');
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(wrapper.find('.subtitle').text()).toBe('Mercado Pago · Investido · 120% do CDI');
+  });
+
+  it('keeps the pot on screen while it asks again, and asks once per bump', async () => {
+    const { wrapper, api } = await mountPot('rfp');
+    const read = vi.spyOn(api.savingsPots, 'detail').mockImplementationOnce(() => new Promise(() => {}));
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(wrapper.find('h1').text()).toBe('RF Pets');
+    expect(wrapper.find('.missing').exists()).toBe(false);
+    read.mockRestore();
+    const counted = vi.spyOn(api.savingsPots, 'detail');
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(counted).toHaveBeenCalledTimes(1);
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(counted).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not show an answer for a pot the route has left', async () => {
+    const { wrapper, api, router } = await mountPot('rfp');
+    const original = api.savingsPots.detail.bind(api.savingsPots);
+    const late = holdNext(() => original('rfp'));
+    let calls = 0;
+    vi.spyOn(api.savingsPots, 'detail').mockImplementation((...args: Parameters<typeof original>) => (++calls === 1 ? late.held : (original as (...a: typeof args) => ReturnType<typeof original>)(...args)));
+    useRevisionStore().bump();
+    await flushPromises();
+    await router.push('/cofrinhos/rfs');
+    await flushPromises();
+    late.release();
+    await flushPromises();
+    expect(wrapper.find('h1').text()).not.toBe('RF Pets');
+    expect(wrapper.find('h1').text()).toBe('RF Saúde');
   });
 });

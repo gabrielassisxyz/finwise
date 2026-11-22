@@ -1,5 +1,6 @@
 import { flushPromises } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { useRevisionStore } from '@/stores/revision';
 import { createFakeApi } from '@/api/fake';
 import type { NetWorthOverview } from '@/api/types';
 import { mountAt } from '@/test/mount';
@@ -149,6 +150,18 @@ describe('PlanBlocks', () => {
   });
 });
 
+/** Lets a read run now but hands its answer over only when released, so an answer can arrive late. */
+function holdNext<T>(read: () => Promise<T>) {
+  let release = () => {};
+  const held = read().then(
+    (answer) =>
+      new Promise<T>((resolve) => {
+        release = () => resolve(answer);
+      }),
+  );
+  return { held, release: () => release() };
+}
+
 describe('NetWorthChart', () => {
   async function overview(): Promise<NetWorthOverview> {
     return createFakeApi().netWorth.overview();
@@ -202,5 +215,54 @@ describe('chart geometry', () => {
   it('labels the axis from the chart top', () => {
     expect(axisLabels(100000)).toEqual(['100 mil', '75 mil', '50 mil', '25 mil', '0']);
     expect(axisLabels(200000)[1]).toBe('150 mil');
+  });
+});
+
+describe('Patrimônio screen after a change', () => {
+  const cards = (wrapper: Awaited<ReturnType<typeof mountScreen>>['wrapper']) =>
+    wrapper.findAll('.cell').map((cell) => plain(cell.text()));
+
+  it('shows the new bucket and total after a write and a bump, without a remount', async () => {
+    const { wrapper, api } = await mountScreen();
+    await api.settings.setPotBucket('sn', 'Disponível');
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(cards(wrapper)).toEqual([
+      'Disponível ▸R$ 9.108,75',
+      'Reservado ▸R$ 34.150,00',
+      'Investido ▸R$ 37.800,00',
+      'Patrimônio totalR$ 81.058,75',
+    ]);
+  });
+
+  it('asks once more per bump, and keeps showing the figures while it waits', async () => {
+    const { wrapper, api } = await mountScreen();
+    const read = vi.spyOn(api.netWorth, 'overview').mockImplementationOnce(() => new Promise(() => {}));
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(wrapper.findAll('.cell')).toHaveLength(4);
+    read.mockRestore();
+    const counted = vi.spyOn(api.netWorth, 'overview');
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(counted).toHaveBeenCalledTimes(1);
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(counted).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not let an earlier answer replace a later one', async () => {
+    const { wrapper, api } = await mountScreen();
+    const original = api.netWorth.overview.bind(api.netWorth);
+    const early = holdNext(original);
+    let calls = 0;
+    vi.spyOn(api.netWorth, 'overview').mockImplementation((...args: Parameters<typeof original>) => (++calls === 1 ? early.held : (original as (...a: typeof args) => ReturnType<typeof original>)(...args)));
+    useRevisionStore().bump();
+    await api.settings.setPotBucket('sn', 'Disponível');
+    useRevisionStore().bump();
+    await flushPromises();
+    early.release();
+    await flushPromises();
+    expect(cards(wrapper)[0]).toBe('Disponível ▸R$ 9.108,75');
   });
 });

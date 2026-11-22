@@ -97,7 +97,8 @@ export interface LineChangeResult extends ChangeResult {
 export interface TransactionsApi extends TransactionDetailApi {
   /** Newest first. */
   list(query: TransactionQuery): Promise<Transaction[]>;
-  filterOptions(): Promise<TransactionFilterOptions>;
+  /** `lines` is the menu of the budget in force in `month`; the accounts and tags do not depend on it. */
+  filterOptions(month: YearMonth): Promise<TransactionFilterOptions>;
   /** Null when nothing changed: the line is the same and no review was waiting. */
   setLine(id: string, line: string): Promise<LineChangeResult | null>;
   /** Extends a line change to the rest of its establishment; undoing it undoes both. */

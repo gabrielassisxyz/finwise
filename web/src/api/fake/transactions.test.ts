@@ -32,7 +32,7 @@ describe('fake transactions', () => {
   });
 
   it('offers the budget lines with spending first, fees after the provisions and income last', async () => {
-    const { lines } = await api().filterOptions();
+    const { lines } = await api().filterOptions('2026-11');
     const names = lines.map((line) => line.name);
     expect(names[0]).toBe('Mercado');
     expect(names.at(-1)).toBe('Reembolsos');
@@ -40,8 +40,13 @@ describe('fake transactions', () => {
     expect(lines.find((line) => line.name === 'Viagens')?.group).toBe('Reservas de desejo');
   });
 
+  it('answers the menu of its current month whichever month is asked', async () => {
+    const transactions = api();
+    expect(await transactions.filterOptions('2025-01')).toEqual(await transactions.filterOptions('2026-11'));
+  });
+
   it('offers every account, with the card under its label', async () => {
-    const { accounts } = await api().filterOptions();
+    const { accounts } = await api().filterOptions('2026-11');
     expect(accounts.map((account) => account.label)).toEqual(['Itaú', 'Mercado Pago', 'C6', 'Nubank', 'C6 Carbon · 1234']);
     expect(accounts.at(-1)?.value).toBe('C6 Carbon');
   });
