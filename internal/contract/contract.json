@@ -2002,23 +2002,21 @@
       "type": "object",
       "properties": {
         "error": {
-          "type": "object",
-          "properties": {
-            "kind": {
-              "$ref": "#/definitions/WireErrorKind"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PlainErrorBody"
+            },
+            {
+              "$ref": "#/definitions/RefusedErrorBody"
             }
-          },
-          "required": [
-            "kind"
-          ],
-          "additionalProperties": false
+          ]
         }
       },
       "required": [
         "error"
       ],
       "additionalProperties": false,
-      "description": "The body of every failed call: `{\"error\":{\"kind\":\"read_only\"}}`."
+      "description": "The body of every failed call: `{\"error\":{\"kind\":\"read_only\"}}`, or `{\"error\":{\"kind\":\"refused\",\"reason\":\"month_closed\"}}`."
     },
     "ApprovalRequest": {
       "type": "object",
@@ -3147,7 +3145,7 @@
       ],
       "description": "The groups of the budget a person edits; the others on the screen are derived from them."
     },
-    "Exclude<ApiErrorKind,\"network\">": {
+    "Exclude<ApiErrorKind,(\"network\"|\"refused\")>": {
       "type": "string",
       "enum": [
         "locked",
@@ -3796,6 +3794,22 @@
       "additionalProperties": false,
       "description": "A classification the app would not apply by itself, waiting for a decision."
     },
+    "PlainErrorBody": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "$ref": "#/definitions/PlainWireErrorKind"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    "PlainWireErrorKind": {
+      "$ref": "#/definitions/Exclude%3CApiErrorKind%2C(%22network%22%7C%22refused%22)%3E",
+      "description": "A wire kind that carries nothing but itself."
+    },
     "PlannedActualGroup": {
       "type": "object",
       "properties": {
@@ -4137,6 +4151,37 @@
       ],
       "additionalProperties": false,
       "description": "A purchase that repeats without being a subscription."
+    },
+    "RefusalReason": {
+      "type": "string",
+      "enum": [
+        "month_closed",
+        "future_month",
+        "pending_reviews",
+        "stale_change",
+        "not_found",
+        "unknown_line",
+        "invalid_budget",
+        "unstable_pot",
+        "split_with_reimbursement"
+      ]
+    },
+    "RefusedErrorBody": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "refused"
+        },
+        "reason": {
+          "$ref": "#/definitions/RefusalReason"
+        }
+      },
+      "required": [
+        "kind",
+        "reason"
+      ],
+      "additionalProperties": false
     },
     "ReimbursementCandidate": {
       "type": "object",
@@ -6071,10 +6116,6 @@
         "warnings"
       ],
       "additionalProperties": false
-    },
-    "WireErrorKind": {
-      "$ref": "#/definitions/Exclude%3CApiErrorKind%2C%22network%22%3E",
-      "description": "The kinds a server can answer with: `network` means no answer arrived."
     },
     "YearMonth": {
       "type": "string",
