@@ -15,8 +15,14 @@ import {
   LEDGER_UNAVAILABLE_MESSAGE,
   LOAD_FAILED_MESSAGE,
   READ_ONLY_MESSAGE,
+  REFUSAL_SENTENCES,
   RETRY_LABEL,
+  SAVE_FAILED_MESSAGE,
+  SAVE_UNCONFIRMED_MESSAGE,
+  UNKNOWN_REFUSAL_MESSAGE,
 } from './failures';
+import type { MethodClass } from './contract/classification';
+import { REFUSAL_REASONS } from './contract/errors';
 import { ApiFailure } from './http/failure';
 import type { ApiErrorKind, FinwiseApi } from './types';
 
@@ -93,6 +99,91 @@ describe.each([
 
     expect(revision.current).toBe(1);
     expect(overlay.toast).toBeNull();
+  });
+});
+
+/** What the handler left on screen: the toast, its actions, and how far the revision moved before it returned. */
+function handled(failure: ApiFailure) {
+  const { pinia } = provided();
+  const { overlay, revision } = stores(pinia);
+  expect(createFailureHandler(pinia)(failure)).toBe(true);
+  return { message: overlay.toast?.message, actions: overlay.toast?.actions.map((action) => action.label), bumps: revision.current };
+}
+
+describe('refused', () => {
+  it.each(REFUSAL_REASONS)('says why for %s, with no action, and fetches again at once', (reason) => {
+    expect(handled(new ApiFailure('refused', { methodClass: 'write', reason }))).toEqual({
+      message: REFUSAL_SENTENCES[reason],
+      actions: [],
+      bumps: 1,
+    });
+  });
+
+  it.each(['made_up', undefined, 7])('says it could not complete for the reason %s, which it does not know', (reason) => {
+    expect(handled(new ApiFailure('refused', { methodClass: 'write', reason }))).toEqual({
+      message: UNKNOWN_REFUSAL_MESSAGE,
+      actions: [],
+      bumps: 1,
+    });
+  });
+
+  it('says why whatever the class of the method', () => {
+    for (const methodClass of ['read', 'session', 'evaluate', undefined] as const) {
+      expect(handled(new ApiFailure('refused', { methodClass, reason: 'month_closed' })).message).toBe('Esse mês já está fechado.');
+    }
+  });
+});
+
+describe('a write that failed', () => {
+  it.each(['internal', 'bad_request', 'unknown_method'] as const)('answered %s says it was not saved, with no action, and fetches again at once', (kind) => {
+    expect(handled(new ApiFailure(kind, { methodClass: 'write' }))).toEqual({ message: SAVE_FAILED_MESSAGE, actions: [], bumps: 1 });
+  });
+
+  it('never answered says it could not confirm, with no action, and fetches again at once', () => {
+    expect(handled(new ApiFailure('network', { methodClass: 'write' }))).toEqual({ message: SAVE_UNCONFIRMED_MESSAGE, actions: [], bumps: 1 });
+  });
+
+  it.each([
+    ['ledger_unavailable', { message: LEDGER_UNAVAILABLE_MESSAGE, actions: [RETRY_LABEL], bumps: 0 }],
+    ['read_only', { message: READ_ONLY_MESSAGE, actions: [], bumps: 1 }],
+    ['locked', { message: undefined, actions: undefined, bumps: 0 }],
+  ] as const)('answered %s shows what a read shows', (kind, shown) => {
+    expect(handled(new ApiFailure(kind, { methodClass: 'write' }))).toEqual(shown);
+  });
+});
+
+describe.each(['internal', 'network', 'bad_request', 'unknown_method'] as const)('%s of a method that saves nothing', (kind) => {
+  it.each(['read', 'session', 'evaluate', undefined] as (MethodClass | undefined)[])(
+    'of class %s says the data could not be loaded, and waits for "Tentar de novo" to fetch again',
+    (methodClass) => {
+      expect(handled(new ApiFailure(kind, { methodClass }))).toEqual({ message: LOAD_FAILED_MESSAGE, actions: [RETRY_LABEL], bumps: 0 });
+    },
+  );
+});
+
+describe('the sentences of a refusal and of a failed save', () => {
+  it('has one for every reason the contract lists', () => {
+    for (const reason of REFUSAL_REASONS) expect(REFUSAL_SENTENCES[reason], reason).toMatch(/\S/);
+    expect(Object.keys(REFUSAL_SENTENCES).sort()).toEqual([...REFUSAL_REASONS].sort());
+  });
+
+  it('are the twelve sentences the interface promises, word for word', () => {
+    expect(REFUSAL_SENTENCES).toEqual({
+      month_closed: 'Esse mês já está fechado.',
+      future_month: 'Esse mês ainda não chegou.',
+      pending_reviews: 'Resolva as pendências do mês antes de fechar.',
+      stale_change: 'Isso já foi alterado depois e não pode mais ser desfeito.',
+      not_found: 'Esse item não existe mais.',
+      unknown_line: 'Essa linha não existe no budget desse mês.',
+      invalid_budget: 'O budget tem linha sem nome ou repetida.',
+      unstable_pot: 'O banco não identifica esse cofrinho de forma estável.',
+      split_with_reimbursement: 'Uma compra dividida não pode ter reembolso ligado.',
+    });
+    expect([UNKNOWN_REFUSAL_MESSAGE, SAVE_FAILED_MESSAGE, SAVE_UNCONFIRMED_MESSAGE]).toEqual([
+      'Não foi possível concluir.',
+      'Não foi possível salvar.',
+      'Não deu para confirmar se foi salvo. Atualizando a tela.',
+    ]);
   });
 });
 

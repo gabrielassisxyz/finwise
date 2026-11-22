@@ -26,9 +26,14 @@
   - `vite build --mode prototype` is the same interface on the stand-in, `web/src/api/fake`, which answers
     with the design prototype's dataset. The parity scripts build in this mode.
   - Every failure of the API ends in `web/src/api/failures.ts`, wired to Vue's error handler and to the
-    window's `unhandledrejection`; call sites do not catch. A refused write toasts that the app is read-only
-    and bumps the revision counter, a `locked` answer brings the PIN screen back, and any other failure
-    toasts with "Tentar de novo".
+    window's `unhandledrejection`; call sites do not catch. An `ApiFailure` carries the class of the method
+    that failed and, for `refused`, its reason. A `read_only` answer toasts that the app is read-only; a
+    `refused` one toasts its reason's sentence (`REFUSAL_SENTENCES`); a write answered `internal`,
+    `bad_request` or `unknown_method` toasts that it was not saved, and one that never got an answer that it
+    could not be confirmed. None of these offers an action, and each bumps the revision counter at once. A
+    `locked` answer brings the PIN screen back and asks the session status for the wait. A failed read or
+    evaluation, and `ledger_unavailable` from any method, toast with "Tentar de novo", which refetches and
+    never sends a write again.
 - **Install:** `npm --prefix web ci`
 - **Run:** `npm --prefix web run dev` runs the stand-in; its PIN is `123456`.
   `VITE_FINWISE_STATE=fresh` starts the stand-in as a fresh install (the bank's records and nothing the
@@ -103,8 +108,9 @@
 - Tests run with one command, no manual setup, no credential.
 - The backend is faked at the API boundary with `createFakeApi`, not with an inline stub.
 - A screen test that needs the backend to refuse wraps `createFakeApi` with `readOnlyApi`
-  (`web/src/test/readOnly.ts`), which rejects every `write` and `evaluate` method with `read_only`. Only the
-  HTTP client's own tests stub `fetch`.
+  (`web/src/test/readOnly.ts`), which rejects every `write` and `evaluate` method with `read_only`. One that
+  needs a single method to fail with another kind or a refusal's reason wraps it with `failingOne` beside it,
+  which takes the method's class from the contract. Only the HTTP client's own tests stub `fetch`.
 - Fixtures are invented. Nothing derived from a real account is committed.
 - A real ledger is a person's whole financial history and this repository is public. A real snapshot
   may be opened read-only to check a schema, the keys of a JSON column or a count; no value from it

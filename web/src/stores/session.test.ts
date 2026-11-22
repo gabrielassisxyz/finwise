@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiFailure } from '@/api/http/failure';
+import type { SessionStatus } from '@/api/types';
 import { withStores } from '@/test/mount';
 import { useSessionStore } from './session';
 
@@ -35,17 +37,69 @@ describe('session store', () => {
     expect(session.pin).toBe('');
   });
 
-  it('is locked from outside, without a call to the server, and forgets what was typed', async () => {
-    const { result: session, api } = withStores(() => useSessionStore(), { pin: '424242', startLocked: false });
-    const status = vi.spyOn(api.session, 'status');
-    await session.load();
-    type(session, '42');
+  describe('locked from outside', () => {
+    async function unlockedWithStatus(answer: () => Promise<SessionStatus>) {
+      const { result: session, api } = withStores(() => useSessionStore(), { pin: '424242', startLocked: false });
+      await session.load();
+      const status = vi.spyOn(api.session, 'status').mockImplementation(answer);
+      return { session, status };
+    }
 
-    session.markLocked();
+    it('is locked before the status answers, forgets what was typed, and asks the status once', async () => {
+      const { session, status } = await unlockedWithStatus(() => new Promise<SessionStatus>(() => undefined));
+      type(session, '42');
 
-    expect(session.locked).toBe(true);
-    expect(session.pin).toBe('');
-    expect(status).toHaveBeenCalledTimes(1);
+      session.markLocked();
+
+      expect(session.locked).toBe(true);
+      expect(session.pin).toBe('');
+      expect(status).toHaveBeenCalledTimes(1);
+    });
+
+    it('holds the keypad for the wait the status reports, and releases it when the wait ends', async () => {
+      const { session } = await unlockedWithStatus(async () => ({ locked: true, retryAfterSeconds: 120 }));
+
+      session.markLocked();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(session.keypadOnHold).toBe(true);
+      expect(session.message).toBe('Muitas tentativas. Tente de novo em 2 minutos.');
+      await vi.advanceTimersByTimeAsync(119_999);
+      expect(session.keypadOnHold).toBe(true);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(session.keypadOnHold).toBe(false);
+      expect(session.message).toBe('');
+    });
+
+    it('leaves the keypad free and says nothing when the status reports no wait', async () => {
+      const { session } = await unlockedWithStatus(async () => ({ locked: true, retryAfterSeconds: 0 }));
+
+      session.markLocked();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(session.keypadOnHold).toBe(false);
+      expect(session.message).toBe('');
+    });
+
+    it('stays locked when the status says the session is open, because the server said it is gone', async () => {
+      const { session } = await unlockedWithStatus(async () => ({ locked: false, retryAfterSeconds: 0 }));
+
+      session.markLocked();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(session.locked).toBe(true);
+    });
+
+    it('shows nothing and keeps the keypad free when the status call fails', async () => {
+      const { session } = await unlockedWithStatus(() => Promise.reject(new ApiFailure('network')));
+
+      session.markLocked();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(session.locked).toBe(true);
+      expect(session.keypadOnHold).toBe(false);
+      expect(session.message).toBe('');
+    });
   });
 
   it('clears the digits, shakes and says so on a wrong PIN', async () => {

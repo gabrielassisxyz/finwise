@@ -85,11 +85,25 @@ export const useSessionStore = defineStore('session', () => {
     markLocked();
   }
 
-  /** The server says the session is gone: no call has to be made to put the PIN screen back. */
+  /** The server says the session is gone. The PIN screen is back at once; the status is asked only for a hold. */
   function markLocked(): void {
     locked.value = true;
     pin.value = '';
     message.value = '';
+    void showHold();
+  }
+
+  // A `locked` answer can arrive while the server holds every attempt, so the PIN screen has to say how long to wait.
+  // The status's own `locked` is not read: the session is gone whatever it says. Without the answer the keypad
+  // stays free, and the hold shows on the next attempt instead.
+  async function showHold(): Promise<void> {
+    let retryAfterSeconds: number;
+    try {
+      ({ retryAfterSeconds } = await api.session.status());
+    } catch {
+      return;
+    }
+    if (retryAfterSeconds > 0) holdKeypad(retryAfterSeconds);
   }
 
   return { ready, locked, pin, message, shakeCount, keypadOnHold, load, pressDigit, eraseDigit, lock, markLocked };
