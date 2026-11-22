@@ -41,9 +41,10 @@ var (
 // the person and one by a rule, one by the model, a pending review with a
 // suggestion, a nickname, own tags and fixed tags that overlap, a note,
 // default lines the current month has and lacks, a split of three parts, an
-// exclusion with a reason and one without, a refund override with its line, a
-// reimbursable purchase, and a history with a reason, a step overwritten
-// since and a note. Each transaction is found with the lookup every write
+// exclusion with a reason and one without, a credit on its own line marked as
+// a refund of another, a refund the person says is not one, a reimbursable
+// purchase with a credit linked to it, and a history with a reason, a step
+// overwritten since and a note. Each transaction is found with the lookup every write
 // uses, and tx-last-of-february is left out of the index on purpose: it has
 // only what its establishment has.
 func inventedTransactionAuthorship(t testing.TB, scratch *authoredtest.Scratch, fixture *ledgertest.Fixture) {
@@ -55,7 +56,7 @@ func inventedTransactionAuthorship(t testing.TB, scratch *authoredtest.Scratch, 
 		return each(a.linesAndReviews, a.establishments, a.tagsAndNote, a.splitAndExclusions, a.refundAndReimbursement, a.firstStepOfTheMarket)
 	})
 	authorOver(t, scratch, snapshot, lines, laterCorrection, "scratch.correctLine", func(a authoring) error {
-		return a.correctTheMarket()
+		return a.laterCorrections()
 	})
 }
 
@@ -241,15 +242,24 @@ func (a authoring) splitAndExclusions() error {
 	)
 }
 
+// refundAndReimbursement says the card's own refund is not one, and links the
+// friend's PIX of January to the coffee of March as its reimbursement: the
+// credit is larger than the purchase, so what it takes off is capped.
 func (a authoring) refundAndReimbursement() error {
+	credit, found, err := lookupTarget(a.ctx, a.writes, txStale)
+	if err == nil && !found {
+		err = fmt.Errorf("%s is not listed", txStale)
+	}
+	if err != nil {
+		return err
+	}
 	return each(
-		func() error {
-			return a.state(txStale, authored.TransactionState{Refund: authoredtest.Some(true), RefundLine: a.line("Delivery")})
-		},
+		func() error { return a.state(txRefund, authored.TransactionState{Refund: authoredtest.Some(false)}) },
 		func() error {
 			return a.state(txFirstOfMarch, authored.TransactionState{
 				Line: a.line("Mercado"), ClassifiedBy: authored.AuthorPerson, AskReason: true,
 				Reimbursable: true, ExpectedCents: authoredtest.Some[money.Cents](500),
+				Credit: &credit.key, CreditCents: authoredtest.Some(credit.listed.Amount),
 			})
 		},
 	)
@@ -262,6 +272,20 @@ func (a authoring) firstStepOfTheMarket() error {
 		},
 		func() error {
 			return a.step(txMonthEnd, authored.StepEffect, "Você colocou em Delivery", reasonOfTheFirstStep)
+		},
+	)
+}
+
+// laterCorrections moves the market's purchase to another line, and marks the
+// salary, which the person had put on Salário, as a refund that takes off
+// Viagens: the company paying a trip back.
+func (a authoring) laterCorrections() error {
+	return each(
+		a.correctTheMarket,
+		func() error {
+			return a.state(txSalary, authored.TransactionState{
+				Line: a.line("Salário"), ClassifiedBy: authored.AuthorPerson, Refund: authoredtest.Some(true), RefundLine: a.line("Viagens"),
+			})
 		},
 	)
 }

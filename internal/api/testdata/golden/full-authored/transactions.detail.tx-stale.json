@@ -21,8 +21,8 @@
   "tags": [],
   "movement": false,
   "person": true,
-  "refund": true,
-  "reimbursementIncome": false,
+  "refund": false,
+  "reimbursementIncome": true,
   "reimbursed": false,
   "excluded": false,
   "split": false,
@@ -64,6 +64,6 @@
   "reimbursement": null,
   "reimbursementCandidates": [],
   "exclusion": null,
-  "refundLine": "Delivery",
+  "refundLine": null,
   "history": []
 }

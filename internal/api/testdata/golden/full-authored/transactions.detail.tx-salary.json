@@ -21,7 +21,7 @@
   "tags": [],
   "movement": false,
   "person": false,
-  "refund": false,
+  "refund": true,
   "reimbursementIncome": false,
   "reimbursed": false,
   "excluded": false,
@@ -64,7 +64,7 @@
   "reimbursement": null,
   "reimbursementCandidates": [],
   "exclusion": null,
-  "refundLine": null,
+  "refundLine": "Viagens",
   "history": [
     {
       "id": "4",

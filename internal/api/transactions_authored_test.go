@@ -8,7 +8,9 @@ import (
 	"testing"
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
+	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
 	"github.com/gabrielassisxyz/finwise/internal/brday"
+	"github.com/gabrielassisxyz/finwise/internal/budgetrules"
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
 	"github.com/gabrielassisxyz/finwise/internal/money"
 	"github.com/gabrielassisxyz/finwise/internal/txrules"
@@ -247,5 +249,83 @@ func TestALinkedCreditIsTakenOffItsPurchaseUpToWhatWasPaid(t *testing.T) {
 	credit := txrules.Transaction{ID: "tx-credit", AccountID: accountItau, Day: "2026-03-12", Amount: 15_000, Posted: true}
 	if wire := rows.transactionOf(credit, ledger.Transaction{}, ledgerContext{}); !wire.ReimbursementIncome || wire.EffectiveAmount != 15_000 {
 		t.Errorf("the linked credit: reimbursementIncome %v effective %d, want true and its own amount", wire.ReimbursementIncome, wire.EffectiveAmount)
+	}
+}
+
+func TestTheRefundMarksAndTheLinkedCreditShowOnTheListAndInThePanel(t *testing.T) {
+	env := newAuthoredReadEnv(t)
+	quarter := transactionsOf(t, env, "2026-03", "last-3-months")
+	want := map[string]map[string]any{
+		txSalary:       {"refund": true, "line": "Salário", "reimbursementIncome": false, "effectiveAmount": 5000.0},
+		txRefund:       {"refund": false, "line": nil, "reimbursementIncome": false},
+		txFirstOfMarch: {"reimbursed": true, "amount": -10.0, "effectiveAmount": 0.0},
+		txStale:        {"refund": false, "reimbursementIncome": true, "effectiveAmount": 50.0},
+	}
+	for id, fields := range want {
+		row := rowWithIDIn(t, quarter, id)
+		for field, value := range fields {
+			if row[field] != value {
+				t.Errorf("%s: %s = %v, want %v", id, field, row[field], value)
+			}
+		}
+	}
+	for id, refundLine := range map[string]any{txSalary: "Viagens", txRefund: nil, txStale: nil} {
+		if got := detailOver(t, env, id)["refundLine"]; got != refundLine {
+			t.Errorf("%s: refundLine = %v, want %v", id, got, refundLine)
+		}
+	}
+}
+
+// Each fact and each decision that Dispose reads takes two values over these
+// rows, and the two line ids differ, so a field dropped, fixed or taken from
+// its neighbour comes out wrong in one of them.
+func TestDisposableHandsDisposeEveryFactOfTheRowAndEveryDecisionAboutIt(t *testing.T) {
+	line, refundLine, partLine := authored.LineID(4), authored.LineID(9), authored.LineID(5)
+	creditKey, creditCents := authored.TxKey(7), money.Cents(1_200)
+	rows := authoredRows{
+		keys: map[string]authored.TxKey{"tx-purchase": 3, "tx-credit": creditKey},
+		kept: map[authored.TxKey]authored.AuthoredTransaction{
+			3: {
+				State: authored.TransactionState{
+					Line: &line, ClassifiedBy: authored.AuthorRule, PendingReason: "Confiança abaixo do limite",
+					Exclusion: authoredtest.Some("Presente"), Refund: authoredtest.Some(false), RefundLine: &refundLine,
+					Credit: &creditKey, CreditCents: &creditCents,
+				},
+				Split: []authored.SplitPart{{Position: 0, Line: &partLine, Cents: 1_000}, {Position: 1, Cents: 3_000}},
+			},
+			creditKey: {State: authored.TransactionState{ClassifiedBy: authored.AuthorPerson, Exclusion: authoredtest.Some(""), Refund: authoredtest.Some(true)}},
+		},
+		linkedCredits: map[authored.TxKey]bool{3: false, creditKey: true},
+	}
+	cases := []struct {
+		listed txrules.Transaction
+		want   budgetrules.Transaction
+	}{
+		{
+			txrules.Transaction{ID: "tx-purchase", Amount: -4_000, Unconverted: true, Movement: txrules.OwnTransfer, Fee: true, Posted: true, Refund: true},
+			budgetrules.Transaction{
+				Amount: -4_000, Unconverted: true, Movement: true, Fee: true, Posted: true, LedgerRefund: true,
+				Line: budgetrules.OnLine(4), LineSetBy: budgetrules.SetByRule, ReviewPending: true,
+				Exclusion: budgetrules.ExcludedWithReason, RefundOverride: budgetrules.RefundNo, RefundLine: budgetrules.OnLine(9),
+				Split:        []budgetrules.SplitPart{{Line: budgetrules.OnLine(5), Amount: 1_000}, {Amount: 3_000}},
+				LinkedCredit: 1_200,
+			},
+		},
+		{
+			txrules.Transaction{ID: "tx-credit", Amount: 1_200},
+			budgetrules.Transaction{
+				Amount: 1_200, LineSetBy: budgetrules.SetByPerson, Exclusion: budgetrules.ExcludedWithoutReason,
+				RefundOverride: budgetrules.RefundYes, LinkedToPurchase: true,
+			},
+		},
+		{
+			txrules.Transaction{ID: "tx-never-indexed", Amount: -500, Posted: true},
+			budgetrules.Transaction{Amount: -500, Posted: true},
+		},
+	}
+	for _, c := range cases {
+		if got := rows.disposable(c.listed); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%s:\n%+v\nwant\n%+v", c.listed.ID, got, c.want)
+		}
 	}
 }
