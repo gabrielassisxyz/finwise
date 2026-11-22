@@ -3,7 +3,7 @@ import { computed, toRef } from 'vue';
 import { useApi } from '@/api/context';
 import type { BudgetLineOption, SubscriptionDetail } from '@/api/types';
 import { useLineChange } from '@/components/transactions/useLineChange';
-import { brl, longDay } from '@/lib/format';
+import { brl, longDay, UNKNOWN } from '@/lib/format';
 import { useRevisionStore } from '@/stores/revision';
 import StatusPill from './StatusPill.vue';
 import { useSubscriptionActions } from './useSubscriptionActions';
@@ -48,7 +48,7 @@ function changeNote(event: Event): void {
     </div>
     <div class="field">
       <span class="label">Linha do budget</span>
-      <button class="line-button" @click="pickLine($event.currentTarget as HTMLElement)">{{ subscription.line }} ▾</button>
+      <button class="line-button" @click="pickLine($event.currentTarget as HTMLElement)">{{ subscription.line ?? UNKNOWN }} ▾</button>
     </div>
     <div class="field">
       <span class="label">Status</span>
