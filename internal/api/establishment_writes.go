@@ -53,18 +53,26 @@ func setTransactionDefaultLine(ctx context.Context, args []json.RawMessage, writ
 	if !sectionsOf(target.listed).Establishment {
 		return nil, refuse(reasonNotFound)
 	}
-	lines, err := linesOfMonth(ctx, writes.Authored, brday.MonthOf(nowOf(ctx)))
-	if err != nil {
-		return nil, err
-	}
-	line, found := lines.idOf(name)
-	if !found {
-		return nil, refuse(reasonUnknownLine)
-	}
-	if err := writes.Recorder.SetDefaultLine(ctx, target.listed.EstablishmentKey, line); err != nil {
+	if err := storeDefaultLine(ctx, writes, target.listed.EstablishmentKey, name); err != nil {
 		return nil, err
 	}
 	return changeResultOf(ctx, writes.Recorder)
+}
+
+// storeDefaultLine is the one way a default line is kept, whichever door the
+// person came through: the name is resolved in the budget in force for the
+// current month, whatever month a transaction they were looking at is in, and
+// stored by id. A name that budget lacks is refused.
+func storeDefaultLine(ctx context.Context, writes Writes, establishmentKey, name string) error {
+	lines, err := linesOfMonth(ctx, writes.Authored, brday.MonthOf(nowOf(ctx)))
+	if err != nil {
+		return err
+	}
+	line, found := lines.idOf(name)
+	if !found {
+		return refuse(reasonUnknownLine)
+	}
+	return writes.Recorder.SetDefaultLine(ctx, establishmentKey, line)
 }
 
 // addEstablishmentFixedTag gives the establishment a tag that every
