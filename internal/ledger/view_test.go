@@ -241,6 +241,31 @@ func TestAViewAnswersAnUnusableSnapshotWithTheTypedErrors(t *testing.T) {
 	}
 }
 
+func TestAViewWhoseFirstOpenFailedKeepsThatErrorWhenTheFileAppears(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "pluggy-snapshot.db")
+	reader := ledger.New(path)
+	view := reader.View()
+	defer view.Close()
+	if _, err := view.Accounts(t.Context()); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("first query over a missing file: err = %v, want fs.ErrNotExist", err)
+	}
+
+	arrived := populated(t)
+	renameOver(t, arrived, path)
+
+	transactions, err := view.CleanTransactions(t.Context(), february2026(t))
+	if !errors.Is(err, fs.ErrNotExist) || len(transactions) != 0 {
+		t.Errorf("same view after the file appeared = %v, %v; want fs.ErrNotExist and no row", transactions, err)
+	}
+
+	later := reader.View()
+	defer later.Close()
+	transactions, err = later.CleanTransactions(t.Context(), february2026(t))
+	if err != nil || len(transactions) != 1 || transactions[0].ID != "tx-1" {
+		t.Errorf("view opened after the file appeared: %v, %v; want tx-1", transactions, err)
+	}
+}
+
 func TestAQueryOnAClosedViewIsAnErrorNotAFreshOpen(t *testing.T) {
 	f := populated(t)
 	reader := ledger.New(f.Path)
