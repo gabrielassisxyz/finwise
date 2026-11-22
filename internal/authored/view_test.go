@@ -1,6 +1,7 @@
 package authored_test
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"testing"
@@ -40,6 +41,36 @@ func TestAViewKeepsTheStateOfItsFirstReadWhileAnotherConnectionCommits(t *testin
 	defer later.Close()
 	if after := viewMonth(t, later); after != "2026-07" {
 		t.Errorf("a view made after the commit saw %s, want 2026-07", after)
+	}
+}
+
+// The transaction outlives the read that began it: cancelling that read's
+// context must neither end the view nor let a later read see a newer state.
+func TestCancellingTheFirstReadsContextKeepsTheViewOnItsState(t *testing.T) {
+	database := openDatabase(t, databasePath(t), creationInstant, nil)
+	view := database.View()
+	defer view.Close()
+	first, cancel := context.WithCancel(t.Context())
+	before, found, err := view.TrackingStartMonth(first)
+	if err != nil || !found {
+		t.Fatalf("first read: %q found %v err %v", before, found, err)
+	}
+	cancel()
+
+	err = database.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.Exec(moveTrackingStart)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	after, found, err := view.TrackingStartMonth(t.Context())
+	if err != nil || !found {
+		t.Fatalf("a read after the first read's context was cancelled: found %v err %v", found, err)
+	}
+	if after != before {
+		t.Errorf("after the cancel the view read %s, its first read %s", after, before)
 	}
 }
 
