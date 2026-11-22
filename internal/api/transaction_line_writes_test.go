@@ -393,6 +393,39 @@ func TestConfirmLineSettlesOnTheLineOrTheSuggestion(t *testing.T) {
 	}
 }
 
+// A stored line its month's budget lacks is no line, as the list reads it, so
+// confirming falls back to the review's suggestion, and with none there is
+// nothing to confirm.
+func TestConfirmLineReadsTheLinesAsTheTransactionsMonthNamesThem(t *testing.T) {
+	env := newLineEnv(t, newFullLedger(t), lineVersionsWithStationery)
+	var stationery authored.LineID
+	for _, line := range budgetIn(t, env.scratch.Database, "2026-02").Lines {
+		if line.Name == stationeryLine {
+			stationery = line.ID
+		}
+	}
+	market := marketLine
+	authoredOver(t, env.scratch, newFullLedger(t), func(a authoring) error {
+		return each(
+			func() error {
+				return a.state(txBoleto, authored.TransactionState{
+					Line: &stationery, ClassifiedBy: authored.AuthorModel, PendingReason: "Confiança abaixo do limite", PendingLine: &market,
+				})
+			},
+			func() error {
+				return a.state(txInstalment, authored.TransactionState{Line: &stationery, ClassifiedBy: authored.AuthorModel})
+			},
+		)
+	})
+	changeIDOfAnswer(t, env.post("transactions.confirmLine", `["tx-boleto"]`))
+	if panel := env.panelOf(txBoleto); !textIs(panel.Line, "Feira") || len(panel.History) != 1 || panel.History[0].Text != "Você confirmou Feira" {
+		t.Errorf("confirming a line the month lacks reads %+v", panel)
+	}
+	if response := env.post("transactions.confirmLine", `["tx-instalment"]`); response.Code != http.StatusOK || response.Body.String() != "null" {
+		t.Errorf("confirming a line the month lacks, with no suggestion, answered %d %s", response.Code, response.Body.String())
+	}
+}
+
 func TestSetLineForManyIsAllOrNothing(t *testing.T) {
 	env := newLineEnv(t, newFullLedger(t), lineVersions)
 	authoredOver(t, env.scratch, newFullLedger(t), reviewsOfTheFullLedger)
@@ -692,6 +725,7 @@ func TestALineWriteOverAMissingSnapshotAnswersLedgerUnavailable(t *testing.T) {
 	everything := scratch.Everything(t)
 	for method, arguments := range map[string]string{
 		"setLine": `["tx-pending","Feira"]`, "confirmLine": `["tx-pending"]`, "setLineForMany": `[["tx-pending"],"Feira"]`,
+		"setReason": `["tx-pending","é do apartamento"]`, "undoHistoryStep": `["tx-pending","1"]`,
 	} {
 		expectError(t, method, env.call("/api/transactions/"+method, arguments, cookie), http.StatusServiceUnavailable, "ledger_unavailable")
 	}
