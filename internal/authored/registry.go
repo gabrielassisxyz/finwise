@@ -116,6 +116,7 @@ var productionTables = []Table{
 	historyReasonsEntry,
 	potSettingsEntry(),
 	potLinesEntry(),
+	subscriptionsEntry(),
 }
 
 // notJournaledTables are the tables of finwise.db deliberately kept out of the

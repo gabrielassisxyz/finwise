@@ -126,4 +126,13 @@ var allStatements = map[string]string{
 	"statementPotLineUpdate":         statementPotLineUpdate,
 	"statementPotLineDelete":         statementPotLineDelete,
 	"statementLinesOfPot":            statementLinesOfPot,
+
+	"statementSubscriptionRow":             statementSubscriptionRow,
+	"statementSubscriptionAll":             statementSubscriptionAll,
+	"statementSubscriptionInsert":          statementSubscriptionInsert,
+	"statementSubscriptionUpdate":          statementSubscriptionUpdate,
+	"statementSubscriptionDelete":          statementSubscriptionDelete,
+	"statementSubscriptionsInOrder":        statementSubscriptionsInOrder,
+	"statementSubscriptionOfEstablishment": statementSubscriptionOfEstablishment,
+	"statementNextSubscriptionID":          statementNextSubscriptionID,
 }
