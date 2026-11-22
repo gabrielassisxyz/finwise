@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createFakeApi } from '@/api/fake';
-import { detailRows, historyText, lineLabel, originSentence } from './panelText';
+import { FIRST_PENDING_ID, NO_SUGGESTION, stateWithPending } from '@/test/pendingStates';
+import type { PendingReview } from '@/api/types';
+import { detailRows, hasLineToConfirm, historyText, lineLabel, originSentence } from './panelText';
 
 async function detailOf(id: string) {
   const detail = await createFakeApi().transactions.detail(id);
@@ -65,5 +67,40 @@ describe('historyText', () => {
     const [newest, oldest] = (await detailOf('t36')).history;
     expect(historyText(newest!)).toBe('Você alterou para Mercado · 04/11 · "é o mercado do bairro"');
     expect(historyText(oldest!)).toBe('IA classificou como Lazer · 03/11');
+  });
+});
+
+describe('a pending review the app has nothing to suggest for', () => {
+  const detailOver = async (pending: PendingReview) => {
+    const detail = await createFakeApi({ state: stateWithPending(pending) }).transactions.detail(FIRST_PENDING_ID);
+    if (!detail) throw new Error('no such transaction');
+    return detail;
+  };
+
+  it('has no line to name and gives the reason as its origin', async () => {
+    const detail = await detailOver(NO_SUGGESTION);
+    expect(lineLabel(detail)).toBe('Sem linha');
+    expect(originSentence(detail)).toBe('Estabelecimento novo');
+  });
+
+  it('keeps the sentence of a suggestion with a confidence, and gives the reason for one without', async () => {
+    const suggestion = { reason: 'Baixa confiança', suggestion: 'Casa', justification: null };
+    expect(originSentence(await detailOver({ ...suggestion, confidence: 44 }))).toBe('sugestão da IA, 44% de confiança');
+    expect(originSentence(await detailOver({ ...suggestion, confidence: null }))).toBe('Baixa confiança');
+  });
+
+  it('keeps the movement sentence before the review', async () => {
+    const detail = { ...(await detailOver(NO_SUGGESTION)), movement: true };
+    expect(originSentence(detail)).toBe('movimentação não entra no budget');
+  });
+});
+
+describe('hasLineToConfirm', () => {
+  it('is true for a suggestion and for a line the model set, false for a review with no suggestion', async () => {
+    expect(hasLineToConfirm(await detailOf('t5'))).toBe(true);
+    expect(hasLineToConfirm(await detailOf('t4'))).toBe(true);
+    expect(hasLineToConfirm(await detailOf('t2'))).toBe(false);
+    const bare = await createFakeApi({ state: stateWithPending(NO_SUGGESTION) }).transactions.detail(FIRST_PENDING_ID);
+    expect(hasLineToConfirm(bare!)).toBe(false);
   });
 });

@@ -117,7 +117,7 @@ func TestTakingALineStepBackRestoresWhatWasThereAndClosesTheQuestion(t *testing.
 	if !sameKept(after, before) {
 		t.Errorf("taking the step back left %+v, was %+v", after, before)
 	}
-	if panel := env.panelOf(txBoleto); panel.AskReason || len(panel.History) != 0 || panel.Pending == nil || panel.Pending.Suggestion != "Feira" {
+	if panel := env.panelOf(txBoleto); panel.AskReason || len(panel.History) != 0 || panel.Pending == nil || panel.Pending.Suggestion == nil || *panel.Pending.Suggestion != "Feira" {
 		t.Errorf("the panel after the step's undo reads %+v", panel)
 	}
 	expectUndone(t, "the step's undo", env.undo(undone))

@@ -50,4 +50,11 @@ var budgetWriteCases = []writeCase{
 	{method: "budget.applyScenario", arguments: `["2026-03",` + twiceTheName + `]`, expects: expectsRefusal, reason: reasonMonthClosed, state: budgetState("2026-03")},
 	{method: "budget.save", arguments: `["2026-03",` + twiceTheName + `]`, expects: expectsRefusal, reason: reasonInvalidBudget, state: budgetState()},
 	{method: "budget.saveScenario", arguments: `["Antes",` + twiceTheName + `]`, expects: expectsRefusal, reason: reasonInvalidBudget, state: budgetState()},
+	{method: "budget.evaluateScenario", arguments: `["2026-03",` + withoutTheExtra + `]`, expects: expectsEvaluation, state: budgetState()},
 }
+
+// withoutTheExtra is a scenario of the invented budget in which the extra
+// income is gone, Mercado is called Feira and a line is new.
+const withoutTheExtra = `[{"key":"rec","name":"Receita","lines":[{"id":"2","name":"Salário","amount":10000},` +
+	`{"id":"3","name":"Renda extra","amount":0,"flag":"Não garantida"}]},` +
+	`{"key":"var","name":"Variáveis","lines":[{"id":"6","name":"Feira","amount":400},{"name":"Mercado","amount":50}]}]`

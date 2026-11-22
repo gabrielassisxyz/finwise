@@ -38,63 +38,26 @@ func WriteState(ctx context.Context, recorder *authored.Recorder, key authored.T
 	})
 }
 
-// AddTag gives the transaction at key a tag, at the place after its last one.
-// A tag it already has stays where it is.
+// AddTag gives the transaction at key a tag, at the place after its last. A tag
+// it already has stays where it is.
 func AddTag(ctx context.Context, recorder *authored.Recorder, key authored.TxKey, tag string) error {
-	view := recorder.View()
-	defer view.Close()
-	found, err := view.Transactions(ctx, []authored.TxKey{key})
-	if err != nil {
-		return err
-	}
-	position, has := nextPosition(found[key].Tags, tag)
-	if has {
-		return nil
-	}
-	return recorder.Put(ctx, "tx_tags", authored.Row{
-		"tx_key": authored.Integer(int64(key)), "tag": authored.Text(tag), "position": authored.Integer(position),
-	})
+	return recorder.AddTag(ctx, key, tag)
 }
 
 // RemoveTag takes a tag off the transaction at key and moves no other.
 func RemoveTag(ctx context.Context, recorder *authored.Recorder, key authored.TxKey, tag string) error {
-	return recorder.Delete(ctx, "tx_tags", []authored.Value{authored.Integer(int64(key)), authored.Text(tag)})
+	return recorder.RemoveTag(ctx, key, tag)
 }
 
 // AddFixedTag gives an establishment a tag every transaction of it carries, at
 // the place after its last one. A tag it already has stays where it is.
 func AddFixedTag(ctx context.Context, recorder *authored.Recorder, establishment, tag string) error {
-	view := recorder.View()
-	defer view.Close()
-	found, err := view.Establishments(ctx, []string{establishment})
-	if err != nil {
-		return err
-	}
-	position, has := nextPosition(found[establishment].FixedTags, tag)
-	if has {
-		return nil
-	}
-	return recorder.Put(ctx, "establishment_tags", authored.Row{
-		"key": authored.Text(establishment), "tag": authored.Text(tag), "position": authored.Integer(position),
-	})
+	return recorder.AddFixedTag(ctx, establishment, tag)
 }
 
 // RemoveFixedTag takes a fixed tag off an establishment and moves no other.
 func RemoveFixedTag(ctx context.Context, recorder *authored.Recorder, establishment, tag string) error {
-	return recorder.Delete(ctx, "establishment_tags", []authored.Value{authored.Text(establishment), authored.Text(tag)})
-}
-
-// nextPosition is the place after the last of tags, and whether tag is among
-// them already. A place freed by a removal is not handed out again unless it
-// was the last.
-func nextPosition(tags []authored.Tag, tag string) (int64, bool) {
-	if slices.ContainsFunc(tags, func(held authored.Tag) bool { return held.Name == tag }) {
-		return 0, true
-	}
-	if len(tags) == 0 {
-		return 0, false
-	}
-	return tags[len(tags)-1].Position + 1, false
+	return recorder.RemoveFixedTag(ctx, establishment, tag)
 }
 
 // WriteEstablishment sets an establishment's nickname, empty for none, and its

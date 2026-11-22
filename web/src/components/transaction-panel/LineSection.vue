@@ -3,7 +3,7 @@ import type { TransactionDetail } from '@/api/types';
 import { saveStored, vStored } from '@/lib/storedField';
 import { usePanelActions } from './panelActions';
 import PanelSection from './PanelSection.vue';
-import { lineLabel, originSentence } from './panelText';
+import { hasLineToConfirm, lineLabel, originSentence } from './panelText';
 
 defineProps<{ detail: TransactionDetail }>();
 
@@ -19,8 +19,8 @@ const anchorOf = (event: Event): HTMLElement => event.currentTarget as HTMLEleme
       <span v-if="originSentence(detail)" class="origin">· {{ originSentence(detail) }}</span>
       <span class="chevron">▾</span>
     </button>
-    <template v-if="detail.justification !== null">
-      <span class="justification">{{ detail.justification }}</span>
+    <template v-if="hasLineToConfirm(detail)">
+      <span v-if="detail.justification" class="justification">{{ detail.justification }}</span>
       <div class="actions">
         <button class="confirm" @click="actions.confirm()">Confirmar</button>
         <button class="change" @click="actions.pickLine(anchorOf($event), detail)">Alterar</button>

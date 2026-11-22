@@ -21,14 +21,12 @@ const changePin = "session.changePin"
 // Each piece of work that implements one removes its name here, and the list is
 // empty when every write of the contract is implemented.
 var writesWithoutHandler = []string{
-	"transactions.addTagToMany", "transactions.excludeMany",
-	"transactions.setNickname",
-	"transactions.setDefaultLine", "transactions.addFixedTag", "transactions.removeFixedTag",
-	"transactions.addTag", "transactions.removeTag", "transactions.setNote", "transactions.setSplit",
+	"transactions.excludeMany",
+	"transactions.setSplit",
 	"transactions.setReimbursable", "transactions.setExpectedReimbursement",
 	"transactions.linkReimbursement", "transactions.unlinkReimbursement", "transactions.setExcluded",
 	"transactions.setExclusionReason", "transactions.setRefund", "transactions.setRefundLine",
-	"budget.evaluateScenario", "subscriptions.create", "subscriptions.acceptSuggestion",
+	"subscriptions.create", "subscriptions.acceptSuggestion",
 	"subscriptions.rejectSuggestion", "subscriptions.setStatus", "subscriptions.setLine",
 	"subscriptions.setReviewDate", "subscriptions.setNote", "review.acceptPending", "review.approve",
 	"review.refuse", "review.propose", "review.dismissWarning", "review.runWarningAction",
@@ -128,20 +126,19 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 		t.Error(problem)
 	}
 	implemented := []string{
-		"budget.applyScenario", "budget.save", "budget.saveScenario", "changes.undo",
+		"budget.applyScenario", "budget.evaluateScenario", "budget.save", "budget.saveScenario", "changes.undo",
 		"settings.setCardLabel", "settings.setClosing", "settings.setMinExamples", "settings.setPotBucket",
 		"settings.setThreshold", "settings.toggleLinkedLine",
-		"transactions.applyLineToEstablishment", "transactions.confirmLine", "transactions.setLine",
-		"transactions.setLineForMany", "transactions.setReason", "transactions.undoHistoryStep",
+		"transactions.addFixedTag", "transactions.addTag", "transactions.addTagToMany", "transactions.applyLineToEstablishment",
+		"transactions.confirmLine", "transactions.removeFixedTag", "transactions.removeTag", "transactions.setDefaultLine",
+		"transactions.setLine", "transactions.setLineForMany", "transactions.setNickname", "transactions.setNote",
+		"transactions.setReason", "transactions.undoHistoryStep",
 	}
 	if !slices.Equal(registered, implemented) {
 		t.Errorf("the registry implements %v, want %v", registered, implemented)
 	}
-	if len(writesWithoutHandler) != 39 || slices.Contains(writesWithoutHandler, changePin) {
-		t.Errorf("the list holds %d names, want 39 without %s", len(writesWithoutHandler), changePin)
-	}
-	if !slices.Contains(writesWithoutHandler, "budget.evaluateScenario") {
-		t.Error("budget.evaluateScenario has no handler yet and belongs in the list")
+	if len(writesWithoutHandler) != 30 || slices.Contains(writesWithoutHandler, changePin) {
+		t.Errorf("the list holds %d names, want 30 without %s", len(writesWithoutHandler), changePin)
 	}
 }
 

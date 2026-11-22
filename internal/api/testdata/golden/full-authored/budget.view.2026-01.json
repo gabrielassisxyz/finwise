@@ -1,0 +1,291 @@
+{
+  "month": "2026-01",
+  "closed": true,
+  "income": 11500.00,
+  "allocated": 11500.00,
+  "investmentRate": 67,
+  "groups": [
+    {
+      "key": "rec",
+      "name": "Receita",
+      "subtotal": 11500.00,
+      "subtotalSpent": null,
+      "over": false,
+      "lines": [
+        {
+          "name": "Salário",
+          "cells": [
+            {
+              "type": "money",
+              "amount": 10000.00
+            },
+            {
+              "type": "money",
+              "amount": 0.00
+            },
+            {
+              "type": "none"
+            }
+          ],
+          "marks": [],
+          "over": false,
+          "bar": null,
+          "expandable": true
+        },
+        {
+          "name": "Renda extra",
+          "cells": [
+            {
+              "type": "money",
+              "amount": 1500.00
+            },
+            {
+              "type": "money",
+              "amount": 0.00
+            },
+            {
+              "type": "none"
+            }
+          ],
+          "marks": [
+            {
+              "text": "Não garantida",
+              "tone": "neutral"
+            }
+          ],
+          "over": false,
+          "bar": null,
+          "expandable": true
+        }
+      ]
+    },
+    {
+      "key": "fix",
+      "name": "Fixos e essenciais",
+      "subtotal": 2500.00,
+      "subtotalSpent": 0.00,
+      "over": false,
+      "lines": [
+        {
+          "name": "Contas da casa",
+          "cells": [
+            {
+              "type": "money",
+              "amount": 2000.00
+            },
+            {
+              "type": "money",
+              "amount": 0.00
+            },
+            {
+              "type": "difference",
+              "amount": 2000.00
+            }
+          ],
+          "marks": [],
+          "over": false,
+          "bar": null,
+          "expandable": true
+        },
+        {
+          "name": "Saúde",
+          "cells": [
+            {
+              "type": "money",
+              "amount": 500.00
+            },
+            {
+              "type": "money",
+              "amount": 0.00
+            },
+            {
+              "type": "difference",
+              "amount": 500.00
+            }
+          ],
+          "marks": [],
+          "over": false,
+          "bar": null,
+          "expandable": true
+        }
+      ]
+    },
+    {
+      "key": "var",
+      "name": "Variáveis",
+      "subtotal": 600.00,
+      "subtotalSpent": 0.00,
+      "over": false,
+      "lines": [
+        {
+          "name": "Mercado",
+          "cells": [
+            {
+              "type": "money",
+              "amount": 400.00
+            },
+            {
+              "type": "money",
+              "amount": 0.00
+            },
+            {
+              "type": "difference",
+              "amount": 400.00
+            }
+          ],
+          "marks": [],
+          "over": false,
+          "bar": 0,
+          "expandable": true
+        },
+        {
+          "name": "Delivery",
+          "cells": [
+            {
+              "type": "money",
+              "amount": 200.00
+            },
+            {
+              "type": "money",
+              "amount": 0.00
+            },
+            {
+              "type": "difference",
+              "amount": 200.00
+            }
+          ],
+          "marks": [],
+          "over": false,
+          "bar": 0,
+          "expandable": true
+        }
+      ]
+    },
+    {
+      "key": "prov",
+      "name": "Provisões",
+      "subtotal": 150.00,
+      "subtotalSpent": null,
+      "over": false,
+      "lines": [
+        {
+          "name": "Remédios",
+          "cells": [
+            {
+              "type": "money",
+              "amount": 150.00
+            },
+            {
+              "type": "money",
+              "amount": 800.00
+            },
+            {
+              "type": "next-charge",
+              "charge": null
+            }
+          ],
+          "marks": [],
+          "over": false,
+          "bar": null,
+          "expandable": false
+        }
+      ]
+    },
+    {
+      "key": "res",
+      "name": "Reservas de desejo",
+      "subtotal": 600.00,
+      "subtotalSpent": null,
+      "over": false,
+      "lines": [
+        {
+          "name": "Viagens",
+          "cells": [
+            {
+              "type": "money",
+              "amount": 600.00
+            },
+            {
+              "type": "money",
+              "amount": 7000.00
+            },
+            {
+              "type": "money",
+              "amount": 0.00
+            }
+          ],
+          "marks": [],
+          "over": false,
+          "bar": null,
+          "expandable": true
+        }
+      ]
+    },
+    {
+      "key": "rf",
+      "name": "Rainy Funds",
+      "subtotal": 0.00,
+      "subtotalSpent": null,
+      "over": false,
+      "lines": []
+    },
+    {
+      "key": "tar",
+      "name": "Tarifas e juros",
+      "subtotal": 0.00,
+      "subtotalSpent": null,
+      "over": false,
+      "lines": [
+        {
+          "name": "Tarifas e juros",
+          "cells": [
+            {
+              "type": "money",
+              "amount": 0.00
+            },
+            {
+              "type": "none"
+            },
+            {
+              "type": "none"
+            }
+          ],
+          "marks": [],
+          "over": false,
+          "bar": null,
+          "expandable": true
+        }
+      ]
+    },
+    {
+      "key": "inv",
+      "name": "Investimento",
+      "subtotal": 7650.00,
+      "subtotalSpent": null,
+      "over": false,
+      "lines": [
+        {
+          "name": "Investimento",
+          "cells": [
+            {
+              "type": "money",
+              "amount": 7650.00
+            },
+            {
+              "type": "money",
+              "amount": 0.00
+            },
+            {
+              "type": "percent",
+              "value": 67
+            }
+          ],
+          "marks": [],
+          "over": false,
+          "bar": null,
+          "expandable": false
+        }
+      ]
+    }
+  ]
+}

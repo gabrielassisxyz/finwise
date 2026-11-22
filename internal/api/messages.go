@@ -87,6 +87,13 @@ const (
 	budgetGroupInvestment = "Investimento"
 )
 
+// The marks of the budget screen: a variable line past its cap, and a budget
+// that plans more than its income.
+const (
+	budgetMarkOverspent  = "Estourou"
+	budgetMarkOverIncome = "Budget maior que a receita"
+)
+
 // The steps a line change leaves in a transaction's history.
 
 func lineChangedStep(line string) string { return "Você alterou para " + line }

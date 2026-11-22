@@ -136,17 +136,26 @@ type cardView struct {
 	listed    []txrules.Transaction
 	rows      map[string]ledger.Transaction
 	purchases []cardrules.Purchase
+	// establishments is what the person kept about the establishments of the
+	// card's rows, for the names they gave them; empty where the card is read as
+	// the bank alone has it.
+	establishments map[string]authored.Establishment
 }
 
 // loadCardWithClosingSetting is the card as the person's closing setting places
 // its bills: in manual mode the rules take the manual day for every bill the
-// ledger gives no closing date, in auto none, whatever day is stored.
+// ledger gives no closing date, in auto none, whatever day is stored. Its
+// purchases and bill items carry the names the person gave their
+// establishments.
 func loadCardWithClosingSetting(ctx context.Context, views Views) (*cardView, error) {
 	card, err := loadCard(ctx, views.Ledger)
 	if err != nil || card == nil {
 		return card, err
 	}
 	if card.rules.ManualClosingDay, err = manualClosingDayOf(ctx, views.Authored); err != nil {
+		return nil, err
+	}
+	if card.establishments, err = establishmentsOf(ctx, views.Authored, card.charged); err != nil {
 		return nil, err
 	}
 	return card, nil
@@ -377,7 +386,7 @@ func (card *cardView) payAheadOf(next cardrules.NextBillAmount) payAheadWire {
 	}
 	for _, transaction := range card.listed {
 		if included[transaction.ID] {
-			wire.Purchases = append(wire.Purchases, purchaseWireOf(transaction))
+			wire.Purchases = append(wire.Purchases, card.purchaseWireOf(transaction))
 		}
 	}
 	return wire
@@ -394,7 +403,7 @@ func (card *cardView) mayFallBefore(closing brday.Day) []cardPurchaseWire {
 	for _, transaction := range card.listed {
 		billID := billIDOf(card.rows[transaction.ID])
 		if transaction.Day >= from && transaction.Day < closing && (billID == nil || *billID == "") {
-			listed = append(listed, purchaseWireOf(transaction))
+			listed = append(listed, card.purchaseWireOf(transaction))
 		}
 	}
 	return listed
@@ -408,10 +417,14 @@ func shiftedDay(day brday.Day, days int) (brday.Day, bool) {
 	return dayOf(parsed.AddDate(0, 0, days)), true
 }
 
-func purchaseWireOf(transaction txrules.Transaction) cardPurchaseWire {
+func (card *cardView) purchaseWireOf(transaction txrules.Transaction) cardPurchaseWire {
 	return cardPurchaseWire{
-		TransactionID: transaction.ID, Name: transaction.Name, Day: string(transaction.Day), Amount: Reais(transaction.Amount),
+		TransactionID: transaction.ID, Name: card.shownNameOf(transaction), Day: string(transaction.Day), Amount: Reais(transaction.Amount),
 	}
+}
+
+func (card *cardView) shownNameOf(transaction txrules.Transaction) string {
+	return shownName(card.establishments, transaction.EstablishmentKey, transaction.Name)
 }
 
 // pastBills are the bills of the card other than the open one, newest first.
@@ -444,7 +457,7 @@ func (card *cardView) itemsOf(billID string) []cardBillItemWire {
 	items := []cardBillItemWire{}
 	for _, transaction := range card.billRows(billID) {
 		day := string(transaction.Day)
-		items = append(items, cardBillItemWire{Name: transaction.Name, Day: &day, Amount: Reais(-transaction.Amount)})
+		items = append(items, cardBillItemWire{Name: card.shownNameOf(transaction), Day: &day, Amount: Reais(-transaction.Amount)})
 	}
 	return items
 }

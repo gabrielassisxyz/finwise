@@ -6,8 +6,8 @@ import (
 )
 
 // What the writes that put transactions on lines keep: a transaction's line and
-// who put it there, the question of why, the person's reason beside a step, an
-// establishment's default line, and the undo of one step of a history.
+// who put it there, the question of why, the person's reason beside a step, and
+// the undo of one step of a history.
 
 const statementStepsOfChange = `SELECT id, tx_key FROM history_steps WHERE change_id = ? ORDER BY id`
 
@@ -38,12 +38,6 @@ func (recorder *Recorder) SetStepReason(ctx context.Context, step StepID, reason
 		return recorder.Delete(ctx, historyReasonsTable, []Value{Integer(int64(step))})
 	}
 	return recorder.Put(ctx, historyReasonsTable, Row{"step_id": Integer(int64(step)), "reason": Text(reason)})
-}
-
-// SetDefaultLine makes line, by its id, the default line of an establishment or
-// a person. It belongs to no month: a read names it in the month it reads.
-func (recorder *Recorder) SetDefaultLine(ctx context.Context, establishment string, line LineID) error {
-	return recorder.Set(ctx, establishmentsTable, []Value{Text(establishment)}, Row{"default_line_id": Integer(int64(line))})
 }
 
 // ChangeStep is a step of a history that a change wrote, with the transaction

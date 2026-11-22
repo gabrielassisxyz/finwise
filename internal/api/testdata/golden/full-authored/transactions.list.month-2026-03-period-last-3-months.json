@@ -256,7 +256,7 @@
       "reason": "Confiança abaixo do limite",
       "suggestion": "Contas da casa",
       "confidence": 64,
-      "justification": ""
+      "justification": null
     },
     "posted": true,
     "tags": [],

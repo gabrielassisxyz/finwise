@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "changeId": "2"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "note",
+      "before": "abastecer na sexta",
+      "after": ""
+    }
+  ]
+}
