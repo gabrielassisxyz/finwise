@@ -21,19 +21,28 @@ interface Call {
  * kept whole: the file name is a lossy slug. A case is `readCase{"m.n", `[...]`}`, or a bare entry of the base list.
  */
 function recordedCalls(): Call[] {
+  return goTestSources().flatMap(callsIn);
+}
+
+function goTestSources(): string[] {
+  return readdirSync(API_SOURCES)
+    .filter((name) => name.endsWith('_test.go'))
+    .map((file) => readFileSync(join(API_SOURCES, file), 'utf8'));
+}
+
+function callsIn(source: string): Call[] {
   const entry = '"([A-Za-z]+\\.[A-Za-z]+)",\\s*`(\\[[^`]*\\])`';
   const appended = new RegExp(`readCase\\{${entry}\\}`, 'g');
   const listed = new RegExp(`^\\t\\{${entry}\\},$`, 'gm');
-  const calls: Call[] = [];
-  for (const file of readdirSync(API_SOURCES).filter((name) => name.endsWith('_test.go'))) {
-    const source = readFileSync(join(API_SOURCES, file), 'utf8');
-    const baseList = source.match(/var readCases = \[\]readCase\{\n([\s\S]*?)\n\}/)?.[1] ?? '';
-    for (const [, method, args] of [...source.matchAll(appended), ...baseList.matchAll(listed)]) {
-      calls.push({ method: method!, args: JSON.parse(args!) as unknown[] });
-    }
-  }
-  return calls;
+  const baseList = source.match(/var readCases = \[\]readCase\{\n([\s\S]*?)\n\}/)?.[1] ?? '';
+  return [...source.matchAll(appended), ...baseList.matchAll(listed)].map(([, method, args]) => ({
+    method: method!,
+    args: JSON.parse(args!) as unknown[],
+  }));
 }
+
+/** The list of the third read state: the full ledger with an invented authored state, whose files are not the empty ledger's. */
+const AUTHORED_LIST = /var authoredReadCases = \[\]authoredReadCase\{\n[\s\S]*?\n\}\n/;
 
 interface Difference {
   method: string;
@@ -84,6 +93,16 @@ describe('the backend and the stand-in agree on an empty ledger', () => {
     const named = new Set(calls.map((call) => goldenFileName(call.method, call.args)));
     expect(files.filter((file) => !named.has(file))).toEqual([]);
     expect([...named].filter((file) => !files.includes(file))).toEqual([]);
+  });
+
+  it('leaves the calls of the authored read cases out', () => {
+    const lists = goTestSources().flatMap((source) => source.match(AUTHORED_LIST) ?? []);
+    expect(lists.length).toBe(1);
+    expect(lists[0]!.match(/authoredRead\("/g)?.length ?? 0).toBeGreaterThan(0);
+    for (const source of goTestSources()) {
+      const without = source.replace(AUTHORED_LIST, '');
+      expect(callsIn(source)).toEqual(callsIn(without));
+    }
   });
 
   it('compares every read method of the manifest', () => {

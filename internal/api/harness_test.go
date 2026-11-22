@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
 	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 )
@@ -36,6 +37,14 @@ type readEnv struct {
 func newReadEnv(t *testing.T, fixture *ledgertest.Fixture) *readEnv {
 	t.Helper()
 	env := newTestEnv(t, withLedger(fixture.Path, fixtureNow))
+	return &readEnv{testEnv: env, cookie: env.unlock()}
+}
+
+// newReadEnvOver is newReadEnv on both stores: the fixture ledger and the app's
+// database, which is the one a server started with --db reads.
+func newReadEnvOver(t *testing.T, fixture *ledgertest.Fixture, database *authored.Database) *readEnv {
+	t.Helper()
+	env := newTestEnv(t, withLedger(fixture.Path, fixtureNow), withDatabase(database))
 	return &readEnv{testEnv: env, cookie: env.unlock()}
 }
 

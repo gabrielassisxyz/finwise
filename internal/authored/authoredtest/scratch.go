@@ -166,23 +166,8 @@ func (scratch *Scratch) State(t testing.TB) string {
 	if err != nil {
 		t.Fatalf("authoredtest: dump: %v", err)
 	}
-	rows, err := scratch.Inspect(t).QueryContext(t.Context(), selectJournal)
-	if err != nil {
-		t.Fatalf("authoredtest: %v", err)
-	}
-	defer rows.Close()
-	var journal []string
-	for rows.Next() {
-		var line string
-		if err := rows.Scan(&line); err != nil {
-			t.Fatalf("authoredtest: %v", err)
-		}
-		journal = append(journal, line)
-	}
-	if err := rows.Err(); err != nil {
-		t.Fatalf("authoredtest: %v", err)
-	}
-	return dump + "--\n" + strings.Join(journal, "\n")
+	journal := scratch.Journal(t)
+	return dump + "--\n" + journal
 }
 
 const overwriteFactAmount = `UPDATE scratch_facts SET amount = ? WHERE id = ?`
