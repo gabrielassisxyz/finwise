@@ -52,6 +52,14 @@ func reasonOf(detail countedDetail) *string {
 	return &detail.Exclusion.Reason
 }
 
+// shownReason is an exclusion as a failure message reads it.
+func shownReason(reason *string) string {
+	if reason == nil {
+		return "null"
+	}
+	return `"` + *reason + `"`
+}
+
 func TestAnExclusionTakesEffectOnlyOnceItHasAReason(t *testing.T) {
 	env := newCountEnv(t, ledgerWithAPurchaseToSplit(t), budgetToSplitIn)
 	env.putOnLine(txSplitPurchase, "Mercado")
@@ -72,7 +80,7 @@ func TestAnExclusionTakesEffectOnlyOnceItHasAReason(t *testing.T) {
 		env.change(step.method, `["`+txSplitPurchase+`",`+step.argument+`]`)
 		detail, row := detailOf(t, env.readEnv, txSplitPurchase), listRowOf(t, env.readEnv, "2026-03", txSplitPurchase)
 		if !reflect.DeepEqual(reasonOf(detail), step.reason) || detail.Excluded != step.excluded || detail.CountsInTotals == step.excluded {
-			t.Errorf("%s: the detail answers exclusion %v, excluded %v, counts %v", label, reasonOf(detail), detail.Excluded, detail.CountsInTotals)
+			t.Errorf("%s: the detail answers exclusion %s, excluded %v, counts %v", label, shownReason(reasonOf(detail)), detail.Excluded, detail.CountsInTotals)
 		}
 		if row.Excluded != step.excluded || row.CountsInTotals == step.excluded {
 			t.Errorf("%s: the list answers excluded %v, counts %v", label, row.Excluded, row.CountsInTotals)
@@ -93,7 +101,7 @@ func TestSwitchingTheExclusionOnEmptiesItsReasonAndAReasonSwitchesItOn(t *testin
 	env := newCountEnv(t, newFullLedger(t), startFromTheInventedAuthorship)
 	env.change("transactions.setExcluded", `["tx-pix-out",true]`)
 	if detail := detailOf(t, env.readEnv, txPixOut); !reflect.DeepEqual(reasonOf(detail), authoredtest.Some("")) || detail.Excluded {
-		t.Errorf("switching on an exclusion with a reason left %v, excluded %v", reasonOf(detail), detail.Excluded)
+		t.Errorf("switching on an exclusion with a reason left %s, excluded %v", shownReason(reasonOf(detail)), detail.Excluded)
 	}
 	env.change("transactions.setExclusionReason", `["tx-pending","Compra da empresa"]`)
 	if detail := detailOf(t, env.readEnv, txPending); !detail.Excluded || detail.CountsInTotals {
@@ -134,7 +142,7 @@ func TestTakingBackCountingAgainPutsThePurchaseBackAmongTheExcluded(t *testing.T
 	}
 	detail := detailOf(t, env.readEnv, txSplitPurchase)
 	if !reflect.DeepEqual(reasonOf(detail), authoredtest.Some("Compra da empresa")) || len(detail.History) != 0 {
-		t.Errorf("after taking the step back the exclusion is %v and the history %v", reasonOf(detail), historyTexts(detail))
+		t.Errorf("after taking the step back the exclusion is %s and the history %v", shownReason(reasonOf(detail)), historyTexts(detail))
 	}
 	if got := env.outcome("2026-03", txSplitPurchase).Disposition; got != budgetrules.Excluded {
 		t.Errorf("the purchase is %v, want excluded", got)
@@ -149,7 +157,7 @@ func TestASelectionTakesTheReasonOnceOnEachOfItsTransactions(t *testing.T) {
 	}
 	for _, listed := range []string{txPending, txBoleto} {
 		if detail := detailOf(t, env.readEnv, listed); !reflect.DeepEqual(reasonOf(detail), authoredtest.Some("Marcada em lote")) || !detail.Excluded {
-			t.Errorf("%s: exclusion %v, excluded %v", listed, reasonOf(detail), detail.Excluded)
+			t.Errorf("%s: exclusion %s, excluded %v", listed, shownReason(reasonOf(detail)), detail.Excluded)
 		}
 	}
 }
