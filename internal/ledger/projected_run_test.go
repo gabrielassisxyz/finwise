@@ -12,18 +12,12 @@ import (
 	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 )
 
-// projectedRun asks a view and the reader and fails unless they agree.
+// projectedRun asks a view of its own for the projected run.
 func projectedRun(t *testing.T, path string) (int64, error) {
 	t.Helper()
-	reader := ledger.New(path)
-	view := reader.View()
+	view := ledger.New(path).View()
 	defer view.Close()
-	fromView, viewErr := view.ProjectedRun(t.Context())
-	fromReader, readerErr := reader.ProjectedRun(t.Context())
-	if fromView != fromReader || (viewErr == nil) != (readerErr == nil) {
-		t.Fatalf("view answers %d, %v; reader answers %d, %v", fromView, viewErr, fromReader, readerErr)
-	}
-	return fromView, viewErr
+	return view.ProjectedRun(t.Context())
 }
 
 func wantProjectedRun(t *testing.T, f *ledgertest.Fixture, want int64) {

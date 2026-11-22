@@ -3,7 +3,6 @@ package ledger_test
 import (
 	"testing"
 
-	"github.com/gabrielassisxyz/finwise/internal/ledger"
 	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 )
 
@@ -39,7 +38,7 @@ func merged(base, extra map[string]any) map[string]any {
 }
 
 func TestBalanceHistoryHasOneRowPerSightingIncludingOneWithNoPot(t *testing.T) {
-	days, err := ledger.New(historyLedger(t).Path).BalanceHistory(t.Context())
+	days, err := viewOf(t, historyLedger(t).Path).BalanceHistory(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +59,7 @@ func TestBalanceHistoryHasOneRowPerSightingIncludingOneWithNoPot(t *testing.T) {
 }
 
 func TestReserveHistoryHoldsEveryEntryOfEveryDayAndNothingForAnEmptySighting(t *testing.T) {
-	pots, err := ledger.New(historyLedger(t).Path).ReserveHistory(t.Context())
+	pots, err := viewOf(t, historyLedger(t).Path).ReserveHistory(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +86,7 @@ func TestInvestmentPrincipalsAreTheOriginalAmountsOfCurrentInvestments(t *testin
 		Currency: "BRL", Balance: 1})
 	f.MarkRemoved("investments", "inv-gone")
 
-	principals, err := ledger.New(f.Path).InvestmentPrincipals(t.Context())
+	principals, err := viewOf(t, f.Path).InvestmentPrincipals(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +100,7 @@ func TestABillWithNoClosingDateReadsWithNoClosingDate(t *testing.T) {
 	f.AddBill(ledgertest.Bill{ID: "bill-open", AccountID: "acc-card", DueDate: "2026-04-10", Total: 10})
 	f.AddBill(ledgertest.Bill{ID: "bill-closed", AccountID: "acc-card", DueDate: "2026-03-10", ClosingDate: "2026-03-04", Total: 20})
 
-	bills, err := ledger.New(f.Path).Bills(t.Context())
+	bills, err := viewOf(t, f.Path).Bills(t.Context())
 	if err != nil || len(bills) != 2 {
 		t.Fatalf("%v, %v", bills, err)
 	}
