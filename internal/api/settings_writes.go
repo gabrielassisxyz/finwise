@@ -135,3 +135,14 @@ func closingModeOf(raw json.RawMessage) (authored.ClosingMode, error) {
 	}
 	return "", &badArgumentsError{}
 }
+
+// changeResultOf answers the change the recorder holds. Asking for its id
+// writes the change's row when no effect has, so a write that changed nothing
+// still answers a change, whose undo does nothing.
+func changeResultOf(ctx context.Context, recorder *authored.Recorder) (changeResult, error) {
+	id, err := recorder.ID(ctx)
+	if err != nil {
+		return changeResult{}, err
+	}
+	return changeResult{ChangeID: id.String()}, nil
+}

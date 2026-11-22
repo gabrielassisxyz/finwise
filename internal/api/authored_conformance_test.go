@@ -27,11 +27,17 @@ func authoredRead(method, arguments string) authoredReadCase {
 // authoredReadCases are answered over the full ledger and the invented authored
 // state, validated against the method's result schema and compared with their
 // files in testdata/golden/full-authored. A read that does not consult the
-// authored store answers its twin in full/; a read that merges what the person
-// authored arrives with its case here.
+// authored store answers here what it answers in full/; a read that merges what
+// the person authored has its case here. The two months of the budget's cases
+// are served by two versions that name one line differently.
 var authoredReadCases = []authoredReadCase{
 	authoredRead("transactions.detail", `["tx-fee"]`),
 	authoredRead("accounts.detail", `["acc-stale"]`),
+	authoredRead("budget.document", `["2026-02"]`),
+	authoredRead("budget.document", `["2026-03"]`),
+	authoredRead("budget.scenarios", `[]`),
+	authoredRead("transactions.filterOptions", `["2026-02"]`),
+	authoredRead("transactions.filterOptions", `["2026-03"]`),
 	authoredRead("settings.overview", `[]`),
 	authoredRead("card.overview", `[]`),
 	authoredRead("home.summary", `["2026-03"]`),
@@ -42,13 +48,13 @@ var authoredReadCases = []authoredReadCase{
 // invented authored state.
 func newAuthoredReadEnv(t *testing.T) *readEnv {
 	t.Helper()
-	scratch := appScratch(t)
+	scratch := authoredtest.Open(t, fixtureClock)
 	inventedAuthoredState(t, scratch)
 	return newReadEnvOver(t, newFullLedger(t), scratch.Database)
 }
 
 func TestTheInventedAuthoredStateHoldsSomething(t *testing.T) {
-	scratch := appScratch(t)
+	scratch := authoredtest.Open(t, fixtureClock)
 	empty := scratch.Canonical(t)
 	inventedAuthoredState(t, scratch)
 

@@ -297,7 +297,7 @@ func chosenAnswerOf(t *testing.T, overview map[string]any) chosenAnswer {
 // state, which sets every setting to a value other than its default.
 func overInventedState(t *testing.T) *readEnv {
 	t.Helper()
-	scratch := appScratch(t)
+	scratch := authoredtest.Open(t, fixtureClock)
 	inventedAuthoredState(t, scratch)
 	return newReadEnvOver(t, newFullLedger(t), scratch.Database)
 }

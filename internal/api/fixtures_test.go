@@ -207,11 +207,47 @@ var inventedSettings = authoredtest.Settings{
 }
 
 // inventedAuthoredState is what a person who has used the app for a while
-// would have authored in the app's own tables, written through the recorder in
-// one change. Nothing of it is real. A test that builds on it checks that it
-// leaves no journaled table empty, so a state that silently holds nothing, or
-// misses a table a later piece of work adds, cannot make a comparison pass.
+// would have authored, written through the recorder in one change: a fact, a
+// created row, a tag and a parent with a child in the scratch tables, every
+// setting at a value other than its default, and a budget. Nothing of it is
+// real. A test that builds on it checks that it leaves no journaled table
+// empty, so a state that silently holds nothing, or misses a table a later
+// piece of work adds, cannot make a comparison pass.
 func inventedAuthoredState(t testing.TB, scratch *authoredtest.Scratch) {
 	t.Helper()
-	authoredtest.WithSettings(t, scratch.Database, fixtureNow, inventedSettings)
+	facts := authored.ChangeFacts{Author: authored.AuthorPerson, Method: "scratch.seed", At: fixtureNow}
+	err := scratch.Database.Change(t.Context(), facts, func(recorder *authored.Recorder) error {
+		ctx := t.Context()
+		if err := recorder.Set(ctx, authoredtest.Facts, []authored.Value{authored.Text("fact-seed")}, authored.Row{"amount": authored.Integer(1200)}); err != nil {
+			return err
+		}
+		if err := recorder.Create(ctx, authoredtest.Things, authored.Row{"id": authored.Integer(1), "name": authored.Text("nota-seed"), "amount": authored.Integer(350)}); err != nil {
+			return err
+		}
+		if err := recorder.Put(ctx, authoredtest.Tags, authored.Row{"tx": authored.Text("tx-fee"), "tag": authored.Text("tag-seed")}); err != nil {
+			return err
+		}
+		if err := recorder.Put(ctx, authoredtest.Parents, authored.Row{"id": authored.Integer(1), "name": authored.Text("nota-parent")}); err != nil {
+			return err
+		}
+		if err := recorder.Put(ctx, authoredtest.Children, authored.Row{"id": authored.Integer(1), "parent_id": authored.Integer(1), "label": authored.Text("nota-child")}); err != nil {
+			return err
+		}
+		if err := recorder.SetConfidenceThreshold(ctx, *inventedSettings.ConfidenceThreshold); err != nil {
+			return err
+		}
+		if err := recorder.SetMinExamples(ctx, *inventedSettings.MinExamples); err != nil {
+			return err
+		}
+		if err := recorder.SetCardLabel(ctx, *inventedSettings.CardLabel); err != nil {
+			return err
+		}
+		if err := recorder.SetCardClosing(ctx, *inventedSettings.ClosingMode, *inventedSettings.ManualClosingDay); err != nil {
+			return err
+		}
+		return authoredtest.SeedBudget(recorder)
+	})
+	if err != nil {
+		t.Fatalf("the invented authored state: %v", err)
+	}
 }

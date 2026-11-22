@@ -1,0 +1,39 @@
+{
+  "answer": {
+    "changeId": "2"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "budget_versions",
+      "key": [
+        "2026-04"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-04"
+      }
+    },
+    {
+      "seq": 2,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-04",
+        10,
+        "Salário"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-04",
+        "group_key": "rec",
+        "position": 0,
+        "line_id": 10,
+        "name": "Salário",
+        "cents": 100000,
+        "flag": "Não garantida"
+      }
+    }
+  ]
+}

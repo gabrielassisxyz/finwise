@@ -22,8 +22,8 @@ func startFromTheInventedState(t *testing.T, scratch *authoredtest.Scratch) {
 	inventedAuthoredState(t, scratch)
 }
 
-// settingsEnv is a router over a ledger and an app's database the server would
-// open, with a session open and the clock at the given instant.
+// settingsEnv is a router over a ledger and an app's database created by
+// authoredtest, with a session open and the clock at the given instant.
 type settingsEnv struct {
 	*readEnv
 	scratch *authoredtest.Scratch
@@ -31,7 +31,7 @@ type settingsEnv struct {
 
 func newSettingsEnv(t *testing.T, fixture *ledgertest.Fixture, at time.Time) *settingsEnv {
 	t.Helper()
-	scratch := appScratch(t)
+	scratch := authoredtest.Open(t, fixtureClock)
 	env := newTestEnv(t, withLedger(fixture.Path, at), withDatabase(scratch.Database))
 	return &settingsEnv{readEnv: &readEnv{testEnv: env, cookie: env.unlock()}, scratch: scratch}
 }
@@ -228,7 +228,7 @@ func TestAWriteOfTheValueStoredAlreadyIsAnEmptyChangeWhoseUndoChangesNothing(t *
 
 func TestWithTheSnapshotMissingEachWriteIsKept(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "pluggy-snapshot.db")
-	scratch := appScratch(t)
+	scratch := authoredtest.Open(t, fixtureClock)
 	env := newTestEnv(t, withLedger(missing, fixtureNow), withDatabase(scratch.Database))
 	stores := &settingsEnv{readEnv: &readEnv{testEnv: env, cookie: env.unlock()}, scratch: scratch}
 	for _, call := range settingsWriteCalls {

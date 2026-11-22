@@ -102,6 +102,10 @@ type Registry struct {
 // productionTables is the package's own registry. Each authored table arrives
 // with its migration and adds its entry here, naming registered constants.
 var productionTables = []Table{
+	budgetVersionsTable,
+	budgetVersionLinesTable,
+	scenariosTable,
+	closedMonthsTable,
 	settingsEntry(),
 }
 
@@ -118,6 +122,10 @@ var notJournaledTables = map[string]string{
 	"lines":             "a budget line's id, once minted, exists for good",
 	"pin":               "changing the PIN is not a recorded change and has no undo",
 }
+
+// AppTables is a copy of the app's own journaled tables, for a registry that
+// adds tables of its own to them.
+func AppTables() []Table { return slices.Clone(productionTables) }
 
 func productionRegistry() (*Registry, error) {
 	return NewRegistry(productionTables)

@@ -8,9 +8,10 @@ import (
 	"github.com/gabrielassisxyz/finwise/internal/brday"
 )
 
-// The budget is something the person builds inside the app, and the backend has
-// nowhere to keep it yet, so every method answers what a fresh install would:
-// the groups with no lines, no scenarios, nothing planned.
+// The budget the person built is read from the app's database, and a server
+// without one answers what a fresh install would: the groups with no lines, no
+// scenarios, nothing planned. The figures of the screen (budget.view,
+// budget.establishments) are still the fresh install's.
 
 // budgetView is the screen's figures. The rate is not worked out until a budget
 // exists: it is unknown, not zero.
@@ -28,16 +29,24 @@ func registerBudget(registry *Registry) {
 	registry.Register("budget.view", readBudgetView)
 	registry.Register("budget.establishments", readBudgetEstablishments)
 	registry.Register("budget.scenarios", readBudgetScenarios)
+	registry.RegisterWrite("budget.save", saveBudget)
+	registry.RegisterWrite("budget.applyScenario", applyScenario)
+	registry.RegisterWrite("budget.saveScenario", saveScenario)
 }
 
 func readBudgetDocument(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
-	if _, err := onlyMonthArgument(args); err != nil {
+	month, err := onlyMonthArgument(args)
+	if err != nil {
 		return nil, err
 	}
 	if err := requireReadableLedger(ctx, views.Ledger); err != nil {
 		return nil, err
 	}
-	return emptyBudgetDocument(), nil
+	budget, err := views.Authored.BudgetOf(ctx, month)
+	if err != nil {
+		return nil, err
+	}
+	return documentOf(budget), nil
 }
 
 // readBudgetView refuses a draft: evaluating one is the budget's arithmetic,
@@ -77,11 +86,21 @@ func readBudgetEstablishments(ctx context.Context, args []json.RawMessage, views
 	return []any{}, nil
 }
 
+// readBudgetScenarios names each line as the budget in force today names it, so
+// applying an old scenario does not bring an old name back.
 func readBudgetScenarios(ctx context.Context, _ []json.RawMessage, views Views) (any, error) {
 	if err := requireReadableLedger(ctx, views.Ledger); err != nil {
 		return nil, err
 	}
-	return []any{}, nil
+	scenarios, err := views.Authored.Scenarios(ctx, brday.MonthOf(nowOf(ctx)))
+	if err != nil {
+		return nil, err
+	}
+	answer := make([]savedScenarioWire, 0, len(scenarios))
+	for _, scenario := range scenarios {
+		answer = append(answer, savedScenarioWire{Name: scenario.Name, Budget: documentOfScenario(scenario.Document)})
+	}
+	return answer, nil
 }
 
 func isNull(raw json.RawMessage) bool {

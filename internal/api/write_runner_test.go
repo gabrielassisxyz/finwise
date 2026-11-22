@@ -23,26 +23,13 @@ type undoer func(env *writeEnv, id string) *httptest.ResponseRecorder
 
 func theRealUndo(env *writeEnv, id string) *httptest.ResponseRecorder { return env.undo(id) }
 
-// appScratch is an app's database the server would open, journaling the app's
-// own tables and no scratch one, offered as a Scratch so that the harness
-// observes it as it observes any other.
-func appScratch(t *testing.T) *authoredtest.Scratch {
-	t.Helper()
-	database, path := openAppDatabase(t)
-	return &authoredtest.Scratch{Database: database, Path: path}
-}
-
-// newCaseEnv is a router over the full invented ledger and an app's database,
-// with a session open. A case that brings handlers of its own runs on a
-// registry that holds those and the undo, over a database that journals the
-// scratch tables they write; any other runs on the server's own, over the
-// app's own tables.
+// newCaseEnv is a router over the full invented ledger and an app's database
+// created by authoredtest, with a session open. A case that brings handlers
+// of its own runs on a registry that holds those and the undo; any other runs on
+// the server's own.
 func newCaseEnv(t *testing.T, c writeCase) *writeEnv {
 	t.Helper()
-	scratch := appScratch(t)
-	if c.handlers != nil {
-		scratch = authoredtest.Open(t, fixtureClock)
-	}
+	scratch := authoredtest.Open(t, fixtureClock)
 	options := []envOption{withLedger(newFullLedger(t).Path, fixtureNow), withDatabase(scratch.Database)}
 	if c.handlers != nil {
 		options = append(options, func(config *Config) {

@@ -87,21 +87,21 @@ type writeCase struct {
 // writeCases is every real case, in every mode. Each slice that adds a write
 // adds its cases here; the handlers that exist when this lands are the undo
 // alone, which has tests of its own and only this refusal.
-var writeCases = []writeCase{
+var writeCases = append([]writeCase{
 	{method: "changes.undo", arguments: `["999"]`, expects: expectsRefusal, reason: reasonStaleChange},
 	{method: "settings.setThreshold", arguments: `[72.6]`, expects: expectsRecorded, state: startFromTheInventedState},
 	{method: "settings.setMinExamples", arguments: `[80]`, expects: expectsRecorded, state: startFromTheInventedState},
 	{method: "settings.setMinExamples", arguments: `[5]`, expects: expectsRecorded},
 	{method: "settings.setCardLabel", arguments: `["  Virtual "]`, expects: expectsRecorded, state: startFromTheInventedState},
 	{method: "settings.setClosing", arguments: `["manual",31]`, expects: expectsRecorded},
-}
+}, budgetWriteCases...)
 
 // reasonsWithoutProducer are the reasons of the closed list that nothing
 // produces yet, and so have no case. A piece of work that first produces one
 // adds its case and removes the name.
 var reasonsWithoutProducer = []refusalReason{
-	reasonMonthClosed, reasonFutureMonth, reasonPendingReviews, reasonNotFound,
-	reasonUnknownLine, reasonInvalidBudget, reasonUnstablePot, reasonSplitWithReimbursement,
+	reasonFutureMonth, reasonPendingReviews, reasonNotFound,
+	reasonUnknownLine, reasonUnstablePot, reasonSplitWithReimbursement,
 }
 
 // writeObservation is everything one run of a case saw. The checks read it and
@@ -472,6 +472,10 @@ func reasonProblems(cases []writeCase, without []refusalReason) []string {
 
 var monthOrNumber = regexp.MustCompile(`^(\d+|\d{4}-\d{2})?$`)
 
+// budgetGroupKey is a key or a name of the budget's five groups: a place in a
+// document, not text a person typed.
+var budgetGroupKey = regexp.MustCompile(`^(rec|fix|var|prov|res|Receita|Fixos e essenciais|Variáveis|Provisões|Reservas de desejo)$`)
+
 // unlistedArguments names every argument of a case that is text a person types
 // or that names a row, which is any string but a number or a month, and holds no
 // string of the list: such a text would not be seen in a log by the test that
@@ -482,7 +486,7 @@ func unlistedArguments(secrets []string, calls []string) []string {
 	visit = func(value any) {
 		switch typed := value.(type) {
 		case string:
-			if monthOrNumber.MatchString(typed) {
+			if monthOrNumber.MatchString(typed) || budgetGroupKey.MatchString(typed) {
 				return
 			}
 			for _, secret := range secrets {

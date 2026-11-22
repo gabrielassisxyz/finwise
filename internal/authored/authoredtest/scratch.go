@@ -79,7 +79,7 @@ func Open(t testing.TB, now func() time.Time) *Scratch {
 		t.Fatalf("authoredtest: close %s: %v", path, err)
 	}
 	around(t, path, schema)
-	registry, err := authored.NewRegistry(tables())
+	registry, err := authored.NewRegistry(append(tables(), authored.AppTables()...))
 	if err != nil {
 		t.Fatalf("authoredtest: registry: %v", err)
 	}

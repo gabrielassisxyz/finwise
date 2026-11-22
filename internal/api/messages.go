@@ -20,6 +20,9 @@ const (
 
 	awaitingFirstSync = "Aguardando a primeira sincronização"
 
+	// unnamedScenario is what a scenario saved with a blank name is called.
+	unnamedScenario = "Cenário sem nome"
+
 	potDepositDescription    = "Depósito"
 	potWithdrawalDescription = "Retirada"
 

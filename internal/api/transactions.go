@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/brday"
 )
 
@@ -60,10 +61,11 @@ func queryPeriod(args []json.RawMessage) (brday.Period, error) {
 	return periodOf(query)
 }
 
-// readTransactionFilterOptions offers every account. Tags and budget lines are
-// the person's to create, so there are none yet, whatever the month asked for.
+// readTransactionFilterOptions offers every account and the lines of the budget
+// in force for the month asked. Tags are not kept yet.
 func readTransactionFilterOptions(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
-	if _, err := onlyMonthArgument(args); err != nil {
+	month, err := onlyMonthArgument(args)
+	if err != nil {
 		return nil, err
 	}
 	accounts, err := views.Ledger.Accounts(ctx)
@@ -76,5 +78,45 @@ func readTransactionFilterOptions(ctx context.Context, args []json.RawMessage, v
 	for _, account := range orderedAccounts(accounts, banks) {
 		options = append(options, filterOption{Value: account.ID, Label: labels[account.ID]})
 	}
-	return transactionFilterOptions{Accounts: options, Tags: []string{}, Lines: []budgetLineOption{}}, nil
+	budget, err := views.Authored.BudgetOf(ctx, month)
+	if err != nil {
+		return nil, err
+	}
+	return transactionFilterOptions{Accounts: options, Tags: []string{}, Lines: lineMenuOf(budget)}, nil
+}
+
+// lineMenuGroups is the order of a line menu, group by group; the fees line
+// sits among them as a group of its own.
+var lineMenuGroups = []string{"var", "fix", "res", "prov", feesMenuGroup, "rec"}
+
+const feesMenuGroup = "fees"
+
+// lineMenuOf offers the lines of a month's budget, and the fees line once that
+// budget has any: a budget with no line offers nothing.
+func lineMenuOf(budget authored.Budget) []budgetLineOption {
+	menu := []budgetLineOption{}
+	if !budget.HasLines() {
+		return menu
+	}
+	for _, key := range lineMenuGroups {
+		if key == feesMenuGroup {
+			menu = append(menu, budgetLineOption{Name: authored.FeesLineName, Group: budgetGroupFees})
+			continue
+		}
+		for _, line := range budget.Lines {
+			if line.Group == key {
+				menu = append(menu, budgetLineOption{Name: line.Name, Group: budgetGroupNamed(key)})
+			}
+		}
+	}
+	return menu
+}
+
+func budgetGroupNamed(key string) string {
+	for _, group := range editableGroupNames {
+		if group.key == key {
+			return group.name
+		}
+	}
+	return key
 }
