@@ -2,12 +2,12 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"slices"
 	"strings"
 	"testing"
 
-	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
 )
 
@@ -127,6 +127,11 @@ func TestATagKeepsItsPlaceAcrossARemovalAndItsUndo(t *testing.T) {
 	env := newAuthoringEnv(t)
 	for _, tag := range []string{"#a", "#b", "#c"} {
 		env.change("transactions.addTag", argumentsOf(txPending, tag))
+	}
+	first := env.change("transactions.removeTag", argumentsOf(txPending, "#b"))
+	env.undo(first)
+	if got, want := ownTagsOf(t, env, txPending), []string{"#a", "#b", "#c"}; !slices.Equal(got, want) {
+		t.Errorf("after removing #b and undoing it: %v, want %v", got, want)
 	}
 	removal := env.change("transactions.removeTag", argumentsOf(txPending, "#b"))
 	if got, want := ownTagsOf(t, env, txPending), []string{"#a", "#c"}; !slices.Equal(got, want) {
@@ -377,40 +382,47 @@ func TestOverAMissingSnapshotEveryWriteAnswersLedgerUnavailableAndRecordsNothing
 }
 
 // The selection is resolved against one reading of the whole ledger, and a
-// single write against the month's own: both must find the same transaction.
-func TestTheSelectionFindsTheTransactionsTheSingleLookupFinds(t *testing.T) {
-	scratch := authoredtest.Open(t, fixtureClock)
+// single write against the month's own: both must find the same transactions
+// and leave the index holding the same facts about them.
+func TestTheSelectionFindsAndIndexesWhatTheSingleLookupDoes(t *testing.T) {
 	full := newFullLedger(t)
 	var ids []string
-	for _, listed := range []string{"2026-01", "2026-02", "2026-03"} {
-		env := newReadEnvOver(t, full, scratch.Database)
-		for _, row := range transactionsOf(t, env, listed, "month") {
+	listing := newReadEnvOver(t, full, authoredtest.Fresh(t, fixtureClock))
+	for _, month := range []string{"2026-01", "2026-02", "2026-03"} {
+		for _, row := range transactionsOf(t, listing, month, "month") {
 			ids = append(ids, row["id"].(string))
 		}
 	}
-	for _, id := range append(ids, txForeignTax, txPotTransfer, "no-such-transaction") {
-		var single, bulk bool
-		var singleKey, bulkKey authored.TxKey
-		err := inChange(t, scratch, full, func(writes Writes) error {
-			target, found, err := lookupTarget(t.Context(), writes, id)
-			single, singleKey = found, target.key
+	if len(ids) < 10 {
+		t.Fatalf("only %d transactions are listed, so the comparison would prove little", len(ids))
+	}
+	bySingle, byBulk := authoredtest.Open(t, fixtureClock), authoredtest.Open(t, fixtureClock)
+	for _, id := range ids {
+		err := inChange(t, bySingle, full, func(writes Writes) error {
+			_, found, err := lookupTarget(t.Context(), writes, id)
+			if err == nil && !found {
+				err = errors.New(id + " is listed and the single lookup does not find it")
+			}
 			return err
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = inChange(t, scratch, full, func(writes Writes) error {
-			targets, err := targetsNamedBy(t.Context(), writes, []string{id})
-			if err == nil {
-				bulk, bulkKey = len(targets) == 1, targets[0].key
-			}
-			return nil
-		})
-		if err != nil {
-			t.Fatal(err)
+	}
+	err := inChange(t, byBulk, full, func(writes Writes) error {
+		targets, err := targetsNamedBy(t.Context(), writes, ids)
+		if err == nil && len(targets) != len(ids) {
+			err = errors.New("the selection found fewer transactions than the list shows")
 		}
-		if single != bulk || singleKey != bulkKey {
-			t.Errorf("%s: the single lookup answers %v key %d, the selection %v key %d", id, single, singleKey, bulk, bulkKey)
-		}
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if single, bulk := tableRows(t, bySingle, "tx_index"), tableRows(t, byBulk, "tx_index"); !slices.Equal(single, bulk) {
+		t.Errorf("the index differs:\n%v\nwant\n%v", bulk, single)
+	}
+	if rows := tableRows(t, bySingle, "tx_ids"); len(rows) != len(ids) {
+		t.Errorf("the index holds %d ids, want %d", len(rows), len(ids))
 	}
 }
