@@ -1,6 +1,6 @@
 {
   "answer": {
-    "changeId": "2"
+    "changeId": "4"
   },
   "effects": [
     {
@@ -14,7 +14,7 @@
       "before": {
         "tx_key": 1,
         "tag": "#viagem-de-trabalho",
-        "position": 0
+        "position": 1
       },
       "after": null
     }

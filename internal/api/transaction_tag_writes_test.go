@@ -18,7 +18,11 @@ import (
 var tagAndNoteWriteCases = []writeCase{
 	{method: "transactions.addTag", arguments: `["tx-month-end","  viagem de trabalho "]`, expects: expectsRecorded},
 	{method: "transactions.removeTag", arguments: `["tx-month-end","#viagem-de-trabalho"]`, expects: expectsRecorded,
-		before: []writeCall{{"transactions.addTag", `["tx-month-end","viagem de trabalho"]`}}},
+		before: []writeCall{
+			{"transactions.addTag", `["tx-month-end","viagem a"]`},
+			{"transactions.addTag", `["tx-month-end","viagem de trabalho"]`},
+			{"transactions.addTag", `["tx-month-end","viagem c"]`},
+		}},
 	{method: "transactions.addTagToMany", arguments: `[["tx-month-end","tx-pending","tx-month-end"],"viagem"]`, expects: expectsRecorded},
 	{method: "transactions.setNote", arguments: `["tx-month-end","abastecer na sexta"]`, expects: expectsRecorded},
 	{method: "transactions.setNote", arguments: `["tx-month-end",""]`, expects: expectsRecorded,
@@ -127,6 +131,9 @@ func TestATagKeepsItsPlaceAcrossARemovalAndItsUndo(t *testing.T) {
 	removal := env.change("transactions.removeTag", argumentsOf(txPending, "#b"))
 	if got, want := ownTagsOf(t, env, txPending), []string{"#a", "#c"}; !slices.Equal(got, want) {
 		t.Errorf("after the removal: %v, want %v", got, want)
+	}
+	if rows := tableRows(t, env.scratch, "tx_tags"); !slices.ContainsFunc(rows, func(row string) bool { return strings.Contains(row, `tag="#c" position=2`) }) {
+		t.Errorf("the tag after the removed one moved from its place: %v", rows)
 	}
 	env.change("transactions.addTag", argumentsOf(txPending, "#d"))
 	env.undo(removal)
