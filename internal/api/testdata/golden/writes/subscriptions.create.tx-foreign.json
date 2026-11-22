@@ -1,0 +1,30 @@
+{
+  "answer": {
+    "changeId": "1",
+    "name": "CLOUDSVC SUBSCRIPTION"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "subscriptions",
+      "key": [
+        1
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "id": 1,
+        "establishment_key": "text:CLOUDSVC SUBSCRIPTION",
+        "created_from_tx_key": 1,
+        "created_day": "2026-03-10",
+        "created_cents": 11385,
+        "name": "CLOUDSVC SUBSCRIPTION",
+        "line_id": null,
+        "status": "Analisar",
+        "status_day": "2026-03-20",
+        "review_on": "2026-06-20",
+        "note": ""
+      }
+    }
+  ]
+}
