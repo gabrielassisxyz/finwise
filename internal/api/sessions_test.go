@@ -103,3 +103,27 @@ func TestExpiredSessionsAreDroppedWhenANewOneIsMade(t *testing.T) {
 		t.Errorf("%d sessions held, want 1", len(store.lastSeen))
 	}
 }
+
+func TestKeepingOneSessionEndsEveryOtherAndLeavesTheKeptOneLive(t *testing.T) {
+	store := newSessionStore(newFakeClock().Now, defaultSessionIdle)
+	first, _ := store.Create()
+	kept, _ := store.Create()
+	third, _ := store.Create()
+	store.KeepOnly(kept)
+	if !store.Touch(kept) {
+		t.Error("the kept session ended")
+	}
+	if store.Touch(first) || store.Touch(third) {
+		t.Error("a session that was not kept survived")
+	}
+}
+
+func TestKeepingAnUnknownTokenEndsEverySession(t *testing.T) {
+	store := newSessionStore(newFakeClock().Now, defaultSessionIdle)
+	first, _ := store.Create()
+	second, _ := store.Create()
+	store.KeepOnly("made-up")
+	if store.Touch(first) || store.Touch(second) || len(store.lastSeen) != 0 {
+		t.Error("a session survived a keep of a token that names none")
+	}
+}

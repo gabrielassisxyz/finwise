@@ -119,6 +119,9 @@ func serve(ctx context.Context, settings serveSettings, env environment) (err er
 			}
 		}()
 		logger.Info("app database open", "path", settings.databasePath)
+		if settings.pinHash, err = storedPINHash(ctx, database, settings, logger); err != nil {
+			return err
+		}
 	}
 	handler, err := api.NewHandler(apiConfig(settings, database, env, logger))
 	if err != nil {
@@ -143,6 +146,26 @@ func serve(ctx context.Context, settings serveSettings, env environment) (err er
 		env.listening(listener.Addr().String())
 	}
 	return serveUntilDone(ctx, server, listener)
+}
+
+// storedPINHash is the hash that opens the app: the one the person set in the
+// app when there is one, and the environment's until then. A stored hash that
+// does not parse stops the start instead of falling back to the environment's,
+// which would let a PIN the person retired open the app again.
+func storedPINHash(ctx context.Context, database *authored.Database, settings serveSettings, logger *slog.Logger) (api.PINHash, error) {
+	stored, found, err := database.StoredPINHash(ctx)
+	if err != nil {
+		return api.PINHash{}, fmt.Errorf("read the PIN stored in %s: %w", settings.databasePath, err)
+	}
+	if !found {
+		return settings.pinHash, nil
+	}
+	hash, err := api.ParsePINHash(stored)
+	if err != nil {
+		return api.PINHash{}, fmt.Errorf("the PIN stored in %s is not a valid hash: %w", settings.databasePath, err)
+	}
+	logger.Info("the PIN stored in the database opens the app; FINWISE_PIN_HASH is ignored")
+	return hash, nil
 }
 
 // apiConfig hands the API the one clock of the process and the app's database,

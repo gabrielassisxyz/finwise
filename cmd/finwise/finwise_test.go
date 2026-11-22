@@ -5,10 +5,13 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/gabrielassisxyz/finwise/internal/authored"
 )
 
 const testPIN = "123456"
@@ -233,5 +236,98 @@ func TestEnvironmentSuppliesTheAddressAndALongerSession(t *testing.T) {
 	response, _ := server.post(t, "/api/session/unlock", `["`+testPIN+`"]`)
 	if cookie := response.Header.Get("Set-Cookie"); !strings.Contains(cookie, "Max-Age=7200") {
 		t.Errorf("the TTL did not reach the cookie")
+	}
+}
+
+const (
+	changedTestPIN = "135790"
+	storedLogLine  = "the PIN stored in the database opens the app; FINWISE_PIN_HASH is ignored"
+)
+
+// postAs posts with the session cookie a first call gave.
+func (server *runningServer) postAs(t *testing.T, cookie *http.Cookie, path, body string) string {
+	t.Helper()
+	request, err := http.NewRequest(http.MethodPost, "http://"+server.address+path, strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.AddCookie(cookie)
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	text, _ := io.ReadAll(response.Body)
+	return string(text)
+}
+
+func (server *runningServer) unlockBody(t *testing.T, pin string) (*http.Cookie, string) {
+	t.Helper()
+	response, body := server.post(t, "/api/session/unlock", `["`+pin+`"]`)
+	if cookies := response.Cookies(); len(cookies) == 1 {
+		return cookies[0], body
+	}
+	return nil, body
+}
+
+func TestAChangedPINOpensTheAppAfterARestartAndTheEnvironmentsHashIsIgnored(t *testing.T) {
+	directory := t.TempDir()
+	args := []string{"serve", "--dev-insecure-cookie", "--db", filepath.Join(directory, "finwise.db")}
+	vars := serveVars(t)
+
+	first := startServer(t, args, vars)
+	cookie, body := first.unlockBody(t, testPIN)
+	if body != `{"ok":true}` || cookie == nil {
+		t.Fatalf("the environment's PIN did not unlock a fresh database: %s", body)
+	}
+	if answer := first.postAs(t, cookie, "/api/session/changePin", `["`+testPIN+`","`+changedTestPIN+`","`+changedTestPIN+`"]`); answer != `{"ok":true}` {
+		t.Fatalf("the change answered %s", answer)
+	}
+	firstRun := first.stopGracefully(t)
+	if strings.Contains(firstRun.stdout, storedLogLine) {
+		t.Error("a fresh database logged that a stored PIN opens the app")
+	}
+
+	second := startServer(t, args, vars)
+	if _, body := second.unlockBody(t, changedTestPIN); body != `{"ok":true}` {
+		t.Errorf("the changed PIN answered %s after a restart", body)
+	}
+	if _, body := second.unlockBody(t, testPIN); body != `{"ok":false,"reason":"wrong-pin"}` {
+		t.Errorf("the old PIN answered %s after a restart", body)
+	}
+	secondRun := second.stopGracefully(t)
+	if count := strings.Count(secondRun.stdout, storedLogLine); count != 1 {
+		t.Errorf("the start logged the line %d times, want once", count)
+	}
+	for _, secret := range []string{testPIN, changedTestPIN, vars["FINWISE_PIN_HASH"]} {
+		if strings.Contains(firstRun.stdout+firstRun.stderr+secondRun.stdout+secondRun.stderr, secret) {
+			t.Error("the output holds a PIN or the environment's hash")
+		}
+	}
+}
+
+func TestAStoredHashThatDoesNotParseStopsTheStartWithoutNamingIt(t *testing.T) {
+	const garbage = "stored-garbage-sentinel"
+	path := filepath.Join(t.TempDir(), "finwise.db")
+	database, err := authored.Open(t.Context(), path, authored.Options{Now: func() time.Time { return testNow }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := database.StorePINHash(t.Context(), garbage, testNow); err != nil {
+		t.Fatal(err)
+	}
+	database.Close()
+
+	vars := refusalVars(serveVars(t))
+	result := runCommand(cancelledContext(), []string{"serve", "--db", path}, "", vars, nil)
+	if result.code == 0 {
+		t.Fatal("serve started over a stored hash that does not parse")
+	}
+	if !strings.Contains(result.stderr, path) {
+		t.Error("the message does not name the database")
+	}
+	if text := result.stdout + result.stderr; strings.Contains(text, garbage) || strings.Contains(text, storedLogLine) {
+		t.Error("the output holds the stored value or says the stored PIN opens the app")
 	}
 }

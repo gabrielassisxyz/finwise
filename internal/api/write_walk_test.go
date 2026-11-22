@@ -19,10 +19,9 @@ const changePin = "session.changePin"
 
 // writesWithoutHandler lists the writes and evaluations nothing implements yet.
 // Each piece of work that implements one removes its name here, and the list is
-// empty when every write of the contract is implemented. session.changePin
-// stays in it until the session service answers it.
+// empty when every write of the contract is implemented.
 var writesWithoutHandler = []string{
-	"session.changePin", "transactions.setLine", "transactions.applyLineToEstablishment",
+	"transactions.setLine", "transactions.applyLineToEstablishment",
 	"transactions.setLineForMany", "transactions.addTagToMany", "transactions.excludeMany",
 	"transactions.confirmLine", "transactions.setReason", "transactions.setNickname",
 	"transactions.setDefaultLine", "transactions.addFixedTag", "transactions.removeFixedTag",
@@ -43,8 +42,8 @@ var writesWithoutHandler = []string{
 }
 
 // sessionServiceWrites are the writes the session service answers itself. It
-// holds changePin from the day the PIN is changed on the server, and only that.
-var sessionServiceWrites = []string{}
+// holds changePin, and only that.
+var sessionServiceWrites = []string{changePin}
 
 // writesAndEvaluationsInTheManifest is the count the walk is pinned to: 55
 // writes and one evaluation.
@@ -136,8 +135,8 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 	if !slices.Equal(registered, []string{"changes.undo"}) {
 		t.Errorf("the registry implements %v, want changes.undo alone", registered)
 	}
-	if len(writesWithoutHandler) != 55 || !slices.Contains(writesWithoutHandler, changePin) {
-		t.Errorf("the list holds %d names, want 55 with %s among them", len(writesWithoutHandler), changePin)
+	if len(writesWithoutHandler) != 54 || slices.Contains(writesWithoutHandler, changePin) {
+		t.Errorf("the list holds %d names, want 54 without %s", len(writesWithoutHandler), changePin)
 	}
 	if !slices.Contains(writesWithoutHandler, "budget.evaluateScenario") {
 		t.Error("budget.evaluateScenario has no handler yet and belongs in the list")
@@ -221,17 +220,5 @@ func TestWithADatabaseAWriteWithNoHandlerIsRefusedBeforeItsBodyIsRead(t *testing
 	}
 	if after := scratch.State(t); after != before {
 		t.Errorf("a refused write changed the database:\n%s\nwas\n%s", after, before)
-	}
-}
-
-func TestChangingThePINIsRefusedWithoutComparingAnyPIN(t *testing.T) {
-	scratch := authoredtest.Open(t, newFakeClock().Now)
-	env := newTestEnv(t, withDatabase(scratch.Database), func(config *Config) { config.Reads = NewReadRegistry() })
-	cookie := env.unlock()
-	compared := env.pinTries.Load()
-	response := env.call("/api/session/changePin", `["`+testPIN+`","654321","654321"]`, cookie)
-	expectError(t, changePin, response, http.StatusForbidden, "read_only")
-	if tries := env.pinTries.Load(); tries != compared {
-		t.Errorf("the PIN was compared %d times by a refused change", tries-compared)
 	}
 }
