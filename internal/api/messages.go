@@ -86,3 +86,13 @@ const (
 	budgetGroupFees       = "Tarifas e juros"
 	budgetGroupInvestment = "Investimento"
 )
+
+// The steps a line change leaves in a transaction's history.
+
+func lineChangedStep(line string) string { return "Você alterou para " + line }
+
+func lineConfirmedStep(line string) string { return "Você confirmou " + line }
+
+func lineAppliedByRuleStep(line, establishment string) string {
+	return "Regra aplicou " + line + " (você pediu para todas em " + establishment + ")"
+}

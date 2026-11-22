@@ -1,0 +1,48 @@
+{
+  "answer": {
+    "changeId": "4",
+    "establishment": {
+      "key": "text:MERCADO EXEMPLO",
+      "name": "MERCADO EXEMPLO"
+    }
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "line_id",
+      "before": null,
+      "after": 9
+    },
+    {
+      "seq": 2,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "classified_by",
+      "before": null,
+      "after": "person"
+    },
+    {
+      "seq": 3,
+      "table": "history_steps",
+      "key": [
+        1
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "id": 1,
+        "tx_key": 1,
+        "change_id": 4,
+        "kind": "step",
+        "text": "Você alterou para Mercado",
+        "day": "2026-03-20"
+      }
+    }
+  ]
+}

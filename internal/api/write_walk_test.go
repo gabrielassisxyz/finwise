@@ -21,9 +21,8 @@ const changePin = "session.changePin"
 // Each piece of work that implements one removes its name here, and the list is
 // empty when every write of the contract is implemented.
 var writesWithoutHandler = []string{
-	"transactions.setLine", "transactions.applyLineToEstablishment",
-	"transactions.setLineForMany", "transactions.addTagToMany", "transactions.excludeMany",
-	"transactions.confirmLine", "transactions.setReason", "transactions.setNickname",
+	"transactions.addTagToMany", "transactions.excludeMany",
+	"transactions.setReason", "transactions.setNickname",
 	"transactions.setDefaultLine", "transactions.addFixedTag", "transactions.removeFixedTag",
 	"transactions.addTag", "transactions.removeTag", "transactions.setNote", "transactions.setSplit",
 	"transactions.setReimbursable", "transactions.setExpectedReimbursement",
@@ -132,12 +131,14 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 		"budget.applyScenario", "budget.save", "budget.saveScenario", "changes.undo",
 		"settings.setCardLabel", "settings.setClosing", "settings.setMinExamples", "settings.setPotBucket",
 		"settings.setThreshold", "settings.toggleLinkedLine",
+		"transactions.applyLineToEstablishment", "transactions.confirmLine", "transactions.setLine",
+		"transactions.setLineForMany",
 	}
 	if !slices.Equal(registered, implemented) {
 		t.Errorf("the registry implements %v, want %v", registered, implemented)
 	}
-	if len(writesWithoutHandler) != 45 || slices.Contains(writesWithoutHandler, changePin) {
-		t.Errorf("the list holds %d names, want 45 without %s", len(writesWithoutHandler), changePin)
+	if len(writesWithoutHandler) != 41 || slices.Contains(writesWithoutHandler, changePin) {
+		t.Errorf("the list holds %d names, want 41 without %s", len(writesWithoutHandler), changePin)
 	}
 	if !slices.Contains(writesWithoutHandler, "budget.evaluateScenario") {
 		t.Error("budget.evaluateScenario has no handler yet and belongs in the list")
