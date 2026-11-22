@@ -127,6 +127,8 @@ var allStatements = map[string]string{
 	"statementPotLineDelete":         statementPotLineDelete,
 	"statementLinesOfPot":            statementLinesOfPot,
 
+	"statementNextTagPosition":             statementNextTagPosition,
+	"statementNextFixedTagPosition":        statementNextFixedTagPosition,
 	"statementSubscriptionRow":             statementSubscriptionRow,
 	"statementSubscriptionAll":             statementSubscriptionAll,
 	"statementSubscriptionInsert":          statementSubscriptionInsert,

@@ -22,14 +22,11 @@ const changePin = "session.changePin"
 // empty when every write of the contract is implemented.
 var writesWithoutHandler = []string{
 	"transactions.setLine", "transactions.applyLineToEstablishment",
-	"transactions.setLineForMany", "transactions.addTagToMany", "transactions.excludeMany",
-	"transactions.confirmLine", "transactions.setReason", "transactions.setNickname",
-	"transactions.setDefaultLine", "transactions.addFixedTag", "transactions.removeFixedTag",
-	"transactions.addTag", "transactions.removeTag", "transactions.setNote", "transactions.setSplit",
+	"transactions.setLineForMany",
+	"transactions.confirmLine", "transactions.setReason",
 	"transactions.setReimbursable", "transactions.setExpectedReimbursement",
-	"transactions.linkReimbursement", "transactions.unlinkReimbursement", "transactions.setExcluded",
-	"transactions.setExclusionReason", "transactions.setRefund", "transactions.setRefundLine",
-	"transactions.undoHistoryStep", "budget.evaluateScenario", "review.acceptPending", "review.approve",
+	"transactions.linkReimbursement", "transactions.unlinkReimbursement",
+	"transactions.undoHistoryStep", "review.acceptPending", "review.approve",
 	"review.refuse", "review.propose", "review.dismissWarning", "review.runWarningAction",
 	"review.markStepDone", "review.keepSubscription", "review.cancelSubscription",
 	"review.closeMonth", "review.markTransferDone", "settings.setNickname", "settings.setDefaultLine",
@@ -127,20 +124,21 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 		t.Error(problem)
 	}
 	implemented := []string{
-		"budget.applyScenario", "budget.save", "budget.saveScenario", "changes.undo",
+		"budget.applyScenario", "budget.evaluateScenario", "budget.save", "budget.saveScenario", "changes.undo",
 		"settings.setCardLabel", "settings.setClosing", "settings.setMinExamples", "settings.setPotBucket",
 		"settings.setThreshold", "settings.toggleLinkedLine",
 		"subscriptions.acceptSuggestion", "subscriptions.create", "subscriptions.rejectSuggestion",
 		"subscriptions.setLine", "subscriptions.setNote", "subscriptions.setReviewDate", "subscriptions.setStatus",
+		"transactions.addFixedTag", "transactions.addTag", "transactions.addTagToMany", "transactions.excludeMany",
+		"transactions.removeFixedTag", "transactions.removeTag", "transactions.setDefaultLine", "transactions.setExcluded",
+		"transactions.setExclusionReason", "transactions.setNickname", "transactions.setNote", "transactions.setRefund",
+		"transactions.setRefundLine", "transactions.setSplit",
 	}
 	if !slices.Equal(registered, implemented) {
 		t.Errorf("the registry implements %v, want %v", registered, implemented)
 	}
-	if len(writesWithoutHandler) != 38 || slices.Contains(writesWithoutHandler, changePin) {
-		t.Errorf("the list holds %d names, want 38 without %s", len(writesWithoutHandler), changePin)
-	}
-	if !slices.Contains(writesWithoutHandler, "budget.evaluateScenario") {
-		t.Error("budget.evaluateScenario has no handler yet and belongs in the list")
+	if len(writesWithoutHandler) != 23 || slices.Contains(writesWithoutHandler, changePin) {
+		t.Errorf("the list holds %d names, want 23 without %s", len(writesWithoutHandler), changePin)
 	}
 }
 

@@ -21,6 +21,8 @@ export function usePendingAnswer(lines: Ref<BudgetLineOption[]>) {
   async function accept(item: ReviewQueueItem): Promise<void> {
     const { draft } = view;
     const line = draft.line ?? item.pending.suggestion;
+    // A review with no suggestion waits for a line the person picks; sending none would put it nowhere.
+    if (line === null) return;
     const answer = { line, always: draft.always, nickname: draft.nickname, reason: draft.reason };
     const result = await api.review.acceptPending(item.transactionId, answer);
     if (!result) return;

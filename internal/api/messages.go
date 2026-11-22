@@ -87,6 +87,25 @@ const (
 	budgetGroupInvestment = "Investimento"
 )
 
+// The marks of the budget screen: a variable line past its cap, and a budget
+// that plans more than its income.
+const (
+	budgetMarkOverspent  = "Estourou"
+	budgetMarkOverIncome = "Budget maior que a receita"
+)
+
+// The steps a transaction's history records when the person changes what it
+// counts for.
+const (
+	countedAgainStep   = "Você voltou a contar esta transação"
+	refundMarkedStep   = "Você marcou como estorno"
+	refundUnmarkedStep = "Você desmarcou o estorno"
+)
+
+func refundLineStep(line string) string {
+	return "Você definiu que o estorno abate " + line
+}
+
 // The cycles of a subscription, the contract's SubscriptionCycle.
 const (
 	cycleMonthly    = "Mensal"

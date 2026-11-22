@@ -40,8 +40,9 @@ var (
 // person would have said about the full ledger's transactions: a line put by
 // the person and one by a rule, one by the model, a pending review with a
 // suggestion, a nickname, own tags and fixed tags that overlap, a note,
-// default lines the current month has and lacks, a split of three parts, an
-// exclusion with a reason and one without, a credit on its own line marked as
+// default lines the current month has and lacks, a split of three parts that
+// lack part of what was paid and one of two that exceed it, an exclusion with a
+// reason and one without, a credit on its own line marked as
 // a refund of another, a refund the person says is not one, a reimbursable
 // purchase with a credit linked to it, and a history with a reason, a step
 // overwritten since and a note. Each transaction is found with the lookup every write
@@ -228,8 +229,14 @@ func (a authoring) splitAndExclusions() error {
 		{Position: 1, Line: a.line("Saúde"), Cents: 4_000},
 		{Position: 2, Cents: 2_000},
 	}
+	boleto, err := a.key(txBoleto)
+	if err != nil {
+		return err
+	}
+	exceeding := []authored.SplitPart{{Position: 0, Line: a.line("Contas da casa"), Cents: 10_000}, {Position: 1, Cents: 2_000}}
 	return each(
 		func() error { return authoredtest.WriteSplit(a.ctx, a.writes.Recorder, instalment, parts) },
+		func() error { return authoredtest.WriteSplit(a.ctx, a.writes.Recorder, boleto, exceeding) },
 		func() error {
 			return a.state(txPixOut, authored.TransactionState{Exclusion: authoredtest.Some("Empréstimo, ela devolve")})
 		},

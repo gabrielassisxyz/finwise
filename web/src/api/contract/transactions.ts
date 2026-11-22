@@ -10,9 +10,12 @@ export type Classifier = 'Regra' | 'IA' | 'Você';
 /** A classification the app would not apply by itself, waiting for a decision. */
 export interface PendingReview {
   reason: string;
-  suggestion: string;
-  confidence: number;
-  justification: string;
+  /** Null when the app has no line to propose, as for an establishment it has never seen. */
+  suggestion: string | null;
+  /** Null without a suggestion, and for a suggestion that carries no confidence. */
+  confidence: number | null;
+  /** Null until a model explains its suggestion. */
+  justification: string | null;
 }
 
 export interface Transaction {

@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "changeId": "5"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_state",
+      "key": [
+        14
+      ],
+      "column": "exclusion",
+      "before": null,
+      "after": "Compra da empresa"
+    }
+  ]
+}

@@ -130,6 +130,9 @@ var domainRegistrations = []func(*Registry){
 	registerChanges,
 	registerSettingsWrites,
 	registerPotSettingsWrites,
+	registerTransactionTagWrites,
+	registerEstablishmentWrites,
+	registerTransactionCountWrites,
 	registerSubscriptionWrites,
 }
 

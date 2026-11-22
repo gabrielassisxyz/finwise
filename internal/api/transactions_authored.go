@@ -247,18 +247,18 @@ func classifierOf(author authored.Author) *string {
 }
 
 // pendingOf is the review a transaction waits for, its suggestion named in the
-// transaction's month. The contract cannot say yet that a review has no
-// suggestion, so a missing one reads as an empty name and a zero confidence.
+// transaction's month. A review whose line is not kept, or is not in that
+// month's budget, has no suggestion and so no confidence either: a percentage
+// with nothing to be a percentage of would only mislead.
 func (lines transactionLines) pendingOf(state authored.TransactionState) *pendingReview {
 	if state.PendingReason == "" {
 		return nil
 	}
 	review := &pendingReview{Reason: state.PendingReason}
-	if name := lines.nameOf(state.PendingLine); name != nil {
-		review.Suggestion = *name
-	}
-	if state.PendingConfidence != nil {
-		review.Confidence = int(*state.PendingConfidence)
+	review.Suggestion = lines.nameOf(state.PendingLine)
+	if review.Suggestion != nil && state.PendingConfidence != nil {
+		confidence := int(*state.PendingConfidence)
+		review.Confidence = &confidence
 	}
 	return review
 }

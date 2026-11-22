@@ -11,7 +11,7 @@ const stepStates = async (api: Api, month = MONTH) => Object.fromEntries((await 
 
 async function clearQueue(api: Api): Promise<void> {
   for (const item of (await api.review.weekly(MONTH)).queue.items) {
-    await api.review.acceptPending(item.transactionId, { line: item.pending.suggestion, always: false, nickname: '', reason: '' });
+    await api.review.acceptPending(item.transactionId, { line: item.pending.suggestion!, always: false, nickname: '', reason: '' });
   }
 }
 

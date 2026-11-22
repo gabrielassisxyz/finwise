@@ -2,8 +2,11 @@ package api
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
+	"github.com/gabrielassisxyz/finwise/internal/authored"
+	"github.com/gabrielassisxyz/finwise/internal/budgetrules"
 	"github.com/gabrielassisxyz/finwise/internal/money"
 	"github.com/gabrielassisxyz/finwise/internal/txrules"
 )
@@ -71,23 +74,23 @@ func TestTheBudgetViewNamesTheMonthItWasAskedForAndOnlyCountsItsFees(t *testing.
 	expectAnswer(t, env, "budget.view", `["2026-02"]`, emptyBudgetViewOf("2026-02", "0.00"))
 }
 
-// A draft is refused with the very answer a write gets, so the two cannot drift.
-func TestTheBudgetViewRefusesAnyDraftAsAWriteIsRefused(t *testing.T) {
+// On a server without the app's database a draft is still a read: it is
+// weighed against nothing authored, while a save keeps being refused.
+func TestWithoutADatabaseADraftIsWeighedAndASaveIsStillRefused(t *testing.T) {
 	env := newReadEnv(t, newFullLedger(t))
-	write := env.call("/api/budget/save", `["2026-03",[]]`, env.cookie)
-	expectError(t, "a refused write", write, http.StatusForbidden, "read_only")
-	drafts := []string{
-		`[]`,
-		`[{"key":"rec","name":"Receita","lines":[{"name":"Salário","amount":8000}]}]`,
-		`0`,
-		`"x"`,
+	expectError(t, "a save", env.call("/api/budget/save", `["2026-03",[]]`, env.cookie), http.StatusForbidden, "read_only")
+	expectAnswer(t, env, "budget.view", `["2026-03",[]]`, emptyBudgetViewOf("2026-03", "25.00"))
+	oneGroup := `[{"key":"rec","name":"Receita","lines":[{"name":"Salário","amount":8000}]}]`
+	status, body := env.answer("budget.view", `["2026-03",`+oneGroup+`]`)
+	salary := `{"name":"Salário","cells":[` + moneyCellJSON("8000.00") + `,` + moneyCellJSON("0.00") + `,{"type":"none"}],` +
+		`"marks":[],"over":false,"bar":null,"expandable":true}`
+	if status != http.StatusOK || !strings.Contains(string(body), `"income":8000.00,"allocated":8000.00,"investmentRate":100,`) ||
+		!strings.Contains(string(body), salary) {
+		t.Errorf("a one-group draft answered %d %s", status, body)
 	}
-	for _, draft := range drafts {
+	for _, draft := range []string{`0`, `"x"`} {
 		response := env.call("/api/budget/view", `["2026-03",`+draft+`]`, env.cookie)
-		expectError(t, "budget.view with the draft "+draft, response, http.StatusForbidden, "read_only")
-		if response.Body.String() != write.Body.String() {
-			t.Errorf("the refusal of a draft reads %s, a write's reads %s", response.Body, write.Body)
-		}
+		expectError(t, "budget.view with the draft "+draft, response, http.StatusBadRequest, "bad_request")
 	}
 }
 
@@ -112,7 +115,11 @@ func feeRow(amount money.Cents, change func(*txrules.Transaction)) txrules.Trans
 	return row
 }
 
-func TestSpentOnFeesCountsWhatWasChargedNetOfDiscounts(t *testing.T) {
+// The fees figure comes from the dispositions: what was charged as fees and
+// interest, net of the credits that discount them. A pending row has not been
+// charged, a movement is not spending, and a foreign row with no value in reais
+// has no amount to add.
+func TestTheFeesFigureIsWhatWasChargedNetOfDiscounts(t *testing.T) {
 	listed := []txrules.Transaction{
 		feeRow(-2500, nil),
 		feeRow(-1000, nil),
@@ -122,7 +129,14 @@ func TestSpentOnFeesCountsWhatWasChargedNetOfDiscounts(t *testing.T) {
 		feeRow(-9900, func(row *txrules.Transaction) { row.Unconverted = true }),
 		feeRow(-9900, func(row *txrules.Transaction) { row.Fee = false }),
 	}
-	if got := spentOnFees(listed); got != 3200 {
-		t.Errorf("spent %d cents on fees, want 3200", got)
+	inputs := make([]budgetrules.Transaction, 0, len(listed))
+	for _, row := range listed {
+		inputs = append(inputs, authoredRows{}.disposable(row))
+	}
+	outcomes := budgetrules.Dispose(transactionLinesOf(authored.Budget{}).budget, inputs)
+	facts := budgetrules.MonthFacts{Figures: budgetrules.LineFigures(outcomes), FeesLine: budgetrules.LineID(feesLineID)}
+	fees := budgetrules.View(budgetrules.Plan{}, facts).Groups[6]
+	if fees.Key != budgetrules.GroupFees || fees.Subtotal != 3200 || fees.Lines[0].Cells[0].Amount != 3200 {
+		t.Errorf("the fees group is %+v, want 3200 cents", fees)
 	}
 }

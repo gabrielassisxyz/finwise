@@ -3787,13 +3787,25 @@
           "type": "string"
         },
         "suggestion": {
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Null when the app has no line to propose, as for an establishment it has never seen."
         },
         "confidence": {
-          "type": "number"
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Null without a suggestion, and for a suggestion that carries no confidence."
         },
         "justification": {
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Null until a model explains its suggestion."
         }
       },
       "required": [
