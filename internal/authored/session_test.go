@@ -15,8 +15,8 @@ const (
 func TestTheSessionMigrationIsRecorded(t *testing.T) {
 	path := databasePath(t)
 	openAndClose(t, path, creationInstant, nil)
-	if got := namesOf(t, path); !equalStrings(got, []string{"0001_journal", "0004_settings", "0008_session"}) {
-		t.Errorf("recorded = %v, want 0001_journal, 0004_settings and 0008_session", got)
+	if got := namesOf(t, path); !equalStrings(got, []string{"0001_journal", "0002_budget", "0004_settings", "0008_session"}) {
+		t.Errorf("recorded = %v, want 0001_journal, 0002_budget, 0004_settings and 0008_session", got)
 	}
 }
 

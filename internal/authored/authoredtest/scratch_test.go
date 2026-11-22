@@ -77,7 +77,11 @@ func TestTheCanonicalDumpIsOneJSONDocumentWithEveryTableInNameOrder(t *testing.T
 	if err := json.Unmarshal([]byte(dump), &parsed); err != nil {
 		t.Fatalf("the dump is not JSON: %v\n%s", err, dump)
 	}
-	names := []string{authoredtest.Children, authoredtest.Facts, authoredtest.Parents, authoredtest.Tags, authoredtest.Things}
+	names := []string{
+		"budget_version_lines", "budget_versions", "closed_months", "scenarios",
+		authoredtest.Children, authoredtest.Facts, authoredtest.Parents, authoredtest.Tags, authoredtest.Things,
+		"settings",
+	}
 	last := -1
 	for _, name := range names {
 		if _, listed := parsed[name]; !listed {

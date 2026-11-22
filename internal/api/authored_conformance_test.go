@@ -26,12 +26,18 @@ func authoredRead(method, arguments string) authoredReadCase {
 
 // authoredReadCases are answered over the full ledger and the invented authored
 // state, validated against the method's result schema and compared with their
-// files in testdata/golden/full-authored. No read consults the authored store
-// yet, so each file equals its twin in full/; a read that merges what the person
-// authored arrives with its case here.
+// files in testdata/golden/full-authored. A read that does not consult the
+// authored store answers here what it answers in full/; a read that merges what
+// the person authored has its case here. The two months of the budget's cases
+// are served by two versions that name one line differently.
 var authoredReadCases = []authoredReadCase{
 	authoredRead("transactions.detail", `["tx-fee"]`),
 	authoredRead("accounts.detail", `["acc-stale"]`),
+	authoredRead("budget.document", `["2026-02"]`),
+	authoredRead("budget.document", `["2026-03"]`),
+	authoredRead("budget.scenarios", `[]`),
+	authoredRead("transactions.filterOptions", `["2026-02"]`),
+	authoredRead("transactions.filterOptions", `["2026-03"]`),
 }
 
 // newAuthoredReadEnv is the third state: both stores, the database holding the

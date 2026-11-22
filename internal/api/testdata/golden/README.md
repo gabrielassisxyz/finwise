@@ -15,8 +15,7 @@ ledgers built in `internal/api/fixtures_test.go`; the fourth holds what a record
 - `writes/` holds one file per recorded-change case of `writeCases`
   (`internal/api/write_conformance_test.go`): the answer and the change's effects in the order of the
   journal, each with its table, key, column, before and after as the recorder wrote them. The
-  directory does not exist until the first real write is recorded; the harness's own proof cases hold
-  their golden content in the test.
+  harness's own proof cases hold their golden content in the test.
 
 Nothing here comes from a real account, and `-update` refuses to run while
 `FINWISE_LEDGER_SNAPSHOT` is set so that it cannot.

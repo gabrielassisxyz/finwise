@@ -1,0 +1,59 @@
+{
+  "answer": {
+    "changeId": "2"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "budget_versions",
+      "key": [
+        "2026-03"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-03"
+      }
+    },
+    {
+      "seq": 2,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-03",
+        6,
+        "Feira"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-03",
+        "group_key": "fix",
+        "position": 0,
+        "line_id": 6,
+        "name": "Feira",
+        "cents": 45050,
+        "flag": null
+      }
+    },
+    {
+      "seq": 3,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-03",
+        10,
+        "Bônus-extra"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-03",
+        "group_key": "fix",
+        "position": 1,
+        "line_id": 10,
+        "name": "Bônus-extra",
+        "cents": 1000,
+        "flag": null
+      }
+    }
+  ]
+}
