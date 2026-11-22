@@ -73,6 +73,7 @@ func Backup(ctx context.Context, source, destination string, options BackupOptio
 	if err != nil {
 		return err
 	}
+	defer published.Close()
 	runHook(options.hooks.afterPublish)
 	if err := database.recordBackup(ctx, options.Now()); err != nil {
 		return withdraw(source, destination, published, err)
@@ -136,12 +137,12 @@ func (database *Database) checkedCopy(ctx context.Context, destination string, h
 
 var errCopyNotOurs = errors.New("authored: the copy does not carry finwise's application id")
 
-// checkCopy opens the copy immutable: nobody else knows the file, and an
-// immutable open creates no -wal, -shm or -journal beside it.
+// checkCopy opens the copy for writing, though it writes nothing: on a
+// read-only connection integrity_check skips the CHECK constraints. The copy
+// VACUUM INTO writes is in rollback mode, so a read leaves no file beside it.
 func checkCopy(ctx context.Context, path string) error {
 	query := url.Values{}
-	query.Set("mode", "ro")
-	query.Set("immutable", "1")
+	query.Set("mode", "rw")
 	copied, err := sql.Open("sqlite", (&url.URL{Scheme: "file", Path: path, RawQuery: query.Encode()}).String())
 	if err != nil {
 		return err
@@ -185,17 +186,19 @@ func integrityIsOK(ctx context.Context, copied *sql.DB) error {
 
 // publish links the copy to the destination name: unlike a rename, a link
 // fails when the name is taken, so whatever is there stays. It returns what
-// was published, so that only that file can ever be withdrawn.
-func publish(source, temporary, destination string) (fs.FileInfo, error) {
+// was published, held open so that only that file can ever be withdrawn: while
+// it is open its inode cannot be freed and given to a file that takes the name.
+func publish(source, temporary, destination string) (*os.File, error) {
 	failure := func(kind BackupFailure, cause error) *BackupError {
 		return &BackupError{Source: source, Destination: destination, Failure: kind, cause: cause}
 	}
-	published, err := os.Lstat(temporary)
+	published, err := os.Open(temporary)
 	if err != nil {
 		removeTemporary(temporary)
 		return nil, failure(BackupPublishFailed, err)
 	}
 	if err := os.Link(temporary, destination); err != nil {
+		published.Close()
 		removeTemporary(temporary)
 		if errors.Is(err, fs.ErrExist) {
 			return nil, failure(BackupDestinationTaken, err)
@@ -203,9 +206,11 @@ func publish(source, temporary, destination string) (fs.FileInfo, error) {
 		return nil, failure(BackupPublishFailed, err)
 	}
 	if err := os.Remove(temporary); err != nil {
+		published.Close()
 		return nil, failure(BackupTemporaryLeft, err)
 	}
 	if err := syncFile(filepath.Dir(destination)); err != nil {
+		published.Close()
 		return nil, failure(BackupTemporaryLeft, err)
 	}
 	return published, nil
@@ -228,9 +233,13 @@ func (database *Database) recordBackup(ctx context.Context, now time.Time) error
 
 // withdraw removes the copy published by this backup, and nothing that took
 // its name meanwhile.
-func withdraw(source, destination string, published fs.FileInfo, recordErr error) error {
+func withdraw(source, destination string, published *os.File, recordErr error) error {
+	held, err := published.Stat()
+	if err != nil {
+		return &BackupError{Source: source, Destination: destination, Failure: BackupNotWithdrawn, cause: recordErr}
+	}
 	current, err := os.Lstat(destination)
-	if err != nil || !os.SameFile(current, published) {
+	if err != nil || !os.SameFile(current, held) {
 		return &BackupError{Source: source, Destination: destination, Failure: BackupNotWithdrawn, cause: recordErr}
 	}
 	if err := os.Remove(destination); err != nil {

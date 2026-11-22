@@ -314,6 +314,25 @@ var damages = map[string]func(t *testing.T, temporary string){
 	"a damaged page": func(t *testing.T, temporary string) {
 		overwrite(t, temporary, 4096, []byte(strings.Repeat("\xff", 64)))
 	},
+	"one integrity row other than ok": breakOneCheckConstraint,
+}
+
+// breakOneCheckConstraint stores one effect with neither side, which the schema
+// forbids, so integrity_check answers a single row that is not "ok": a copy
+// that is damaged in one place only.
+func breakOneCheckConstraint(t *testing.T, temporary string) {
+	t.Helper()
+	rawDatabase(t, temporary, "PRAGMA ignore_check_constraints = 1",
+		`INSERT INTO change_effects (change_id, seq, tbl, key) VALUES (1, 1, 'lines', '["a"]')`)
+	copied, err := sql.Open("sqlite", temporary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer copied.Close()
+	answers := columnValues(t, copied, "PRAGMA integrity_check")
+	if len(answers) != 1 || answers[0] == "ok" {
+		t.Fatalf("integrity_check answered %d rows (%v), want one row other than ok", len(answers), answers)
+	}
 }
 
 func overwrite(t *testing.T, path string, offset int64, content []byte) {
@@ -386,6 +405,40 @@ func TestARecordThatFailsAfterThePublicationWithdrawsTheCopy(t *testing.T) {
 	}
 	if got := recordedBackup(t, source); got != "" {
 		t.Errorf("a withdrawn backup recorded %q", got)
+	}
+}
+
+// Between the publication and the failed record another file takes the
+// destination's name: the withdrawal must leave that file, which this backup
+// did not publish.
+func TestAFailedRecordLeavesAFileThatTookTheNameAfterThePublication(t *testing.T) {
+	source := stoppedSource(t)
+	directory := t.TempDir()
+	destination := filepath.Join(directory, "finwise-backup.db")
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	var other string
+	replaceThenFail := func() {
+		if err := os.Remove(destination); err != nil {
+			t.Fatalf("the copy was not published: %v", err)
+		}
+		writeFile(t, destination, "another file, written after the publication")
+		other = fingerprint(t, destination)
+		cancel()
+	}
+
+	asBackupError(t, backupWithHooks(ctx, t, source, destination, nil, nil, replaceThenFail), authored.BackupNotWithdrawn)
+	if other == "" {
+		t.Fatal("the copy was never published")
+	}
+	if got := fingerprint(t, destination); got != other {
+		t.Errorf("the file that took the name changed: %s -> %s", other, got)
+	}
+	if got := listDirectory(t, directory); !equalStrings(got, []string{"finwise-backup.db"}) {
+		t.Errorf("the directory holds %v, want only the other file", got)
+	}
+	if got := recordedBackup(t, source); got != "" {
+		t.Errorf("a failed backup recorded %q", got)
 	}
 }
 
