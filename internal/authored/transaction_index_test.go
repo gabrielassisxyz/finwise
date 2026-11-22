@@ -227,7 +227,10 @@ func TestTheIndexIsWrittenOnlyThroughItsOwnStatements(t *testing.T) {
 			}
 		}
 	}
-	want := map[string]bool{"statementMintTxKey": true, "statementMapProviderID": true, "statementRefreshTxKey": true}
+	want := map[string]bool{
+		"statementMintTxKey": true, "statementMapProviderID": true, "statementRefreshTxKey": true,
+		"statementMarkListed": true, "statementMarkMetUnlisted": true, "statementMarkEvaluated": true,
+	}
 	if len(writers) != len(want) {
 		t.Errorf("the statements that write the index are %v, want %v", writers, want)
 	}
