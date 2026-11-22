@@ -1,0 +1,20 @@
+{
+  "answer": {
+    "changeId": "1"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "settings",
+      "key": [
+        "min_examples"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "key": "min_examples",
+        "value": 5
+      }
+    }
+  ]
+}

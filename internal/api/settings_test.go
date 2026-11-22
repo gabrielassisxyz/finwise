@@ -2,6 +2,8 @@ package api
 
 import (
 	"encoding/json"
+	"go/ast"
+	"go/token"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -9,12 +11,23 @@ import (
 	"time"
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
+	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
 	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 )
 
 func init() {
 	readCases = append(readCases, readCase{"settings.overview", `[]`})
 }
+
+// The defaults the settings are compared with are the store's: the app's
+// database is the one place they are stated.
+const (
+	defaultConfidenceThreshold = authored.DefaultConfidenceThreshold
+	defaultMinExamples         = authored.DefaultMinExamples
+	defaultCardLabel           = authored.DefaultCardLabel
+	defaultManualClosingDay    = authored.DefaultManualClosingDay
+	defaultClosingMode         = string(authored.DefaultClosingMode)
+)
 
 func settingsOf(t *testing.T, env *readEnv) map[string]any {
 	t.Helper()
@@ -266,5 +279,107 @@ func TestTheSettingsTakeTheirCardTitleFromTheCardPage(t *testing.T) {
 	env := newReadEnv(t, newFullLedger(t))
 	if settingsOf(t, env)["cardTitle"] != answerOf(t, env, "card.overview", `[]`)["title"] {
 		t.Error("the settings and the card page name the card differently")
+	}
+}
+
+// chosenAnswer is what the overview answers for the five settings.
+type chosenAnswer struct {
+	threshold, minExamples, manualDay, cardLabel, mode any
+}
+
+func chosenAnswerOf(t *testing.T, overview map[string]any) chosenAnswer {
+	t.Helper()
+	categorization, closing := objectAt(t, overview, "categorization"), objectAt(t, overview, "closing")
+	return chosenAnswer{categorization["threshold"], categorization["minExamples"], closing["manualDay"], overview["cardLabel"], closing["mode"]}
+}
+
+// overInventedState is a router over the full ledger and the invented authored
+// state, which sets every setting to a value other than its default.
+func overInventedState(t *testing.T) *readEnv {
+	t.Helper()
+	scratch := authoredtest.Open(t, fixtureClock)
+	inventedAuthoredState(t, scratch)
+	return newReadEnvOver(t, newFullLedger(t), scratch.Database)
+}
+
+func TestWithNothingStoredTheSettingsAnswerTheirDefaults(t *testing.T) {
+	want := chosenAnswer{float64(85), float64(5), float64(28), "Físico", "auto"}
+	for label, env := range map[string]*readEnv{
+		"no database":                    newReadEnv(t, newFullLedger(t)),
+		"a database with nothing stored": newReadEnvOver(t, newFullLedger(t), authoredtest.Fresh(t, fixtureClock)),
+	} {
+		if got := chosenAnswerOf(t, settingsOf(t, env)); got != want {
+			t.Errorf("%s: the settings answer %+v, want %+v", label, got, want)
+		}
+	}
+}
+
+func TestTheSettingsAnswerWhatThePersonStored(t *testing.T) {
+	overview := settingsOf(t, overInventedState(t))
+	want := chosenAnswer{float64(70), float64(12), float64(10), inventedLabel, "manual"}
+	if got := chosenAnswerOf(t, overview); got != want {
+		t.Errorf("the settings answer %+v, want %+v", got, want)
+	}
+}
+
+func TestTheCalibrationIsUnjudgedWhateverThePersonSet(t *testing.T) {
+	categorization := objectAt(t, settingsOf(t, overInventedState(t)), "categorization")
+	bands, err := json.Marshal(categorization["calibration"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `[{"correctionPercent":null,"from":50,"to":59},{"correctionPercent":null,"from":60,"to":69},` +
+		`{"correctionPercent":null,"from":70,"to":79},{"correctionPercent":null,"from":80,"to":89},` +
+		`{"correctionPercent":null,"from":90,"to":100}]`
+	if string(bands) != want {
+		t.Errorf("calibration %s, want %s", bands, want)
+	}
+	if suggested, present := categorization["suggestedThreshold"]; !present || suggested != nil {
+		t.Errorf("suggestedThreshold = %v, want null", suggested)
+	}
+}
+
+// The store states the defaults once, so the settings screen and the rules that
+// classify below the API cannot disagree on one. The minimum of examples and
+// the manual day are numbers too common in the package to look for.
+func TestThePackageStatesNoDefaultOfTheSettingsOfItsOwn(t *testing.T) {
+	copies := map[string]bool{
+		strconv.Quote(authored.DefaultCardLabel):                   true,
+		strconv.Quote(string(authored.DefaultClosingMode)):         true,
+		strconv.FormatInt(authored.DefaultConfidenceThreshold, 10): true,
+	}
+	for file, parsed := range sourceFilesOfThePackage(t) {
+		ast.Inspect(parsed, func(node ast.Node) bool {
+			if literal, ok := node.(*ast.BasicLit); ok && (literal.Kind == token.STRING || literal.Kind == token.INT) && copies[literal.Value] {
+				t.Errorf("%s states %s, a default the store states", file, literal.Value)
+			}
+			return true
+		})
+	}
+}
+
+// The bank's day is shown beside the manual day as what the bank does, so no
+// closing setting moves it.
+func TestTheBankDayStaysTheBanksWhateverTheClosingSetting(t *testing.T) {
+	fixtures := []struct {
+		name    string
+		ledger  func(t *testing.T) *ledgertest.Fixture
+		bankDay string
+	}{
+		{"full", func(t *testing.T) *ledgertest.Fixture { return newFullLedger(t) }, "28"},
+		{"c6 table", c6Ledger, "3"},
+		{"no table", noTableLedger, "null"},
+		{"no card", func(t *testing.T) *ledgertest.Fixture { return newEmptyLedger(t) }, "null"},
+	}
+	for _, fixture := range fixtures {
+		env := newSettingsEnv(t, fixture.ledger(t), utc(2026, time.March, 20, 15, 0))
+		for _, setting := range []string{``, `["auto",12]`, `["manual",10]`, `["manual",25]`, `["manual",1]`, `["auto",25]`} {
+			if setting != `` {
+				env.change("settings.setClosing", setting)
+			}
+			if got := env.overviewField("closing", "bankDay"); got != fixture.bankDay {
+				t.Errorf("%s, closing %s: bankDay %s, want %s", fixture.name, setting, got, fixture.bankDay)
+			}
+		}
 	}
 }

@@ -20,10 +20,6 @@ const (
 
 	awaitingFirstSync = "Aguardando a primeira sincronização"
 
-	// defaultCardLabel is how a person's physical card is called until they
-	// rename it in the settings.
-	defaultCardLabel = "Físico"
-
 	// unnamedScenario is what a scenario saved with a blank name is called.
 	unnamedScenario = "Cenário sem nome"
 

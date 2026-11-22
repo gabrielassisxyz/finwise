@@ -1,0 +1,33 @@
+{
+  "answer": {
+    "changeId": "1"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "settings",
+      "key": [
+        "closing_mode"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "key": "closing_mode",
+        "value": "manual"
+      }
+    },
+    {
+      "seq": 2,
+      "table": "settings",
+      "key": [
+        "manual_closing_day"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "key": "manual_closing_day",
+        "value": 28
+      }
+    }
+  ]
+}

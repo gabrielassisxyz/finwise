@@ -198,11 +198,23 @@ func ledgerNamed(t testing.TB, name string) *ledgertest.Fixture {
 	return nil
 }
 
+// inventedLabel is the card label of the invented authored state.
+const inventedLabel = "Azulão"
+
+// inventedSettings sets every setting to a value other than its default.
+var inventedSettings = authoredtest.Settings{
+	ConfidenceThreshold: authoredtest.Some[int64](70), MinExamples: authoredtest.Some[int64](12),
+	CardLabel: authoredtest.Some(inventedLabel), ClosingMode: authoredtest.Some(authored.ClosingManual),
+	ManualClosingDay: authoredtest.Some[int64](10),
+}
+
 // inventedAuthoredState is what a person who has used the app for a while
 // would have authored, written through the recorder in one change: a fact, a
-// created row, a tag and a parent with a child. Nothing of it is real. A test
-// that builds on it checks that it holds something, so a state that silently
-// holds nothing cannot make a comparison pass.
+// created row, a tag and a parent with a child in the scratch tables, every
+// setting at a value other than its default, and a budget. Nothing of it is
+// real. A test that builds on it checks that it leaves no journaled table
+// empty, so a state that silently holds nothing, or misses a table a later
+// piece of work adds, cannot make a comparison pass.
 func inventedAuthoredState(t testing.TB, scratch *authoredtest.Scratch) {
 	t.Helper()
 	facts := authored.ChangeFacts{Author: authored.AuthorPerson, Method: "scratch.seed", At: fixtureNow}
@@ -223,7 +235,16 @@ func inventedAuthoredState(t testing.TB, scratch *authoredtest.Scratch) {
 		if err := recorder.Put(ctx, authoredtest.Children, authored.Row{"id": authored.Integer(1), "parent_id": authored.Integer(1), "label": authored.Text("nota-child")}); err != nil {
 			return err
 		}
-		if err := recorder.SetMinExamples(ctx, 3); err != nil {
+		if err := recorder.SetConfidenceThreshold(ctx, *inventedSettings.ConfidenceThreshold); err != nil {
+			return err
+		}
+		if err := recorder.SetMinExamples(ctx, *inventedSettings.MinExamples); err != nil {
+			return err
+		}
+		if err := recorder.SetCardLabel(ctx, *inventedSettings.CardLabel); err != nil {
+			return err
+		}
+		if err := recorder.SetCardClosing(ctx, *inventedSettings.ClosingMode, *inventedSettings.ManualClosingDay); err != nil {
 			return err
 		}
 		if err := authoredtest.SeedBudget(recorder); err != nil {
