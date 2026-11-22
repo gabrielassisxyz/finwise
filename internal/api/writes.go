@@ -23,11 +23,15 @@ import (
 // trace in the journal and answers null.
 type WriteHandler func(ctx context.Context, args []json.RawMessage, writes Writes) (any, error)
 
-// Writes is what one write is answered from: the request's view of the ledger
-// and the recorder of its change. What a write reads of the app's database it
-// reads through the recorder, inside the same transaction.
+// Writes is what one write is answered from: the request's view of the ledger,
+// the recorder of its change and the view of the app's database over that
+// change's own transaction. Authored sees what the write has already recorded
+// and reads under the lock the write holds, so a read written for a read
+// handler serves a write unchanged; it answers the closed-view error once the
+// change has ended.
 type Writes struct {
 	Ledger   *ledger.View
+	Authored *authored.View
 	Recorder *authored.Recorder
 }
 
@@ -37,11 +41,17 @@ type Writes struct {
 // would wait for a lock its own caller holds. For the same reason what the
 // handler returns is encoded after the engine's call has committed, so its
 // result must not be one that can fail to encode.
-type JournalHandler func(ctx context.Context, args []json.RawMessage, journal Journal) (any, error)
+//
+// ledgerView is the request's view of the ledger, for a handler that has to
+// find in it what to extend a change with; it is closed when the request ends,
+// however it ends. What the handler reads of the app's database it reads inside
+// the function it gives to Extend, through the recorder's view.
+type JournalHandler func(ctx context.Context, args []json.RawMessage, journal Journal, ledgerView *ledger.View) (any, error)
 
 // Journal is the engine's calls on committed changes.
 type Journal interface {
 	Undo(ctx context.Context, id authored.ChangeID, at time.Time) error
+	Extend(ctx context.Context, origin authored.ChangeID, method string, write func(*authored.Recorder) error) error
 }
 
 // serveChange answers a `write` or an `evaluate` method. The app's own database
@@ -78,13 +88,13 @@ func (found *router) serveChange(w http.ResponseWriter, r *http.Request, method 
 func (found *router) serveWrite(w http.ResponseWriter, r *http.Request, method contract.Method, handler WriteHandler, arguments []json.RawMessage) {
 	ctx, instant := found.requestContext(r)
 	// The authored half stays empty: a write reads the app's database through
-	// its recorder, in its own transaction.
+	// its recorder's view, in its own transaction.
 	views := openViews(found.reader, nil)
 	defer views.close()
 	facts := authored.ChangeFacts{Author: authored.AuthorPerson, Method: method.Qualified(), At: instant}
 	var encoded []byte
 	err := found.database.Change(ctx, facts, func(recorder *authored.Recorder) error {
-		result, err := callWrite(ctx, handler, arguments, Writes{Ledger: views.Ledger, Recorder: recorder})
+		result, err := callWrite(ctx, handler, arguments, Writes{Ledger: views.Ledger, Authored: recorder.View(), Recorder: recorder})
 		if err != nil {
 			return err
 		}
@@ -112,7 +122,9 @@ func callWrite(ctx context.Context, handler WriteHandler, arguments []json.RawMe
 
 func (found *router) serveJournal(w http.ResponseWriter, r *http.Request, handler JournalHandler, arguments []json.RawMessage) {
 	ctx, _ := found.requestContext(r)
-	result, err := handler(ctx, arguments, found.database)
+	views := openViews(found.reader, nil)
+	defer views.close()
+	result, err := handler(ctx, arguments, found.database, views.Ledger)
 	if err != nil {
 		writeFailure(w, r, err)
 		return
