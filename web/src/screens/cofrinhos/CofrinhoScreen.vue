@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useApi } from '@/api/context';
 import type { SavingsPotDetail } from '@/api/types';
 import { brl } from '@/lib/format';
+import { useRevisionStore } from '@/stores/revision';
 import PotFacts from './PotFacts.vue';
 import PotMovements from './PotMovements.vue';
 import PotYield from './PotYield.vue';
@@ -12,6 +13,7 @@ import { potSubtitle } from './potText';
 const api = useApi();
 const route = useRoute();
 const router = useRouter();
+const revision = useRevisionStore();
 
 const pot = ref<SavingsPotDetail | null>(null);
 const missing = ref(false);
@@ -19,10 +21,12 @@ const missing = ref(false);
 const id = computed(() => String(route.params.id));
 
 watch(
-  id,
-  async (requested) => {
-    pot.value = null;
-    missing.value = false;
+  [id, () => revision.current],
+  async ([requested], previous) => {
+    if (requested !== previous?.[0]) {
+      pot.value = null;
+      missing.value = false;
+    }
     const loaded = await api.savingsPots.detail(requested);
     if (requested !== id.value) return;
     pot.value = loaded;
