@@ -5,8 +5,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
 // freshInstallMethods are the reads that answer a fixed value or, for payday, a
@@ -32,10 +30,10 @@ func isFreshInstallRead(method string) bool {
 // "the account the salary lands on" to a tie rule.
 func TestTheFreshInstallReadsOverARealSnapshot(t *testing.T) {
 	path := realSnapshotPath(t)
-	reader, ctx := ledger.New(path), t.Context()
-	accounts, err := reader.Accounts(ctx)
+	snapshot, ctx := viewOf(t, path), t.Context()
+	accounts, err := snapshot.Accounts(ctx)
 	withoutValues(t, "accounts", err)
-	rows, err := reader.CleanTransactions(ctx, wholeLedger)
+	rows, err := snapshot.CleanTransactions(ctx, wholeLedger)
 	withoutValues(t, "transactions", err)
 
 	env := newTestEnv(t, withLedger(path, time.Now()))

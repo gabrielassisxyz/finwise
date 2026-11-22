@@ -144,12 +144,12 @@ func TestOnlyASettledPayrollCreditOnABankAccountCounts(t *testing.T) {
 
 func TestTheSalariedLedgerHasTwoReceivingAccountsAndOneChosen(t *testing.T) {
 	fixture := newSalariedLedger(t)
-	reader := ledger.New(fixture.Path)
-	accounts, err := reader.Accounts(t.Context())
+	snapshot := viewOf(t, fixture.Path)
+	accounts, err := snapshot.Accounts(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
-	rows, err := reader.CleanTransactions(t.Context(), wholeLedger)
+	rows, err := snapshot.CleanTransactions(t.Context(), wholeLedger)
 	if err != nil {
 		t.Fatal(err)
 	}
