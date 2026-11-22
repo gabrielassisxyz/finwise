@@ -18,6 +18,7 @@ func TestATagIsKeptInOneSpellingWhateverTheWayItWasTyped(t *testing.T) {
 		"#":                    "",
 		"   ":                  "",
 		"":                     "",
+		"  #viagem":            "#viagem",
 		"##a":                  "#a",
 		"# a b":                "#a-b",
 		"a  b":                 "#a-b",

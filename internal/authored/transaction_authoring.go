@@ -3,6 +3,7 @@ package authored
 import (
 	"context"
 	"strings"
+	"unicode"
 )
 
 // What the person says about one transaction (its own tags and its note) and
@@ -30,7 +31,23 @@ func NormalizeTag(text string) string {
 	if body == "" {
 		return ""
 	}
-	return "#" + strings.Join(strings.Fields(body), "-")
+	return "#" + hyphenateRuns(body)
+}
+
+// hyphenateRuns turns each run of white space into one hyphen.
+func hyphenateRuns(text string) string {
+	var out strings.Builder
+	inRun := false
+	for _, r := range text {
+		if !unicode.IsSpace(r) {
+			inRun = false
+			out.WriteRune(r)
+		} else if !inRun {
+			inRun = true
+			out.WriteByte('-')
+		}
+	}
+	return out.String()
 }
 
 // AddTag gives the transaction a tag, kept as NormalizeTag spells it, at the
