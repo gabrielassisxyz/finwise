@@ -529,6 +529,59 @@ func sameLine(got, want *string) bool {
 	return (got == nil) == (want == nil) && (got == nil || *got == *want)
 }
 
+func lineText(line *string) string {
+	if line == nil {
+		return "null"
+	}
+	return *line
+}
+
+// A subscription's line belongs to no month, so it is named as the budget in
+// force for the current month names it: not as an earlier version did, nor as
+// a later one will. February, March (the current month) and April differ in
+// each direction, and one line is renamed in each.
+func TestASubscriptionsLineIsNamedByTheBudgetOfTheCurrentMonth(t *testing.T) {
+	env := newSettingsEnv(t, newFullLedger(t), fixtureNow)
+	database := env.scratch.Database
+	authoredtest.SaveBudget(t, database, fixtureNow, "2026-02", authoredtest.InventedBudget())
+	march := authoredtest.Renamed("Viagens", "Férias")(authoredtest.DocumentOf(budgetOf(t, database, "2026-02")))
+	march[2].Lines = append(march[2].Lines, authoredtest.Line("Cinema", 8_000))
+	authoredtest.SaveBudget(t, database, fixtureNow, "2026-03", march)
+	april := authoredtest.Renamed("Férias", "Passeios")(authoredtest.Without("Delivery")(authoredtest.DocumentOf(budgetOf(t, database, "2026-03"))))
+	april[2].Lines = append(april[2].Lines, authoredtest.Line("Natal", 50_000))
+	authoredtest.SaveBudget(t, database, fixtureNow, "2026-04", april)
+	february, inMarch, inApril := linesByName(t, database, "2026-02"), linesByName(t, database, "2026-03"), linesByName(t, database, "2026-04")
+	if inMarch["Férias"] == 0 || inApril["Passeios"] != inMarch["Férias"] || february["Viagens"] != inMarch["Férias"] ||
+		february["Cinema"] != 0 || inApril["Delivery"] != 0 || inMarch["Natal"] != 0 || inApril["Natal"] == 0 {
+		t.Fatalf("the versions do not differ as the test needs: %v, %v, %v", february, inMarch, inApril)
+	}
+	cases := []struct {
+		key  string
+		line authored.LineID
+		want *string
+	}{
+		{"name:sub-delivery", inMarch["Delivery"], authoredtest.Some("Delivery")},
+		{"name:sub-ferias", inMarch["Férias"], authoredtest.Some("Férias")},
+		{"name:sub-cinema", inMarch["Cinema"], authoredtest.Some("Cinema")},
+		{"name:sub-natal", inApril["Natal"], nil},
+	}
+	for index, c := range cases {
+		subscription := keptSubscription(c.key, c.key, "2026-03-01", 1_000, authored.StatusKeep)
+		subscription.Line = authoredtest.Some(c.line)
+		keepSubscription(t, database, "tx-sub-"+strconv.Itoa(index), subscription)
+	}
+	var list listAnswer
+	subscriptionAnswer(t, env.readEnv, "subscriptions.list", `[{"grouped":false}]`, &list)
+	for index, c := range cases {
+		var detail detailAnswer
+		subscriptionAnswer(t, env.readEnv, "subscriptions.detail", `["`+strconv.Itoa(index+1)+`"]`, &detail)
+		row := list.Groups[0].Subscriptions[index]
+		if !sameLine(row.Line, c.want) || !sameLine(detail.Line, c.want) {
+			t.Errorf("%s shows the line %s in the row and %s in the detail, want %s", c.key, lineText(row.Line), lineText(detail.Line), lineText(c.want))
+		}
+	}
+}
+
 func budgetOf(t *testing.T, database *authored.Database, month brday.Month) authored.Budget {
 	t.Helper()
 	view := database.View()
