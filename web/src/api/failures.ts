@@ -4,12 +4,32 @@ import { useOverlayStore } from '@/stores/overlay';
 import { useRevisionStore } from '@/stores/revision';
 import { useSessionStore } from '@/stores/session';
 import { useShellStore } from '@/stores/shell';
-import { isApiFailure } from './http/failure';
+import type { RefusalReason } from './contract/errors';
+import { isApiFailure, type ApiFailure } from './http/failure';
 
 export const READ_ONLY_MESSAGE = 'Somente leitura por enquanto. Nada foi alterado.';
 export const LEDGER_UNAVAILABLE_MESSAGE = 'Dados do banco indisponíveis no momento.';
 export const LOAD_FAILED_MESSAGE = 'Não foi possível carregar os dados.';
 export const RETRY_LABEL = 'Tentar de novo';
+
+/** What the person reads when the server refused a call and said why. */
+export const REFUSAL_SENTENCES: Record<RefusalReason, string> = {
+  month_closed: 'Esse mês já está fechado.',
+  future_month: 'Esse mês ainda não chegou.',
+  pending_reviews: 'Resolva as pendências do mês antes de fechar.',
+  stale_change: 'Isso já foi alterado depois e não pode mais ser desfeito.',
+  not_found: 'Esse item não existe mais.',
+  unknown_line: 'Essa linha não existe no budget desse mês.',
+  invalid_budget: 'O budget tem linha sem nome ou repetida.',
+  unstable_pot: 'O banco não identifica esse cofrinho de forma estável.',
+  split_with_reimbursement: 'Uma compra dividida não pode ter reembolso ligado.',
+};
+/** A refusal whose reason is newer than this interface, or missing. */
+export const UNKNOWN_REFUSAL_MESSAGE = 'Não foi possível concluir.';
+/** A write the server answered and did not carry out: it rolled back whole, or never ran. */
+export const SAVE_FAILED_MESSAGE = 'Não foi possível salvar.';
+/** A write whose answer never arrived may have been stored after all, so it is never called lost. */
+export const SAVE_UNCONFIRMED_MESSAGE = 'Não deu para confirmar se foi salvo. Atualizando a tela.';
 
 /**
  * What a failed call becomes on screen. Call sites do not catch: every
@@ -29,13 +49,26 @@ export function createFailureHandler(pinia: Pinia): (error: unknown) => boolean 
     useOverlayStore(pinia).showToast(message, [{ label: RETRY_LABEL, run: tryAgain }]);
   }
 
+  // Nothing to retry: a write is never sent again, and the screens fetch again at once so none keeps showing what
+  // the server does not hold.
+  function showWhatIsStored(message: string): void {
+    useOverlayStore(pinia).showToast(message);
+    useRevisionStore(pinia).bump();
+  }
+
+  function showFailedCall(error: ApiFailure): void {
+    if (error.methodClass !== 'write') offerRetry(LOAD_FAILED_MESSAGE);
+    else showWhatIsStored(error.kind === 'network' ? SAVE_UNCONFIRMED_MESSAGE : SAVE_FAILED_MESSAGE);
+  }
+
   return (error) => {
     if (!isApiFailure(error)) return false;
     switch (error.kind) {
       case 'read_only':
-        // The screens fetch again so none keeps showing an optimistic state the server refused.
-        useOverlayStore(pinia).showToast(READ_ONLY_MESSAGE);
-        useRevisionStore(pinia).bump();
+        showWhatIsStored(READ_ONLY_MESSAGE);
+        break;
+      case 'refused':
+        showWhatIsStored(error.reason ? REFUSAL_SENTENCES[error.reason] : UNKNOWN_REFUSAL_MESSAGE);
         break;
       case 'locked':
         useSessionStore(pinia).markLocked();
@@ -44,7 +77,7 @@ export function createFailureHandler(pinia: Pinia): (error: unknown) => boolean 
         offerRetry(LEDGER_UNAVAILABLE_MESSAGE);
         break;
       default:
-        offerRetry(LOAD_FAILED_MESSAGE);
+        showFailedCall(error);
     }
     return true;
   };

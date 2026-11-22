@@ -98,7 +98,13 @@ function askToApply(): void {
 
 async function apply(): Promise<void> {
   if (!draft.value) return;
-  await api.budget.applyScenario(month.selected, draft.value);
+  try {
+    await api.budget.applyScenario(month.selected, draft.value);
+  } catch (error) {
+    // A closed month has no scenarios; the return completes before the toast, as for a refused evaluation.
+    if (isApiFailure(error) && error.kind === 'refused' && error.reason === 'month_closed') await leave();
+    throw error;
+  }
   revision.bump();
   await leave();
 }
