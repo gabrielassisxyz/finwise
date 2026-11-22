@@ -4,6 +4,7 @@ import { CLOSING_DAY_RANGE } from '@/api/contract/settings';
 import type { CardClosing, ClosingMode } from '@/api/types';
 import EmptyBlock from '@/components/ui/EmptyBlock.vue';
 import TitledCard from '@/components/ui/TitledCard.vue';
+import { saveStored, vStored } from '@/lib/storedField';
 import { useSettingsWrites } from './useSettingsWrites';
 
 const props = defineProps<{ title: string | null; closing: CardClosing }>();
@@ -21,7 +22,7 @@ function choose(mode: ClosingMode): Promise<void> {
 }
 
 function commitDay(event: Event): Promise<void> {
-  return write(() => api.settings.setClosing('manual', Number((event.target as HTMLInputElement).value)));
+  return saveStored(event, (typed) => write(() => api.settings.setClosing('manual', Number(typed))));
 }
 </script>
 
@@ -49,7 +50,7 @@ function commitDay(event: Event): Promise<void> {
             aria-label="Dia de fechamento"
             :min="CLOSING_DAY_RANGE.min"
             :max="CLOSING_DAY_RANGE.max"
-            :value="manualDay"
+            v-stored="manualDay"
             @change="commitDay"
           />
         </span>
