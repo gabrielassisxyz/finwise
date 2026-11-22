@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -252,6 +253,27 @@ func TestAWriteThatCannotTakeTheWriteLockAnswersInternalAndRecordsNothing(t *tes
 	}
 	if id := changeIDOfAnswer(t, env.post(noteMethod, `["tx-1","hello"]`)); id != "1" {
 		t.Errorf("the write after the lock was released was change %s, want 1", id)
+	}
+}
+
+// A write that begins while another connection holds the lock, such as the job
+// that brings a new snapshot in, queues behind it and is kept once it lets go.
+func TestAWriteQueuesBehindTheLockAnotherConnectionHoldsAndThenSucceeds(t *testing.T) {
+	env := newWriteEnv(t, withWrite(noteMethod, setFactAmount("a", 5)))
+	release := env.scratch.HoldWriteLock(t)
+	answered := make(chan *httptest.ResponseRecorder, 1)
+	go func() { answered <- env.post(noteMethod, `["tx-1","hello"]`) }()
+
+	select {
+	case response := <-answered:
+		release()
+		t.Fatalf("the write was answered %d %s while the lock was held", response.Code, response.Body.String())
+	case <-time.After(200 * time.Millisecond):
+	}
+	release()
+
+	if id := changeIDOfAnswer(t, <-answered); id != "1" {
+		t.Errorf("the queued write was change %s, want 1", id)
 	}
 }
 

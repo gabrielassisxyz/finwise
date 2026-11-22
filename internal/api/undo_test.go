@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -82,6 +83,43 @@ func TestUndoingTheSameChangeTwiceIsRefused(t *testing.T) {
 
 	if env.scratch.State(t) != state {
 		t.Error("a refused undo changed the database")
+	}
+}
+
+// Two tabs undo the same change at once: one takes it back, and the others lost
+// the race and are refused.
+func TestUndosOfTheSameChangeAtTheSameTimeLeaveOneWinner(t *testing.T) {
+	env := newWriteEnv(t, withScratchWriters)
+	empty := env.dump()
+	id := env.setFact("a", 5)
+	const tabs = 4
+	start := make(chan struct{})
+	answers := make(chan *httptest.ResponseRecorder, tabs)
+	for range tabs {
+		go func() {
+			<-start
+			answers <- env.undo(id)
+		}()
+	}
+	close(start)
+
+	won, lost := 0, 0
+	for range tabs {
+		response := <-answers
+		switch {
+		case response.Code == http.StatusOK && response.Body.String() == "null":
+			won++
+		case response.Code == http.StatusConflict && response.Body.String() == `{"error":{"kind":"refused","reason":"stale_change"}}`:
+			lost++
+		default:
+			t.Errorf("an undo answered %d %s", response.Code, response.Body.String())
+		}
+	}
+	if won != 1 || lost != tabs-1 {
+		t.Errorf("%d undos won and %d lost, want 1 and %d", won, lost, tabs-1)
+	}
+	if env.dump() != empty {
+		t.Errorf("the table was not put back:\n%s", env.dump())
 	}
 }
 
