@@ -7,6 +7,7 @@ import (
 	"math"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -459,4 +460,156 @@ func TestASaveJudgesEveryIndexedTransactionAndNotOnlyTheMonthsItChanges(t *testi
 	for _, problem := range authoredtest.ClearedProblems(before, after) {
 		t.Error(problem)
 	}
+}
+
+func (env *lineEnv) setSplit(name string, parts []authored.SplitPart) authored.ChangeID {
+	env.t.Helper()
+	return env.change("scratch.setSplit", func(recorder *authored.Recorder) error {
+		return authoredtest.WriteSplit(env.t.Context(), recorder, env.examples.Keys[name], parts)
+	})
+}
+
+// addLine saves, for month on, the budget in force with one more line, and
+// answers the change and the line's id.
+func (env *lineEnv) addLine(month brday.Month, name string) (authored.ChangeID, authored.LineID) {
+	env.t.Helper()
+	change := env.save("budget.save", month, func(document authored.Document) authored.Document {
+		document[2].Lines = append(document[2].Lines, authoredtest.Line(name, 9_000))
+		return document
+	})
+	for _, line := range env.budget(month).Lines {
+		if line.Name == name {
+			return change, line.ID
+		}
+	}
+	env.t.Fatalf("%s has no line %s after the save", month, name)
+	return 0, 0
+}
+
+// expectRefusedByTheCheck undoes change and checks that the line check refused
+// it and that nothing changed, the change itself still not undone.
+func (env *lineEnv) expectRefusedByTheCheck(label string, change authored.ChangeID) {
+	env.t.Helper()
+	state, changes, effects := env.scratch.State(env.t), len(env.scratch.Changes(env.t)), env.scratch.EffectCount(env.t)
+	var stale *authored.StaleChangeError
+	if err := env.undo(change); !errors.As(err, &stale) || stale.Cause != authored.CauseCheck {
+		env.t.Errorf("%s: the undo answered %v, want refused by a check", label, err)
+	}
+	if env.scratch.State(env.t) != state || len(env.scratch.Changes(env.t)) != changes || env.scratch.EffectCount(env.t) != effects {
+		env.t.Errorf("%s: the refused undo changed the database or the journal", label)
+	}
+	for _, recorded := range env.scratch.Changes(env.t) {
+		if recorded.ID == int64(change) && recorded.UndoneAt != "" {
+			env.t.Errorf("%s: change %d is marked undone", label, change)
+		}
+	}
+}
+
+func (env *lineEnv) mustUndo(label string, change authored.ChangeID) {
+	env.t.Helper()
+	if err := env.undo(change); err != nil {
+		env.t.Fatalf("%s: %v", label, err)
+	}
+}
+
+// lineReferenceKinds are the four references a transaction of March holds, each
+// written on a line in a change of its own.
+var lineReferenceKinds = []struct {
+	name, example string
+	on            func(env *lineEnv, line authored.LineID) authored.ChangeID
+}{
+	{"own line", "t4", func(env *lineEnv, line authored.LineID) authored.ChangeID {
+		return env.setState("t4", authored.TransactionState{Line: authoredtest.Some(line), ClassifiedBy: authored.AuthorPerson})
+	}},
+	{"suggestion", "t5", func(env *lineEnv, line authored.LineID) authored.ChangeID {
+		return env.setState("t5", authored.TransactionState{PendingReason: "Baixa confiança", PendingLine: authoredtest.Some(line), PendingConfidence: authoredtest.Some[int64](62)})
+	}},
+	{"refund line", "t6", func(env *lineEnv, line authored.LineID) authored.ChangeID {
+		return env.setState("t6", authored.TransactionState{Refund: authoredtest.Some(true), RefundLine: authoredtest.Some(line)})
+	}},
+	{"split part", "t10", func(env *lineEnv, line authored.LineID) authored.ChangeID {
+		return env.setSplit("t10", []authored.SplitPart{{Position: 0, Line: authoredtest.Some(line), Cents: 1_000}, {Position: 1, Cents: 6_700}})
+	}},
+}
+
+func TestAnUndoThatWouldTakeALineFromUnderATransactionIsRefusedUntilTheLaterChangeIsUndone(t *testing.T) {
+	for _, kind := range lineReferenceKinds {
+		t.Run(kind.name, func(t *testing.T) {
+			env := newLineEnv(t)
+			canonical := env.scratch.Canonical(t)
+			added, pharmacy := env.addLine("2026-03", "Farmácia")
+			later := kind.on(env, pharmacy)
+			env.expectRefusedByTheCheck("the undo of the save that added the line", added)
+			env.mustUndo("the undo of the later change", later)
+			env.mustUndo("the undo of the save once the later change is undone", added)
+			if got := env.scratch.Canonical(t); got != canonical {
+				t.Errorf("the state is not the one before the save:\n%s\nwant\n%s", got, canonical)
+			}
+		})
+	}
+}
+
+func TestAnUndoThatWouldPutATransactionBackOnARemovedLineIsRefusedWholeOrByPart(t *testing.T) {
+	for _, kind := range lineReferenceKinds {
+		t.Run(kind.name, func(t *testing.T) {
+			env := newLineEnv(t)
+			if kind.name == "split part" {
+				kind.on(env, env.examples.Delivery)
+			}
+			moved := kind.on(env, env.examples.Mercado)
+			removed := env.save("budget.save", "2026-03", authoredtest.Without("Delivery"))
+			env.expectRefusedByTheCheck("the undo of the move", moved)
+
+			state := env.scratch.State(t)
+			facts := authored.ChangeFacts{Author: authored.AuthorPerson, Method: "scratch.restorePart", At: env.at()}
+			err := env.scratch.Database.Change(t.Context(), facts, func(recorder *authored.Recorder) error {
+				var stale *authored.StaleChangeError
+				err := recorder.RestorePart(t.Context(), moved, authored.TransactionUnits(env.examples.Keys[kind.example], nil))
+				if !errors.As(err, &stale) || stale.Cause != authored.CauseCheck {
+					t.Errorf("the restore of the move's part answered %v, want refused by a check", err)
+				}
+				return nil
+			})
+			if err != nil {
+				t.Fatalf("the open change: %v", err)
+			}
+			if got := env.scratch.State(t); got != state {
+				t.Errorf("the open change recorded something of the refused restore:\n%s", strings.TrimPrefix(got, state))
+			}
+
+			env.mustUndo("the undo of the save", removed)
+			env.change("scratch.restorePart", func(recorder *authored.Recorder) error {
+				return recorder.RestorePart(t.Context(), moved, authored.TransactionUnits(env.examples.Keys[kind.example], nil))
+			})
+			if line := env.lineOf(kind.example); line == nil || *line != env.examples.Delivery {
+				t.Errorf("after the restore %s is on %v, want Delivery", kind.example, line)
+			}
+		})
+	}
+}
+
+// lineOf is the line of an example's reference of its kind.
+func (env *lineEnv) lineOf(name string) *authored.LineID {
+	kept := env.kept(name)
+	switch name {
+	case "t5":
+		return kept.State.PendingLine
+	case "t6":
+		return kept.State.RefundLine
+	case "t10":
+		if len(kept.Split) == 0 {
+			return nil
+		}
+		return kept.Split[0].Line
+	}
+	return kept.State.Line
+}
+
+func TestTheCheckJudgesEachTransactionByItsOwnMonth(t *testing.T) {
+	env := newLineEnv(t)
+	added, pharmacy := env.addLine("2026-04", "Farmácia")
+	env.setState("t8", authored.TransactionState{Line: authoredtest.Some(pharmacy), ClassifiedBy: authored.AuthorPerson})
+	note := env.setState("t7", authored.TransactionState{Line: authoredtest.Some(env.examples.Mercado), ClassifiedBy: authored.AuthorPerson, Note: "feira"})
+	env.mustUndo("the undo of a change that leaves an April transaction on April's own line", note)
+	env.expectRefusedByTheCheck("the undo of the save that gave April the line", added)
 }

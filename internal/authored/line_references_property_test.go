@@ -245,3 +245,54 @@ func TestAfterEveryRandomSaveNoReferenceIsStrayAndEveryOtherHolds(t *testing.T) 
 		})
 	}
 }
+
+// undoAny undoes a random change of the journal that is not undone yet, the
+// history's own fixtures included. An undo that succeeds must leave no
+// reference stray; one that is refused must change nothing.
+func (history *lineHistory) undoAny() {
+	history.t.Helper()
+	var open []authoredtest.Change
+	for _, change := range history.scratch.Changes(history.t) {
+		if change.UndoneAt == "" {
+			open = append(open, change)
+		}
+	}
+	if len(open) == 0 {
+		return
+	}
+	picked := open[history.random.IntN(len(open))]
+	history.record("the undo of change %d (%s)", picked.ID, picked.Method)
+	state := history.scratch.State(history.t)
+	err := history.undo(authored.ChangeID(picked.ID))
+	var stale *authored.StaleChangeError
+	switch {
+	case errors.As(err, &stale):
+		if history.scratch.State(history.t) != state {
+			history.fail("a refused undo changed the database or the journal")
+		}
+	case err != nil:
+		history.t.Fatalf("seed %d: %v", history.seed, err)
+	default:
+		for _, problem := range history.scratch.LineReferences(history.t).StrayProblems() {
+			history.fail("%s", problem)
+		}
+	}
+}
+
+func TestAfterEveryRandomUndoNoReferenceIsStrayAndARefusedOneChangesNothing(t *testing.T) {
+	for seed := uint64(1); seed <= historySeeds; seed++ {
+		t.Run(fmt.Sprint(seed), func(t *testing.T) {
+			history := newLineHistory(t, seed)
+			for range 12 {
+				switch roll := history.random.IntN(10); {
+				case roll < 4:
+					history.undoAny()
+				case roll == 4 && len(history.closed) < 3:
+					history.closeMonth()
+				default:
+					history.saveAt(history.month())
+				}
+			}
+		})
+	}
+}

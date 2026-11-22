@@ -13,10 +13,12 @@ import (
 // suggestion of a pending review. Each must be a line the budget in force for
 // the transaction's month has, or its money counts in no group of that month
 // and every total is silently wrong. A budget save takes off what its versions
-// leave stray. An establishment's default line, a pot's link and a
-// subscription's line belong to no month and are never read here: a save for a
-// later month must not touch the current one. Of the tables that name a line,
-// only tx_state and tx_split_parts are read or written here.
+// leave stray, and an undo that would leave one stray is refused; both find
+// them with findStrayReferences, so the two cannot disagree. An establishment's
+// default line, a pot's link and a subscription's line belong to no month and
+// are never read here: a save for a later month must not touch the current one.
+// Of the tables that name a line, only tx_state and tx_split_parts are read or
+// written here.
 
 // feesLine is the built-in line, which the budget's migration seeds under this
 // id.
@@ -112,6 +114,20 @@ func (recorder *Recorder) clearStrayLines(ctx context.Context, scope ClearingSco
 		}
 	}
 	return nil
+}
+
+// noStrayLineReferences is the check every undo of the app runs, a whole one
+// and the restore of one part alike: after the restore, no indexed transaction
+// may point at a line its month's budget lacks. An undo is the exact inverse of
+// what one change recorded, so by its journal alone it can take a line away from
+// a month a later change put a transaction on, or put a transaction back on a
+// line a later save removed. It refuses and never repairs.
+func noStrayLineReferences(ctx context.Context, tx *sql.Tx, _ []Unit) (bool, error) {
+	stray, err := findStrayReferences(ctx, tx, EveryIndexedTransaction())
+	if err != nil {
+		return false, err
+	}
+	return stray.none(), nil
 }
 
 // strayState is which of one transaction's own references name a line its
