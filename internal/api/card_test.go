@@ -310,20 +310,7 @@ func TestTheTieRulesOfTheCardInUse(t *testing.T) {
 // closing day while the bill it belongs to was placed by it, so every closing
 // the card shows comes from the card's rule.
 func TestNoFileOfThePackageAsksTheBanksTableForAClosing(t *testing.T) {
-	files, err := filepath.Glob("*.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	read := 0
-	for _, file := range files {
-		if strings.HasSuffix(file, "_test.go") {
-			continue
-		}
-		parsed, err := parser.ParseFile(token.NewFileSet(), file, nil, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
-		read++
+	for file, parsed := range sourceFilesOfThePackage(t) {
 		ast.Inspect(parsed, func(node ast.Node) bool {
 			call, ok := node.(*ast.CallExpr)
 			if !ok {
@@ -335,9 +322,28 @@ func TestNoFileOfThePackageAsksTheBanksTableForAClosing(t *testing.T) {
 			return true
 		})
 	}
-	if read < 10 {
-		t.Fatalf("only %d source files were read", read)
+}
+
+// sourceFilesOfThePackage parses every file of the package but its tests.
+func sourceFilesOfThePackage(t *testing.T) map[string]*ast.File {
+	t.Helper()
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
 	}
+	parsed := map[string]*ast.File{}
+	for _, file := range files {
+		if strings.HasSuffix(file, "_test.go") {
+			continue
+		}
+		if parsed[file], err = parser.ParseFile(token.NewFileSet(), file, nil, 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(parsed) < 10 {
+		t.Fatalf("only %d source files were read", len(parsed))
+	}
+	return parsed
 }
 
 func expressionText(expression ast.Expr) string {

@@ -20,10 +20,6 @@ const (
 
 	awaitingFirstSync = "Aguardando a primeira sincronização"
 
-	// defaultCardLabel is how a person's physical card is called until they
-	// rename it in the settings.
-	defaultCardLabel = "Físico"
-
 	potDepositDescription    = "Depósito"
 	potWithdrawalDescription = "Retirada"
 
