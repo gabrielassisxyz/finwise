@@ -41,9 +41,9 @@ type InvestmentDay struct {
 }
 
 // Investments returns every current investment, by id.
-func (reader *Reader) Investments(ctx context.Context) ([]Investment, error) {
+func (view *View) Investments(ctx context.Context) ([]Investment, error) {
 	var investments []Investment
-	err := reader.read(ctx, func(tx *sql.Tx) error {
+	err := view.read(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, queryInvestments)
 		if err != nil {
 			return fmt.Errorf("ledger: investments: %w", err)
@@ -80,9 +80,9 @@ func scanInvestment(rows *sql.Rows) (Investment, error) {
 
 // InvestmentHistory returns one investment's observations, one per day, oldest
 // first. amountOriginal is not carried: it is never summed.
-func (reader *Reader) InvestmentHistory(ctx context.Context, investmentID string) ([]InvestmentDay, error) {
+func (view *View) InvestmentHistory(ctx context.Context, investmentID string) ([]InvestmentDay, error) {
 	var days []InvestmentDay
-	err := reader.read(ctx, func(tx *sql.Tx) error {
+	err := view.read(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, queryInvestmentHistory, sql.Named("investment_id", investmentID))
 		if err != nil {
 			return fmt.Errorf("ledger: investment history of %s: %w", investmentID, err)

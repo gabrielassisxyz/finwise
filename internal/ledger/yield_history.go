@@ -79,9 +79,9 @@ type YieldWalk struct {
 
 // YieldHistory reads the yield statement's inputs for the whole ledger, in a
 // handful of statements that do not depend on the number of windows asked.
-func (reader *Reader) YieldHistory(ctx context.Context) (YieldHistory, error) {
+func (view *View) YieldHistory(ctx context.Context) (YieldHistory, error) {
 	var history YieldHistory
-	err := reader.read(ctx, func(tx *sql.Tx) error {
+	err := view.read(ctx, func(tx *sql.Tx) error {
 		steps := []func(context.Context, *sql.Tx, *YieldHistory) error{
 			readYieldSightings, readYieldTransfers, readYieldRemovals, readYieldWalks, readYieldUnresolved,
 		}

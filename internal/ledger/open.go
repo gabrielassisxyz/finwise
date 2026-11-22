@@ -1,7 +1,9 @@
 // Package ledger reads pluggy-sync's snapshot through typed, read-only queries.
 //
-// The snapshot is replaced by an atomic rename and nothing promises what an open
-// handle sees across the swap, so every call opens the file, runs and closes.
+// The snapshot is replaced by an atomic rename. A View holds one handle and one
+// read transaction, so every query made through it sees the file that was there
+// when it opened; it is closed when its work is done, and the next view opens
+// the file that is there then.
 package ledger
 
 import (
@@ -99,27 +101,6 @@ func openReadOnly(path string) (*sql.DB, error) {
 	}
 	database.SetMaxOpenConns(1)
 	return database, nil
-}
-
-// read runs fn inside one read transaction on a fresh handle, after the
-// version check, so that a call that issues several statements sees one state.
-func (reader *Reader) read(ctx context.Context, fn func(*sql.Tx) error) error {
-	database, err := openReadOnly(reader.path)
-	if err != nil {
-		return err
-	}
-	defer database.Close()
-
-	tx, err := database.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return fmt.Errorf("ledger: begin read: %w", err)
-	}
-	defer tx.Rollback()
-
-	if err := requireSupportedVersion(ctx, tx); err != nil {
-		return asUnreadable(err)
-	}
-	return asUnreadable(fn(tx))
 }
 
 func requireSupportedVersion(ctx context.Context, tx *sql.Tx) error {
