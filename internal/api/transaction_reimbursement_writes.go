@@ -170,14 +170,6 @@ func refuseSplitOfALinkedPurchase(ctx context.Context, writes Writes, key author
 	return nil
 }
 
-func keptAbout(ctx context.Context, view *authored.View, key authored.TxKey) (authored.AuthoredTransaction, error) {
-	found, err := view.Transactions(ctx, []authored.TxKey{key})
-	if err != nil {
-		return authored.AuthoredTransaction{}, err
-	}
-	return found[key], nil
-}
-
 // changeResultOrFailure answers err, or the change when there is none.
 func changeResultOrFailure(ctx context.Context, writes Writes, err error) (any, error) {
 	if err != nil {

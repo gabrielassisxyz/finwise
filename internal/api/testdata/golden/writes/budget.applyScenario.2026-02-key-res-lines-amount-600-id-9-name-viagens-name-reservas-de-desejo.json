@@ -1,0 +1,410 @@
+{
+  "answer": {
+    "changeId": "2"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-03",
+        2,
+        "Salário"
+      ],
+      "column": null,
+      "before": {
+        "from_month": "2026-03",
+        "group_key": "rec",
+        "position": 0,
+        "line_id": 2,
+        "name": "Salário",
+        "cents": 1000000,
+        "flag": null
+      },
+      "after": null
+    },
+    {
+      "seq": 2,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-03",
+        3,
+        "Renda extra"
+      ],
+      "column": null,
+      "before": {
+        "from_month": "2026-03",
+        "group_key": "rec",
+        "position": 1,
+        "line_id": 3,
+        "name": "Renda extra",
+        "cents": 150000,
+        "flag": "Não garantida"
+      },
+      "after": null
+    },
+    {
+      "seq": 3,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-03",
+        4,
+        "Contas da casa"
+      ],
+      "column": null,
+      "before": {
+        "from_month": "2026-03",
+        "group_key": "fix",
+        "position": 0,
+        "line_id": 4,
+        "name": "Contas da casa",
+        "cents": 200000,
+        "flag": null
+      },
+      "after": null
+    },
+    {
+      "seq": 4,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-03",
+        5,
+        "Saúde"
+      ],
+      "column": null,
+      "before": {
+        "from_month": "2026-03",
+        "group_key": "fix",
+        "position": 1,
+        "line_id": 5,
+        "name": "Saúde",
+        "cents": 90000,
+        "flag": null
+      },
+      "after": null
+    },
+    {
+      "seq": 5,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-03",
+        6,
+        "Feira"
+      ],
+      "column": null,
+      "before": {
+        "from_month": "2026-03",
+        "group_key": "var",
+        "position": 0,
+        "line_id": 6,
+        "name": "Feira",
+        "cents": 40000,
+        "flag": null
+      },
+      "after": null
+    },
+    {
+      "seq": 6,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-03",
+        7,
+        "Delivery"
+      ],
+      "column": null,
+      "before": {
+        "from_month": "2026-03",
+        "group_key": "var",
+        "position": 1,
+        "line_id": 7,
+        "name": "Delivery",
+        "cents": 20000,
+        "flag": null
+      },
+      "after": null
+    },
+    {
+      "seq": 7,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-03",
+        8,
+        "Remédios"
+      ],
+      "column": null,
+      "before": {
+        "from_month": "2026-03",
+        "group_key": "prov",
+        "position": 0,
+        "line_id": 8,
+        "name": "Remédios",
+        "cents": 15000,
+        "flag": null
+      },
+      "after": null
+    },
+    {
+      "seq": 8,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-03",
+        9,
+        "Viagens"
+      ],
+      "column": null,
+      "before": {
+        "from_month": "2026-03",
+        "group_key": "res",
+        "position": 0,
+        "line_id": 9,
+        "name": "Viagens",
+        "cents": 60000,
+        "flag": null
+      },
+      "after": null
+    },
+    {
+      "seq": 9,
+      "table": "budget_versions",
+      "key": [
+        "2026-03"
+      ],
+      "column": null,
+      "before": {
+        "from_month": "2026-03"
+      },
+      "after": null
+    },
+    {
+      "seq": 10,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-02",
+        2,
+        "Salário"
+      ],
+      "column": null,
+      "before": {
+        "from_month": "2026-02",
+        "group_key": "rec",
+        "position": 0,
+        "line_id": 2,
+        "name": "Salário",
+        "cents": 1000000,
+        "flag": null
+      },
+      "after": null
+    },
+    {
+      "seq": 11,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-02",
+        3,
+        "Renda extra"
+      ],
+      "column": null,
+      "before": {
+        "from_month": "2026-02",
+        "group_key": "rec",
+        "position": 1,
+        "line_id": 3,
+        "name": "Renda extra",
+        "cents": 150000,
+        "flag": "Não garantida"
+      },
+      "after": null
+    },
+    {
+      "seq": 12,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-02",
+        4,
+        "Contas da casa"
+      ],
+      "column": null,
+      "before": {
+        "from_month": "2026-02",
+        "group_key": "fix",
+        "position": 0,
+        "line_id": 4,
+        "name": "Contas da casa",
+        "cents": 200000,
+        "flag": null
+      },
+      "after": null
+    },
+    {
+      "seq": 13,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-02",
+        5,
+        "Saúde"
+      ],
+      "column": null,
+      "before": {
+        "from_month": "2026-02",
+        "group_key": "fix",
+        "position": 1,
+        "line_id": 5,
+        "name": "Saúde",
+        "cents": 50000,
+        "flag": null
+      },
+      "after": null
+    },
+    {
+      "seq": 14,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-02",
+        6,
+        "Mercado"
+      ],
+      "column": null,
+      "before": {
+        "from_month": "2026-02",
+        "group_key": "var",
+        "position": 0,
+        "line_id": 6,
+        "name": "Mercado",
+        "cents": 40000,
+        "flag": null
+      },
+      "after": null
+    },
+    {
+      "seq": 15,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-02",
+        7,
+        "Delivery"
+      ],
+      "column": null,
+      "before": {
+        "from_month": "2026-02",
+        "group_key": "var",
+        "position": 1,
+        "line_id": 7,
+        "name": "Delivery",
+        "cents": 20000,
+        "flag": null
+      },
+      "after": null
+    },
+    {
+      "seq": 16,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-02",
+        8,
+        "Remédios"
+      ],
+      "column": null,
+      "before": {
+        "from_month": "2026-02",
+        "group_key": "prov",
+        "position": 0,
+        "line_id": 8,
+        "name": "Remédios",
+        "cents": 15000,
+        "flag": null
+      },
+      "after": null
+    },
+    {
+      "seq": 17,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "line_id",
+      "before": 2,
+      "after": null
+    },
+    {
+      "seq": 18,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "classified_by",
+      "before": "person",
+      "after": null
+    },
+    {
+      "seq": 19,
+      "table": "tx_state",
+      "key": [
+        2
+      ],
+      "column": "line_id",
+      "before": 3,
+      "after": null
+    },
+    {
+      "seq": 20,
+      "table": "tx_state",
+      "key": [
+        2
+      ],
+      "column": "classified_by",
+      "before": "rule",
+      "after": null
+    },
+    {
+      "seq": 21,
+      "table": "tx_state",
+      "key": [
+        3
+      ],
+      "column": "pending_line_id",
+      "before": 2,
+      "after": null
+    },
+    {
+      "seq": 22,
+      "table": "tx_state",
+      "key": [
+        3
+      ],
+      "column": "pending_confidence",
+      "before": 70,
+      "after": null
+    },
+    {
+      "seq": 23,
+      "table": "tx_state",
+      "key": [
+        8
+      ],
+      "column": "refund_line_id",
+      "before": 3,
+      "after": null
+    },
+    {
+      "seq": 24,
+      "table": "tx_split_parts",
+      "key": [
+        5,
+        0
+      ],
+      "column": null,
+      "before": {
+        "tx_key": 5,
+        "position": 0,
+        "line_id": 2,
+        "cents": 5000
+      },
+      "after": {
+        "tx_key": 5,
+        "position": 0,
+        "line_id": null,
+        "cents": 5000
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "answer": {
+    "changeId": "5"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "history_step_reasons",
+      "key": [
+        1
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "step_id": 1,
+        "reason": "é do apartamento"
+      }
+    }
+  ]
+}

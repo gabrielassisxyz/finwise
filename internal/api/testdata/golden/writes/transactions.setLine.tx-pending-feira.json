@@ -1,0 +1,48 @@
+{
+  "answer": {
+    "changeId": "5",
+    "establishment": {
+      "key": "text:PADARIA EXEMPLO",
+      "name": "Padaria do Bairro"
+    }
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "line_id",
+      "before": null,
+      "after": 9
+    },
+    {
+      "seq": 2,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "classified_by",
+      "before": null,
+      "after": "person"
+    },
+    {
+      "seq": 3,
+      "table": "history_steps",
+      "key": [
+        1
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "id": 1,
+        "tx_key": 1,
+        "change_id": 5,
+        "kind": "step",
+        "text": "Você alterou para Feira",
+        "day": "2026-03-20"
+      }
+    }
+  ]
+}

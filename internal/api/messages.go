@@ -110,6 +110,16 @@ func refundLineStep(line string) string {
 	return "Você definiu que o estorno abate " + line
 }
 
+// The steps a line change leaves in a transaction's history.
+
+func lineChangedStep(line string) string { return "Você alterou para " + line }
+
+func lineConfirmedStep(line string) string { return "Você confirmou " + line }
+
+func lineAppliedByRuleStep(line, establishment string) string {
+	return "Regra aplicou " + line + " (você pediu para todas em " + establishment + ")"
+}
+
 // The steps of a purchase's history when a received PIX is linked to it as its
 // reimbursement and when the link is undone. The amount is written as the
 // interface writes reais: a no-break space after R$.

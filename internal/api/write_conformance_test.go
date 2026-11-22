@@ -95,7 +95,7 @@ var writeCases = append([]writeCase{
 	{method: "settings.setCardLabel", arguments: `["  Virtual "]`, expects: expectsRecorded, state: startFromTheInventedState},
 	{method: "settings.setClosing", arguments: `["manual",31]`, expects: expectsRecorded},
 }, slices.Concat(budgetWriteCases, potSettingsWriteCases, tagAndNicknameWriteCases, transactionCountWriteCases,
-	reimbursementWriteCases)...)
+	transactionLineWriteCases, transactionHistoryWriteCases, reimbursementWriteCases)...)
 
 // reasonsWithoutProducer are the reasons of the closed list that nothing
 // produces yet, and so have no case. A piece of work that first produces one

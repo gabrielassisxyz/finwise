@@ -4,8 +4,10 @@ import (
 	"context"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
+	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
 	"github.com/gabrielassisxyz/finwise/internal/money"
 )
 
@@ -41,6 +43,9 @@ func effectUnitsOf(t *testing.T, database *authored.Database, id authored.Change
 
 func TestASplitIsReplacedWholeAndAPartThatKeptItsLineAndAmountIsNotRewritten(t *testing.T) {
 	database := openDatabase(t, databasePath(t), creationInstant, nil)
+	// The fees line is a line of a month only while its budget has another, and
+	// an undo is refused when it would leave a part on a line its month lacks.
+	authoredtest.SaveBudget(t, database, time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC), "2026-11", authoredtest.InventedBudget())
 	key := indexed(t, database, seenRow("p-1", "2026-11-28", -18_000, "name:a"))
 	fees := lineID(1)
 	first := []authored.SplitPart{partAt(0, fees, 10_000), partAt(1, nil, 5_000), partAt(2, fees, 3_000)}

@@ -24,7 +24,9 @@ import (
 //
 // A line without an id gets one, minted once and carried by every version this
 // save writes. Everything is read before anything is written, so what was in
-// force for a closed month is what it was before this save.
+// force for a closed month is what it was before this save. Once the versions
+// are written, every indexed transaction loses its references to a line its
+// month's budget no longer has, in the same change (ClearLinesTheirMonthLacks).
 func (recorder *Recorder) SaveBudget(ctx context.Context, month brday.Month, document Document) error {
 	if err := recorder.usable(); err != nil {
 		return err
@@ -37,7 +39,10 @@ func (recorder *Recorder) SaveBudget(ctx context.Context, month brday.Month, doc
 		}
 		return recorder.fail(err)
 	}
-	return recorder.guard(recorder.writeSave(ctx, plan))
+	if err := recorder.writeSave(ctx, plan); err != nil {
+		return recorder.guard(err)
+	}
+	return recorder.guard(recorder.clearStrayLines(ctx, EveryIndexedTransaction()))
 }
 
 // savePlan is every version the save leaves holding something other than what
