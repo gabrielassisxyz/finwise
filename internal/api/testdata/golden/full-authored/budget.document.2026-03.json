@@ -1,0 +1,73 @@
+[
+  {
+    "key": "rec",
+    "name": "Receita",
+    "lines": [
+      {
+        "id": "2",
+        "name": "Salário",
+        "amount": 10000.00
+      },
+      {
+        "id": "3",
+        "name": "Renda extra",
+        "amount": 1500.00,
+        "flag": "Não garantida"
+      }
+    ]
+  },
+  {
+    "key": "fix",
+    "name": "Fixos e essenciais",
+    "lines": [
+      {
+        "id": "4",
+        "name": "Contas da casa",
+        "amount": 2000.00
+      },
+      {
+        "id": "5",
+        "name": "Saúde",
+        "amount": 900.00
+      }
+    ]
+  },
+  {
+    "key": "var",
+    "name": "Variáveis",
+    "lines": [
+      {
+        "id": "6",
+        "name": "Feira",
+        "amount": 400.00
+      },
+      {
+        "id": "7",
+        "name": "Delivery",
+        "amount": 200.00
+      }
+    ]
+  },
+  {
+    "key": "prov",
+    "name": "Provisões",
+    "lines": [
+      {
+        "id": "8",
+        "name": "Remédios",
+        "amount": 150.00
+      }
+    ]
+  },
+  {
+    "key": "res",
+    "name": "Reservas de desejo",
+    "lines": [
+      {
+        "id": "9",
+        "name": "Viagens",
+        "amount": 600.00
+      }
+    ]
+  }
+]

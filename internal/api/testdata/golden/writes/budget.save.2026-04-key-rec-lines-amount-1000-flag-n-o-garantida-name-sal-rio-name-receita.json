@@ -1,0 +1,243 @@
+{
+  "answer": {
+    "changeId": "3"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "budget_versions",
+      "key": [
+        "2026-04"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-04"
+      }
+    },
+    {
+      "seq": 2,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-04",
+        10,
+        "Salário"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-04",
+        "group_key": "rec",
+        "position": 0,
+        "line_id": 10,
+        "name": "Salário",
+        "cents": 100000,
+        "flag": "Não garantida"
+      }
+    },
+    {
+      "seq": 3,
+      "table": "budget_versions",
+      "key": [
+        "2026-05"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-05"
+      }
+    },
+    {
+      "seq": 4,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-05",
+        2,
+        "Salário"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-05",
+        "group_key": "rec",
+        "position": 0,
+        "line_id": 2,
+        "name": "Salário",
+        "cents": 1000000,
+        "flag": null
+      }
+    },
+    {
+      "seq": 5,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-05",
+        3,
+        "Renda extra"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-05",
+        "group_key": "rec",
+        "position": 1,
+        "line_id": 3,
+        "name": "Renda extra",
+        "cents": 150000,
+        "flag": "Não garantida"
+      }
+    },
+    {
+      "seq": 6,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-05",
+        4,
+        "Contas da casa"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-05",
+        "group_key": "fix",
+        "position": 0,
+        "line_id": 4,
+        "name": "Contas da casa",
+        "cents": 200000,
+        "flag": null
+      }
+    },
+    {
+      "seq": 7,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-05",
+        5,
+        "Saúde"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-05",
+        "group_key": "fix",
+        "position": 1,
+        "line_id": 5,
+        "name": "Saúde",
+        "cents": 50000,
+        "flag": null
+      }
+    },
+    {
+      "seq": 8,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-05",
+        6,
+        "Mercado"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-05",
+        "group_key": "var",
+        "position": 0,
+        "line_id": 6,
+        "name": "Mercado",
+        "cents": 40000,
+        "flag": null
+      }
+    },
+    {
+      "seq": 9,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-05",
+        7,
+        "Delivery"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-05",
+        "group_key": "var",
+        "position": 1,
+        "line_id": 7,
+        "name": "Delivery",
+        "cents": 20000,
+        "flag": null
+      }
+    },
+    {
+      "seq": 10,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-05",
+        8,
+        "Remédios"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-05",
+        "group_key": "prov",
+        "position": 0,
+        "line_id": 8,
+        "name": "Remédios",
+        "cents": 15000,
+        "flag": null
+      }
+    },
+    {
+      "seq": 11,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-05",
+        9,
+        "Viagens"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-05",
+        "group_key": "res",
+        "position": 0,
+        "line_id": 9,
+        "name": "Viagens",
+        "cents": 60000,
+        "flag": null
+      }
+    },
+    {
+      "seq": 12,
+      "table": "budget_versions",
+      "key": [
+        "2026-06"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-06"
+      }
+    },
+    {
+      "seq": 13,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-06",
+        10,
+        "Salário"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-06",
+        "group_key": "rec",
+        "position": 0,
+        "line_id": 10,
+        "name": "Salário",
+        "cents": 100000,
+        "flag": "Não garantida"
+      }
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "accounts": [
+    {
+      "value": "acc-other",
+      "label": "Banco não identificado"
+    },
+    {
+      "value": "acc-stale",
+      "label": "C6"
+    },
+    {
+      "value": "acc-itau",
+      "label": "Itaú"
+    },
+    {
+      "value": "acc-pots",
+      "label": "Mercado Pago"
+    },
+    {
+      "value": "acc-nu",
+      "label": "Nubank"
+    },
+    {
+      "value": "card-itau",
+      "label": "Platinum Visa"
+    }
+  ],
+  "tags": [],
+  "lines": [
+    {
+      "name": "Feira",
+      "group": "Variáveis"
+    },
+    {
+      "name": "Delivery",
+      "group": "Variáveis"
+    },
+    {
+      "name": "Contas da casa",
+      "group": "Fixos e essenciais"
+    },
+    {
+      "name": "Saúde",
+      "group": "Fixos e essenciais"
+    },
+    {
+      "name": "Viagens",
+      "group": "Reservas de desejo"
+    },
+    {
+      "name": "Remédios",
+      "group": "Provisões"
+    },
+    {
+      "name": "Tarifas e juros",
+      "group": "Tarifas e juros"
+    },
+    {
+      "name": "Salário",
+      "group": "Receita"
+    },
+    {
+      "name": "Renda extra",
+      "group": "Receita"
+    }
+  ]
+}

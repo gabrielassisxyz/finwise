@@ -29,8 +29,7 @@ var writesWithoutHandler = []string{
 	"transactions.setReimbursable", "transactions.setExpectedReimbursement",
 	"transactions.linkReimbursement", "transactions.unlinkReimbursement", "transactions.setExcluded",
 	"transactions.setExclusionReason", "transactions.setRefund", "transactions.setRefundLine",
-	"transactions.undoHistoryStep", "budget.save", "budget.evaluateScenario", "budget.saveScenario",
-	"budget.applyScenario", "subscriptions.create", "subscriptions.acceptSuggestion",
+	"transactions.undoHistoryStep", "budget.evaluateScenario", "subscriptions.create", "subscriptions.acceptSuggestion",
 	"subscriptions.rejectSuggestion", "subscriptions.setStatus", "subscriptions.setLine",
 	"subscriptions.setReviewDate", "subscriptions.setNote", "review.acceptPending", "review.approve",
 	"review.refuse", "review.propose", "review.dismissWarning", "review.runWarningAction",
@@ -132,11 +131,11 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 	for _, problem := range walkProblems(changing, registered, sessionServiceWrites, writesWithoutHandler) {
 		t.Error(problem)
 	}
-	if !slices.Equal(registered, []string{"changes.undo"}) {
-		t.Errorf("the registry implements %v, want changes.undo alone", registered)
+	if want := []string{"budget.applyScenario", "budget.save", "budget.saveScenario", "changes.undo"}; !slices.Equal(registered, want) {
+		t.Errorf("the registry implements %v, want %v", registered, want)
 	}
-	if len(writesWithoutHandler) != 54 || slices.Contains(writesWithoutHandler, changePin) {
-		t.Errorf("the list holds %d names, want 54 without %s", len(writesWithoutHandler), changePin)
+	if len(writesWithoutHandler) != 51 || slices.Contains(writesWithoutHandler, changePin) {
+		t.Errorf("the list holds %d names, want 51 without %s", len(writesWithoutHandler), changePin)
 	}
 	if !slices.Contains(writesWithoutHandler, "budget.evaluateScenario") {
 		t.Error("budget.evaluateScenario has no handler yet and belongs in the list")

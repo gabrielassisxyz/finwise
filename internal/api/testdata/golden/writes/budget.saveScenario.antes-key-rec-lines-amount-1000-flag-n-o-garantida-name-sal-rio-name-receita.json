@@ -1,0 +1,26 @@
+{
+  "answer": {
+    "changeId": "3",
+    "name": "Antes"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "scenarios",
+      "key": [
+        "Antes"
+      ],
+      "column": null,
+      "before": {
+        "name": "Antes",
+        "position": 0,
+        "doc": "[{\"key\":\"rec\",\"lines\":[{\"name\":\"Salário\",\"cents\":1000000},{\"name\":\"Renda extra\",\"cents\":150000,\"flag\":\"Não garantida\"}]},{\"key\":\"fix\",\"lines\":[{\"name\":\"Contas da casa\",\"cents\":200000},{\"name\":\"Saúde\",\"cents\":50000}]},{\"key\":\"var\",\"lines\":[{\"name\":\"Mercado\",\"cents\":40000},{\"name\":\"Delivery\",\"cents\":20000}]},{\"key\":\"prov\",\"lines\":[{\"name\":\"Remédios\",\"cents\":15000}]},{\"key\":\"res\",\"lines\":[{\"name\":\"Viagens\",\"cents\":60000}]}]"
+      },
+      "after": {
+        "name": "Antes",
+        "position": 1,
+        "doc": "[{\"key\":\"rec\",\"lines\":[{\"name\":\"Salário\",\"cents\":100000,\"flag\":\"Não garantida\"}]},{\"key\":\"fix\",\"lines\":[]},{\"key\":\"var\",\"lines\":[]},{\"key\":\"prov\",\"lines\":[]},{\"key\":\"res\",\"lines\":[]}]"
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "changeId": "3",
+    "name": "Sem extra"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "scenarios",
+      "key": [
+        "Sem extra"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "name": "Sem extra",
+        "position": 1,
+        "doc": "[{\"key\":\"rec\",\"lines\":[]},{\"key\":\"fix\",\"lines\":[{\"id\":\"6\",\"name\":\"Feira\",\"cents\":45050},{\"name\":\"Bônus-extra\",\"cents\":1000}]},{\"key\":\"var\",\"lines\":[]},{\"key\":\"prov\",\"lines\":[]},{\"key\":\"res\",\"lines\":[]}]"
+      }
+    }
+  ]
+}
