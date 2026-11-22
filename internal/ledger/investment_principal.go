@@ -12,9 +12,9 @@ import (
 // investment, by investment id. It is shown beside an investment's own figures
 // and is never added to anything: the provider's other amounts already hold it.
 // An investment whose principal the provider does not state has no entry.
-func (reader *Reader) InvestmentPrincipals(ctx context.Context) (map[string]money.Cents, error) {
+func (view *View) InvestmentPrincipals(ctx context.Context) (map[string]money.Cents, error) {
 	principals := map[string]money.Cents{}
-	err := reader.read(ctx, func(tx *sql.Tx) error {
+	err := view.read(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, queryInvestmentPrincipals)
 		if err != nil {
 			return fmt.Errorf("ledger: investment principals: %w", err)

@@ -22,9 +22,9 @@ type AccountDay struct {
 // BalanceHistory returns every sighting of every account in the ledger, by
 // account and day. It includes accounts that are no longer current; the caller
 // keeps the ones it asks about.
-func (reader *Reader) BalanceHistory(ctx context.Context) ([]AccountDay, error) {
+func (view *View) BalanceHistory(ctx context.Context) ([]AccountDay, error) {
 	var days []AccountDay
-	err := reader.read(ctx, func(tx *sql.Tx) error {
+	err := view.read(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, queryBalanceHistory)
 		if err != nil {
 			return fmt.Errorf("ledger: balance history: %w", err)
@@ -60,9 +60,9 @@ func scanAccountDay(rows *sql.Rows) (AccountDay, error) {
 // ReserveHistory returns every reserve entry of every sighting, by account, day
 // and position. A sighting that holds no pot has no row here; BalanceHistory is
 // where it shows. ProviderUpdatedAt is not read.
-func (reader *Reader) ReserveHistory(ctx context.Context) ([]Pot, error) {
+func (view *View) ReserveHistory(ctx context.Context) ([]Pot, error) {
 	var pots []Pot
-	err := reader.read(ctx, func(tx *sql.Tx) error {
+	err := view.read(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, queryReserveHistory)
 		if err != nil {
 			return fmt.Errorf("ledger: reserve history: %w", err)

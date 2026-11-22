@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 const (
@@ -22,6 +23,8 @@ type environment struct {
 	stdout io.Writer
 	stderr io.Writer
 	getenv func(string) string
+	// now is the only clock the commands read; main gives it the host's.
+	now func() time.Time
 	// listening is told the bound address once the server accepts connections.
 	listening func(address string)
 }
@@ -29,7 +32,7 @@ type environment struct {
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	env := environment{stdin: os.Stdin, stdout: os.Stdout, stderr: os.Stderr, getenv: os.Getenv}
+	env := environment{stdin: os.Stdin, stdout: os.Stdout, stderr: os.Stderr, getenv: os.Getenv, now: time.Now}
 	os.Exit(run(ctx, os.Args[1:], env))
 }
 

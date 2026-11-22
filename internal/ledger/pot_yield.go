@@ -33,12 +33,12 @@ type PotYield struct {
 // PotYields returns one row per reserve of the account for the window between
 // two days, from < to. It returns no row at all when either day has no
 // qualifying sighting of the account, or when both fall on the same sighting.
-func (reader *Reader) PotYields(ctx context.Context, accountID string, from, to brday.Day) ([]PotYield, error) {
+func (view *View) PotYields(ctx context.Context, accountID string, from, to brday.Day) ([]PotYield, error) {
 	if err := requireOrderedDays(from, to); err != nil {
 		return nil, err
 	}
 	var yields []PotYield
-	err := reader.read(ctx, func(tx *sql.Tx) error {
+	err := view.read(ctx, func(tx *sql.Tx) error {
 		window := []any{
 			sql.Named("account_id", accountID), sql.Named("d1", string(from)), sql.Named("d2", string(to)),
 		}
@@ -58,6 +58,14 @@ func (reader *Reader) PotYields(ctx context.Context, accountID string, from, to 
 		return nil
 	})
 	return yields, err
+}
+
+// PotYields is View.PotYields on a view of its own. It is here and not beside
+// the reader's other queries because no other file may name it.
+func (reader *Reader) PotYields(ctx context.Context, accountID string, from, to brday.Day) ([]PotYield, error) {
+	view := reader.View()
+	defer view.Close()
+	return view.PotYields(ctx, accountID, from, to)
 }
 
 func collectPotYields(run func() (*sql.Rows, error), accountID string, from, to brday.Day) ([]PotYield, error) {

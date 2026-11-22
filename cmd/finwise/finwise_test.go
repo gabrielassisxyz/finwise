@@ -13,6 +13,10 @@ import (
 
 const testPIN = "123456"
 
+// testNow is 22:30 on 30 November 2026 in Brazil, the clock of every command a
+// test runs.
+var testNow = time.Date(2026, 12, 1, 1, 30, 0, 0, time.UTC)
+
 var (
 	hashOnce   sync.Once
 	storedHash string
@@ -30,6 +34,7 @@ func runCommand(ctx context.Context, args []string, stdin string, vars map[strin
 		stdout:    &stdout,
 		stderr:    &stderr,
 		getenv:    func(name string) string { return vars[name] },
+		now:       func() time.Time { return testNow },
 		listening: listening,
 	})
 	return outcome{code: code, stdout: stdout.String(), stderr: stderr.String()}

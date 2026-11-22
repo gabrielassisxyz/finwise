@@ -15,9 +15,9 @@ type Identity struct {
 }
 
 // Identities returns every current identity, by id.
-func (reader *Reader) Identities(ctx context.Context) ([]Identity, error) {
+func (view *View) Identities(ctx context.Context) ([]Identity, error) {
 	var identities []Identity
-	err := reader.read(ctx, func(tx *sql.Tx) error {
+	err := view.read(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, queryIdentities)
 		if err != nil {
 			return fmt.Errorf("ledger: identities: %w", err)
