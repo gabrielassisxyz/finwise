@@ -86,9 +86,9 @@ func TestAPurchaseAndItsTaxAcrossAMonthEndAreOneLineInTheFirstMonth(t *testing.T
 func TestWithoutWideningTheTaxWouldBeListedAloneInTheNextMonth(t *testing.T) {
 	f := newFullLedger(t)
 	env := newReadEnv(t, f)
-	rows, err := ledger.New(f.Path).CleanTransactions(t.Context(), brday.Period{First: "2026-03-01", Last: "2026-03-31"})
+	rows, err := viewOf(t, f.Path).CleanTransactions(t.Context(), brday.Period{First: "2026-03-01", Last: "2026-03-31"})
 	withoutValues(t, "read", err)
-	around, err := loadContext(t.Context(), ledger.New(f.Path))
+	around, err := loadContext(t.Context(), viewOf(t, f.Path))
 	withoutValues(t, "context", err)
 	narrow, err := interpretRows(rows, around, brday.Period{First: "2026-03-01", Last: "2026-03-31"})
 	withoutValues(t, "interpret", err)

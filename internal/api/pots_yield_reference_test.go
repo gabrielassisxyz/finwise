@@ -63,9 +63,9 @@ func differsFromReference(reference []ledger.PotYield, got []potrules.PairYield)
 	return fmt.Sprintf("the statement answers\n  %s\nthe rules answer\n  %s", strings.Join(want, "\n  "), strings.Join(have, "\n  "))
 }
 
-func sightedDaysByAccount(t testing.TB, reader *ledger.Reader) map[string][]brday.Day {
+func sightedDaysByAccount(t testing.TB, snapshot *ledger.View) map[string][]brday.Day {
 	t.Helper()
-	days, err := reader.BalanceHistory(t.Context())
+	days, err := snapshot.BalanceHistory(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,9 +76,9 @@ func sightedDaysByAccount(t testing.TB, reader *ledger.Reader) map[string][]brda
 	return byAccount
 }
 
-func rulesOfLedger(t testing.TB, reader *ledger.Reader, byAccount map[string][]brday.Day) map[string]potrules.AccountYield {
+func rulesOfLedger(t testing.TB, snapshot *ledger.View, byAccount map[string][]brday.Day) map[string]potrules.AccountYield {
 	t.Helper()
-	history, err := reader.YieldHistory(t.Context())
+	history, err := snapshot.YieldHistory(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,15 +106,15 @@ var everyReason = []string{
 const widestWindow = 6
 
 func TestEveryWindowOfTheFixtureLedgerIsAnsweredAsTheCollectorsStatementAnswersIt(t *testing.T) {
-	reader := ledger.New(yieldScenarioLedger(t).Path)
-	byAccount := sightedDaysByAccount(t, reader)
-	rules := rulesOfLedger(t, reader, byAccount)
+	snapshot := viewOf(t, yieldScenarioLedger(t).Path)
+	byAccount := sightedDaysByAccount(t, snapshot)
+	rules := rulesOfLedger(t, snapshot, byAccount)
 	reasons, windows, known := map[string]int{}, 0, 0
 
 	for accountID, days := range byAccount {
 		for first := range days {
 			for last := first + 1; last < len(days) && last-first <= widestWindow; last++ {
-				reference, err := reader.PotYields(t.Context(), accountID, days[first], days[last])
+				reference, err := snapshot.PotYields(t.Context(), accountID, days[first], days[last])
 				if err != nil {
 					t.Fatal(err)
 				}

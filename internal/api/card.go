@@ -104,12 +104,12 @@ func cardRanksAbove(candidate, chosen ledger.Account, lastPurchase, latestDue ma
 // lastPurchaseDays is, per card account, the day of its latest purchase among
 // the last cardPurchaseWindowDays days: a listed card row that is money out, not
 // a movement and not a tax row attached to another purchase.
-func lastPurchaseDays(ctx context.Context, reader *ledger.Reader, around ledgerContext, today brday.Day) (map[string]brday.Day, error) {
+func lastPurchaseDays(ctx context.Context, snapshot *ledger.View, around ledgerContext, today brday.Day) (map[string]brday.Day, error) {
 	from, ok := shiftedDay(today, -cardPurchaseWindowDays)
 	if !ok {
 		return nil, errors.New("api: today is not a day")
 	}
-	view, err := interpretPeriod(ctx, reader, around, brday.Period{First: from, Last: today})
+	view, err := interpretPeriod(ctx, snapshot, around, brday.Period{First: from, Last: today})
 	if err != nil {
 		return nil, err
 	}
@@ -138,16 +138,16 @@ type cardView struct {
 }
 
 // loadCard returns nil when the ledger holds no card account.
-func loadCard(ctx context.Context, reader *ledger.Reader) (*cardView, error) {
-	around, err := loadContext(ctx, reader)
+func loadCard(ctx context.Context, snapshot *ledger.View) (*cardView, error) {
+	around, err := loadContext(ctx, snapshot)
 	if err != nil {
 		return nil, err
 	}
-	bills, err := reader.Bills(ctx)
+	bills, err := snapshot.Bills(ctx)
 	if err != nil {
 		return nil, err
 	}
-	lastPurchase, err := lastPurchaseDays(ctx, reader, around, brday.DayOf(nowOf(ctx)))
+	lastPurchase, err := lastPurchaseDays(ctx, snapshot, around, brday.DayOf(nowOf(ctx)))
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func loadCard(ctx context.Context, reader *ledger.Reader) (*cardView, error) {
 	if !found {
 		return nil, nil
 	}
-	rows, err := reader.CleanTransactions(ctx, wholeLedger)
+	rows, err := snapshot.CleanTransactions(ctx, wholeLedger)
 	if err != nil {
 		return nil, err
 	}
@@ -303,8 +303,8 @@ func (card *cardView) finalDigits() string {
 	return ""
 }
 
-func readCardOverview(ctx context.Context, _ []json.RawMessage, reader *ledger.Reader) (any, error) {
-	card, err := loadCard(ctx, reader)
+func readCardOverview(ctx context.Context, _ []json.RawMessage, views Views) (any, error) {
+	card, err := loadCard(ctx, views.Ledger)
 	if err != nil || card == nil {
 		return nil, err
 	}

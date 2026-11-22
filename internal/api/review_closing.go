@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 
 	"github.com/gabrielassisxyz/finwise/internal/brday"
-	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
 // The closing of a month is built on a budget, on what the person confirmed and
@@ -77,12 +76,12 @@ func registerClosing(registry *Registry) {
 // readClosing reads the card even though the rest is fixed: the card's bill is
 // the one thing the bank supports, and reading it is also what stops an
 // unreadable ledger from being answered as a fresh one.
-func readClosing(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
+func readClosing(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
 	month, err := onlyMonthArgument(args)
 	if err != nil {
 		return nil, err
 	}
-	card, err := loadCard(ctx, reader)
+	card, err := loadCard(ctx, views.Ledger)
 	if err != nil {
 		return nil, err
 	}

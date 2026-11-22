@@ -152,7 +152,7 @@ func backedLedger(t *testing.T, secondInvestment float64) *ledgertest.Fixture {
 
 func TestAnInvestmentThatTheLedgerShowsBacksTheReservesIsNotCountedTwice(t *testing.T) {
 	f := backedLedger(t, 400)
-	view, err := loadPots(withNow(t.Context(), func() time.Time { return fixtureNow }), ledgerOf(f), false)
+	view, err := loadPots(withNow(t.Context(), func() time.Time { return fixtureNow }), ledgerOf(t, f), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func TestAnInvestmentThatTheLedgerShowsBacksTheReservesIsNotCountedTwice(t *test
 
 func TestInvestmentsBesideReservesThatTheLedgerDoesNotShowBackThemAreKeptAndCounted(t *testing.T) {
 	f := backedLedger(t, 450)
-	view, err := loadPots(withNow(t.Context(), func() time.Time { return fixtureNow }), ledgerOf(f), false)
+	view, err := loadPots(withNow(t.Context(), func() time.Time { return fixtureNow }), ledgerOf(t, f), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +180,7 @@ func TestInvestmentsBesideReservesThatTheLedgerDoesNotShowBackThemAreKeptAndCoun
 }
 
 func TestInvestmentsOnAConnectionWithoutReservesAreNotBesideAnyAndTheFullLedgerCountsTwo(t *testing.T) {
-	view, err := loadPots(withNow(t.Context(), func() time.Time { return fixtureNow }), ledgerOf(newFullLedger(t)), false)
+	view, err := loadPots(withNow(t.Context(), func() time.Time { return fixtureNow }), ledgerOf(t, newFullLedger(t)), false)
 	if err != nil {
 		t.Fatal(err)
 	}

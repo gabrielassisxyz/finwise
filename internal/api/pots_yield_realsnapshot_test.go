@@ -119,14 +119,14 @@ func sampleSize(t *testing.T) int {
 }
 
 func TestPotYieldRowsEqualTheCollectorsStatementOverARealSnapshot(t *testing.T) {
-	reader := ledger.New(realSnapshotPath(t))
-	byAccount := sightedDaysByAccount(t, reader)
-	rules := rulesOfLedger(t, reader, byAccount)
+	snapshot := viewOf(t, realSnapshotPath(t))
+	byAccount := sightedDaysByAccount(t, snapshot)
+	rules := rulesOfLedger(t, snapshot, byAccount)
 	pairs := sampledPairs(byAccount, rules, sampleSize(t))
 
 	kinds, withReason, knownPairs := map[string]int{}, map[string]int{}, 0
 	for _, pair := range pairs {
-		reference, err := reader.PotYields(t.Context(), pair.accountID, pair.from, pair.to)
+		reference, err := snapshot.PotYields(t.Context(), pair.accountID, pair.from, pair.to)
 		withoutValues(t, "the collector's statement", err)
 		kinds[differenceKind(reference, rules[pair.accountID].Between(pair.from, pair.to))]++
 		seen, unknown := map[string]bool{}, false

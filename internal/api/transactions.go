@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 
 	"github.com/gabrielassisxyz/finwise/internal/brday"
-	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
 type filterOption struct {
@@ -30,16 +29,16 @@ func registerTransactions(registry *Registry) {
 	registry.Register("transactions.detail", readTransactionDetail)
 }
 
-func readTransactionsList(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
+func readTransactionsList(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
 	period, err := queryPeriod(args)
 	if err != nil {
 		return nil, err
 	}
-	around, err := loadContext(ctx, reader)
+	around, err := loadContext(ctx, views.Ledger)
 	if err != nil {
 		return nil, err
 	}
-	view, err := interpretPeriod(ctx, reader, around, period)
+	view, err := interpretPeriod(ctx, views.Ledger, around, period)
 	if err != nil {
 		return nil, err
 	}
@@ -63,11 +62,11 @@ func queryPeriod(args []json.RawMessage) (brday.Period, error) {
 
 // readTransactionFilterOptions offers every account. Tags and budget lines are
 // the person's to create, so there are none yet, whatever the month asked for.
-func readTransactionFilterOptions(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
+func readTransactionFilterOptions(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
 	if _, err := onlyMonthArgument(args); err != nil {
 		return nil, err
 	}
-	accounts, err := reader.Accounts(ctx)
+	accounts, err := views.Ledger.Accounts(ctx)
 	if err != nil {
 		return nil, err
 	}

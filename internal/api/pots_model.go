@@ -90,16 +90,16 @@ type potsView struct {
 	leftOut           int
 }
 
-func loadPots(ctx context.Context, reader *ledger.Reader, withYield bool) (*potsView, error) {
-	around, err := loadContext(ctx, reader)
+func loadPots(ctx context.Context, snapshot *ledger.View, withYield bool) (*potsView, error) {
+	around, err := loadContext(ctx, snapshot)
 	if err != nil {
 		return nil, err
 	}
-	days, err := reader.BalanceHistory(ctx)
+	days, err := snapshot.BalanceHistory(ctx)
 	if err != nil {
 		return nil, err
 	}
-	history, err := reader.ReserveHistory(ctx)
+	history, err := snapshot.ReserveHistory(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -116,13 +116,13 @@ func loadPots(ctx context.Context, reader *ledger.Reader, withYield bool) (*pots
 	if err != nil {
 		return nil, err
 	}
-	if err := view.attachMovements(ctx, reader, around, sightings, reserves); err != nil {
+	if err := view.attachMovements(ctx, snapshot, around, sightings, reserves); err != nil {
 		return nil, err
 	}
-	if err := view.attachYields(ctx, reader, withYield, reserves); err != nil {
+	if err := view.attachYields(ctx, snapshot, withYield, reserves); err != nil {
 		return nil, err
 	}
-	invested, err := loadInvestments(ctx, reader, view, reserves)
+	invested, err := loadInvestments(ctx, snapshot, view, reserves)
 	if err != nil {
 		return nil, err
 	}
@@ -280,9 +280,9 @@ func baseOfBank(bank string) potrules.Base {
 
 // attachMovements gives each pot the deposits and withdrawals the rules can
 // place on it, and keeps the rest on their account.
-func (view *potsView) attachMovements(ctx context.Context, reader *ledger.Reader, around ledgerContext,
+func (view *potsView) attachMovements(ctx context.Context, snapshot *ledger.View, around ledgerContext,
 	sightings []potrules.Sighting, reserves []potEntry) error {
-	rows, err := reader.CleanTransactions(ctx, wholeLedger)
+	rows, err := snapshot.CleanTransactions(ctx, wholeLedger)
 	if err != nil {
 		return err
 	}

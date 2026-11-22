@@ -78,16 +78,16 @@ type ledgerContext struct {
 	billLabels map[string]string
 }
 
-func loadContext(ctx context.Context, reader *ledger.Reader) (ledgerContext, error) {
-	accounts, err := reader.Accounts(ctx)
+func loadContext(ctx context.Context, snapshot *ledger.View) (ledgerContext, error) {
+	accounts, err := snapshot.Accounts(ctx)
 	if err != nil {
 		return ledgerContext{}, err
 	}
-	identities, err := reader.Identities(ctx)
+	identities, err := snapshot.Identities(ctx)
 	if err != nil {
 		return ledgerContext{}, err
 	}
-	bills, err := reader.Bills(ctx)
+	bills, err := snapshot.Bills(ctx)
 	if err != nil {
 		return ledgerContext{}, err
 	}
@@ -111,12 +111,12 @@ type interpreted struct {
 
 // interpretPeriod reads the period widened by the pairing window, interprets it
 // and keeps the transactions whose day is inside the period, newest first.
-func interpretPeriod(ctx context.Context, reader *ledger.Reader, around ledgerContext, period brday.Period) (interpreted, error) {
+func interpretPeriod(ctx context.Context, snapshot *ledger.View, around ledgerContext, period brday.Period) (interpreted, error) {
 	wide, err := widened(period, taxPairingDays)
 	if err != nil {
 		return interpreted{}, err
 	}
-	rows, err := reader.CleanTransactions(ctx, wide)
+	rows, err := snapshot.CleanTransactions(ctx, wide)
 	if err != nil {
 		return interpreted{}, err
 	}
