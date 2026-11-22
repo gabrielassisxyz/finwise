@@ -79,6 +79,8 @@ var secrets = []string{
 	"inv-", "pot-", "Disponível", "Reservado", "Investido", "Remédios", "Viagens", "Tarifas",
 	// The line and establishment names of the budget's figures and its scenario.
 	"Renda", "Delivery", "Academia", "Pets", "Contas da casa", "Saúde", "PACOTE",
+	// The tags, notes, nicknames and line names of the transactions' write cases.
+	"viagem", "abastecer", "Pão", "Maria", "Inexistente",
 }
 
 // capturedLogs is what reached each of the three places a log could go.

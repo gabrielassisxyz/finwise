@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "changeId": "2"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "establishments",
+      "key": [
+        "text:PADARIA EXEMPLO"
+      ],
+      "column": "default_line_id",
+      "before": null,
+      "after": 1
+    }
+  ]
+}
