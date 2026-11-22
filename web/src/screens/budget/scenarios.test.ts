@@ -1,5 +1,7 @@
 import { flushPromises } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
+import { createFakeApi } from '@/api/fake';
+import type { BudgetDoc, FinwiseApi } from '@/api/types';
 import { useRevisionStore } from '@/stores/revision';
 import { mountBudgetAt, plain, typeInto } from './budgetTestSupport';
 import ScenariosScreen from './ScenariosScreen.vue';
@@ -108,5 +110,69 @@ describe('Scenarios screen', () => {
     const m = await mountBudgetAt('/budget/cenarios', ScenariosScreen, { earlier: true });
     expect(m.month.isClosed).toBe(true);
     expect(m.router.currentRoute.value.path).toBe('/budget');
+  });
+});
+
+describe('Scenarios keep each line its id', () => {
+  const NOV = '2026-11';
+  const plainCopy = (doc: BudgetDoc): BudgetDoc => JSON.parse(JSON.stringify(doc)) as BudgetDoc;
+  const idsOf = (doc: BudgetDoc) => doc.map((group) => group.lines.map((line) => [line.id, line.name]));
+
+  /**
+   * A stand-in whose budget of the month answers an id on every line, with a scenario kept under other ids,
+   * that records the drafts it is given.
+   */
+  async function withIds() {
+    const api: FinwiseApi = createFakeApi();
+    const doc = await api.budget.document(NOV);
+    let next = 100;
+    for (const group of doc) for (const line of group.lines) line.id = String(next++);
+    await api.budget.save(NOV, doc);
+    const kept = plainCopy(doc);
+    for (const group of kept) for (const line of group.lines) line.id = `9${line.id}`;
+    await api.budget.saveScenario('Guardado', kept);
+    const sent: Record<'evaluated' | 'saved' | 'applied', BudgetDoc[]> = { evaluated: [], saved: [], applied: [] };
+    const { evaluateScenario, saveScenario, applyScenario } = api.budget;
+    api.budget.evaluateScenario = (month, draft) => (sent.evaluated.push(plainCopy(draft)), evaluateScenario(month, draft));
+    api.budget.saveScenario = (name, draft) => (sent.saved.push(plainCopy(draft)), saveScenario(name, draft));
+    api.budget.applyScenario = (month, draft) => (sent.applied.push(plainCopy(draft)), applyScenario(month, draft));
+    return { api, doc, kept, sent };
+  }
+
+  it('keeps the ids of the budget it copied through a change of amount, and sends them on', async () => {
+    const { api, doc, sent } = await withIds();
+    const m = await mountBudgetAt('/budget/cenarios', ScenariosScreen, { api });
+    await typeInto(field(m, 'Renda extra'), '0');
+    expect(sent.evaluated.at(-1)![0]!.lines[1]!.amount).toBe(0);
+    expect(idsOf(sent.evaluated.at(-1)!)).toEqual(idsOf(doc));
+
+    await button(m, 'Salvar cenário').trigger('click');
+    await flushPromises();
+    expect(idsOf(sent.saved[0]!)).toEqual(idsOf(doc));
+
+    await button(m, 'Aplicar ao budget').trigger('click');
+    m.overlay.confirmation!.onConfirm();
+    await flushPromises();
+    expect(sent.applied[0]![0]!.lines[1]!.amount).toBe(0);
+    expect(idsOf(sent.applied[0]!)).toEqual(idsOf(doc));
+  });
+
+  it('keeps the ids of a saved scenario it loaded through a change of amount, and sends them on', async () => {
+    const { api, kept, sent } = await withIds();
+    const m = await mountBudgetAt('/budget/cenarios', ScenariosScreen, { api });
+    await m.wrapper.findAll('.chip').find((chip) => chip.text() === 'Guardado')!.trigger('click');
+    await flushPromises();
+    await typeInto(field(m, 'Salário'), '11000');
+    expect(sent.evaluated.at(-1)![0]!.lines[0]!.amount).toBe(11000);
+    expect(idsOf(sent.evaluated.at(-1)!)).toEqual(idsOf(kept));
+
+    await button(m, 'Salvar cenário').trigger('click');
+    await flushPromises();
+    expect(idsOf(sent.saved[0]!)).toEqual(idsOf(kept));
+
+    await button(m, 'Aplicar ao budget').trigger('click');
+    m.overlay.confirmation!.onConfirm();
+    await flushPromises();
+    expect(idsOf(sent.applied[0]!)).toEqual(idsOf(kept));
   });
 });
