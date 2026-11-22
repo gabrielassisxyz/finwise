@@ -106,11 +106,13 @@ func firstNonEmpty(values ...string) string {
 // that is refused never leaves a server answering.
 func serve(ctx context.Context, settings serveSettings, env environment) (err error) {
 	logger := slog.New(slog.NewTextHandler(env.stdout, nil))
+	var database *authored.Database
 	if settings.databasePath != "" {
-		database, openErr := authored.Open(ctx, settings.databasePath, authored.Options{Now: env.now})
+		opened, openErr := authored.Open(ctx, settings.databasePath, authored.Options{Now: env.now})
 		if openErr != nil {
 			return openErr
 		}
+		database = opened
 		defer func() {
 			if closeErr := database.Close(); closeErr != nil && err == nil {
 				err = fmt.Errorf("close %s: %w", settings.databasePath, closeErr)
@@ -118,14 +120,7 @@ func serve(ctx context.Context, settings serveSettings, env environment) (err er
 		}()
 		logger.Info("app database open", "path", settings.databasePath)
 	}
-	handler, err := api.NewHandler(api.Config{
-		Ledger:         ledger.New(settings.ledgerPath),
-		VerifyPIN:      settings.pinHash.Verify,
-		Now:            env.now,
-		SessionIdle:    settings.sessionIdle,
-		InsecureCookie: settings.insecureCookie,
-		Logger:         logger,
-	})
+	handler, err := api.NewHandler(apiConfig(settings, database, env, logger))
 	if err != nil {
 		return err
 	}
@@ -148,6 +143,20 @@ func serve(ctx context.Context, settings serveSettings, env environment) (err er
 		env.listening(listener.Addr().String())
 	}
 	return serveUntilDone(ctx, server, listener)
+}
+
+// apiConfig hands the API the one clock of the process and the app's database,
+// nil when serve was given none.
+func apiConfig(settings serveSettings, database *authored.Database, env environment, logger *slog.Logger) api.Config {
+	return api.Config{
+		Ledger:         ledger.New(settings.ledgerPath),
+		Database:       database,
+		VerifyPIN:      settings.pinHash.Verify,
+		Now:            env.now,
+		SessionIdle:    settings.sessionIdle,
+		InsecureCookie: settings.insecureCookie,
+		Logger:         logger,
+	}
 }
 
 func serveUntilDone(ctx context.Context, server *http.Server, listener net.Listener) error {

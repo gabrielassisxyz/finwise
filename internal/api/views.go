@@ -18,12 +18,16 @@ type Views struct {
 // openViews touches neither file: each view opens at its first query, so a
 // handler that asks a store nothing never fails because that store is missing.
 // A router built without a ledger answers every ledger query as a missing
-// snapshot.
-func openViews(reader *ledger.Reader) Views {
+// snapshot; one built without the app's database hands out the empty view.
+func openViews(reader *ledger.Reader, database *authored.Database) Views {
 	if reader == nil {
 		reader = ledger.New("")
 	}
-	return Views{Ledger: reader.View(), Authored: authored.EmptyView()}
+	views := Views{Ledger: reader.View(), Authored: authored.EmptyView()}
+	if database != nil {
+		views.Authored = database.View()
+	}
+	return views
 }
 
 // close ends both views. Their errors are dropped: the answer is already

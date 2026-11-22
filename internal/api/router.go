@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/contract"
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
@@ -21,10 +22,13 @@ const maxBodyBytes = 1 << 20
 // Config is everything the HTTP layer needs from outside. Methods and Reads
 // default to the embedded manifest and the registered domains. Now is
 // required: "today" comes from the caller's clock, never from the host's.
+// Database is the app's own database; without it every read is answered as if
+// the person had authored nothing.
 type Config struct {
 	Methods        []contract.Method
 	Reads          *Registry
 	Ledger         *ledger.Reader
+	Database       *authored.Database
 	VerifyPIN      func(attempt string) bool
 	Now            func() time.Time
 	SessionIdle    time.Duration
@@ -36,6 +40,7 @@ type Config struct {
 type router struct {
 	reads    *Registry
 	reader   *ledger.Reader
+	database *authored.Database
 	sessions *sessionService
 	now      func() time.Time
 }
@@ -53,6 +58,7 @@ func NewHandler(config Config) (http.Handler, error) {
 	found := &router{
 		reads:    config.Reads,
 		reader:   config.Ledger,
+		database: config.Database,
 		sessions: newSessionService(config),
 		now:      config.Now,
 	}
@@ -196,7 +202,7 @@ func (found *router) serveRead(w http.ResponseWriter, r *http.Request, method co
 		writeError(w, r, kindInternal)
 		return
 	}
-	views := openViews(found.reader)
+	views := openViews(found.reader, found.database)
 	defer views.close()
 	// One instant per request, so that an answer computed around midnight
 	// cannot place one figure on one day and the next on another.
