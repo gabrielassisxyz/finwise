@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"io/fs"
 	"net/url"
+	"path/filepath"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -90,7 +91,11 @@ func openPool(ctx context.Context, path string, now func() time.Time) (*Database
 	query.Add("_pragma", "synchronous(FULL)")
 	query.Add("_pragma", "journal_mode(WAL)")
 	query.Set("_txlock", "immediate")
-	pool, err := sql.Open("sqlite", (&url.URL{Scheme: "file", Path: path, RawQuery: query.Encode()}).String())
+	address, err := fileAddress(path, query)
+	if err != nil {
+		return nil, &OpenError{Path: path, Failure: FailureOpen, cause: err}
+	}
+	pool, err := sql.Open("sqlite", address)
 	if err != nil {
 		return nil, &OpenError{Path: path, Failure: FailureOpen, cause: err}
 	}
@@ -99,6 +104,18 @@ func openPool(ctx context.Context, path string, now func() time.Time) (*Database
 		return nil, &OpenError{Path: path, Failure: FailureOpen, cause: err}
 	}
 	return &Database{path: path, pool: pool, now: now}, nil
+}
+
+// fileAddress is the file: address SQLite opens path through. A relative path is
+// made absolute first: printed as it is, the address reads its first segment as
+// a host name, which SQLite refuses. Symbolic links are left alone, because the
+// name is what has to be opened.
+func fileAddress(path string, query url.Values) (string, error) {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	return (&url.URL{Scheme: "file", Path: absolute, RawQuery: query.Encode()}).String(), nil
 }
 
 // Close closes every connection; the last one checkpoints the -wal file into
