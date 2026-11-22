@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gabrielassisxyz/finwise/internal/api"
+	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
@@ -24,6 +25,7 @@ const (
 type serveSettings struct {
 	listen         string
 	ledgerPath     string
+	databasePath   string
 	insecureCookie bool
 	pinHash        api.PINHash
 	sessionIdle    time.Duration
@@ -46,6 +48,7 @@ func readServeSettings(args []string, env environment) (serveSettings, int) {
 	flags.SetOutput(env.stderr)
 	listen := flags.String("listen", "", "address to listen on (FINWISE_LISTEN, default "+defaultListen+")")
 	ledgerPath := flags.String("ledger", "", "path of the ledger snapshot (FINWISE_LEDGER)")
+	databasePath := flags.String("db", "", "path of the app's own database, created if missing (FINWISE_DB; without it the server is read-only)")
 	insecure := flags.Bool("dev-insecure-cookie", false, "development only: session cookie without Secure and the __Host- prefix")
 	if err := flags.Parse(args); err != nil {
 		return serveSettings{}, exitUsage
@@ -53,6 +56,7 @@ func readServeSettings(args []string, env environment) (serveSettings, int) {
 	settings := serveSettings{
 		listen:         firstNonEmpty(*listen, env.getenv("FINWISE_LISTEN"), defaultListen),
 		ledgerPath:     firstNonEmpty(*ledgerPath, env.getenv("FINWISE_LEDGER")),
+		databasePath:   firstNonEmpty(*databasePath, env.getenv("FINWISE_DB")),
 		insecureCookie: *insecure,
 	}
 	if settings.ledgerPath == "" {
@@ -97,9 +101,23 @@ func firstNonEmpty(values ...string) string {
 }
 
 // serve starts even when the snapshot is missing: the PIN works and reads
-// answer `ledger_unavailable` until the collector has produced one.
-func serve(ctx context.Context, settings serveSettings, env environment) error {
+// answer `ledger_unavailable` until the collector has produced one. The app's
+// database, when one is given, is opened before the listener, so a database
+// that is refused never leaves a server answering.
+func serve(ctx context.Context, settings serveSettings, env environment) (err error) {
 	logger := slog.New(slog.NewTextHandler(env.stdout, nil))
+	if settings.databasePath != "" {
+		database, openErr := authored.Open(ctx, settings.databasePath, authored.Options{Now: env.now})
+		if openErr != nil {
+			return openErr
+		}
+		defer func() {
+			if closeErr := database.Close(); closeErr != nil && err == nil {
+				err = fmt.Errorf("close %s: %w", settings.databasePath, closeErr)
+			}
+		}()
+		logger.Info("app database open", "path", settings.databasePath)
+	}
 	handler, err := api.NewHandler(api.Config{
 		Ledger:         ledger.New(settings.ledgerPath),
 		VerifyPIN:      settings.pinHash.Verify,
