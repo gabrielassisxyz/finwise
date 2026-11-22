@@ -10,15 +10,18 @@ defineEmits<{ accept: []; pick: [anchor: HTMLElement]; skip: [] }>();
 const { draft } = useReviewViewStore();
 
 const picked = computed(() => draft.line);
+const suggested = computed(() => props.item.pending.suggestion);
+// A review with no suggestion has nothing to say until a line is picked, and nothing to accept either.
 const suggestion = computed(() => {
-  const { pending } = props.item;
-  return picked.value ? `Linha escolhida: ${picked.value}` : `Sugestão da IA: ${pending.suggestion} · ${pending.confidence}%`;
+  if (picked.value) return `Linha escolhida: ${picked.value}`;
+  const { suggestion: line, confidence } = props.item.pending;
+  if (line === null) return null;
+  return confidence === null ? `Sugestão da IA: ${line}` : `Sugestão da IA: ${line} · ${confidence}%`;
 });
-const justification = computed(() =>
-  picked.value
-    ? `A IA tinha sugerido ${props.item.pending.suggestion}. Confirme para usar a sua escolha.`
-    : props.item.pending.justification,
-);
+const justification = computed(() => {
+  if (!picked.value) return props.item.pending.justification;
+  return suggested.value === null ? null : `A IA tinha sugerido ${suggested.value}. Confirme para usar a sua escolha.`;
+});
 </script>
 
 <template>
@@ -32,12 +35,14 @@ const justification = computed(() =>
       <span class="amount">{{ brl(item.amount) }}</span>
     </div>
     <span class="where">{{ longDay(item.day) }} · {{ item.accountLabel }}</span>
-    <div class="suggestion">
+    <div v-if="suggestion" class="suggestion">
       <span class="line">{{ suggestion }}</span>
-      <span class="why">{{ justification }}</span>
+      <span v-if="justification" class="why">{{ justification }}</span>
     </div>
     <div class="buttons">
-      <button class="primary" @click="$emit('accept')">{{ picked ? 'Confirmar' : 'Aceitar' }}</button>
+      <button class="primary" :disabled="!picked && suggested === null" @click="$emit('accept')">
+        {{ picked ? 'Confirmar' : 'Aceitar' }}
+      </button>
       <button class="secondary" @click="$emit('pick', $event.currentTarget as HTMLElement)">Escolher outra linha</button>
       <button class="quiet" @click="$emit('skip')">Pular</button>
     </div>
@@ -151,8 +156,13 @@ const justification = computed(() =>
   font-weight: var(--font-weight-medium);
 }
 
-.primary:hover {
+.primary:hover:enabled {
   background: var(--color-accent-hover);
+}
+
+.primary:disabled {
+  opacity: 0.4; /* token-exempt: the dimming of a disabled control */
+  cursor: default;
 }
 
 .secondary {
