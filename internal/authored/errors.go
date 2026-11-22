@@ -61,6 +61,60 @@ func (err *OpenError) Error() string {
 
 func (err *OpenError) Unwrap() error { return err.cause }
 
+// BackupFailure says which step of a backup refused or failed.
+type BackupFailure int
+
+const (
+	// BackupSourceMissing: the database does not exist or is empty; it was not created.
+	BackupSourceMissing BackupFailure = iota + 1
+	// BackupDestinationTaken: a file holds the destination's name; it was left as it was.
+	BackupDestinationTaken
+	// BackupCopyFailed: the copy could not be written; nothing was published.
+	BackupCopyFailed
+	// BackupCheckFailed: the copy did not pass its check; nothing was published.
+	BackupCheckFailed
+	// BackupPublishFailed: the copy could not be linked to the destination's name.
+	BackupPublishFailed
+	// BackupTemporaryLeft: the copy is published, but its temporary name could not be removed.
+	BackupTemporaryLeft
+	// BackupNotRecorded: the instant could not be recorded, so the published copy was removed.
+	BackupNotRecorded
+	// BackupNotWithdrawn: the instant could not be recorded, and the published copy could not be removed.
+	BackupNotWithdrawn
+)
+
+// BackupError is every failure of Backup that is not a refusal of the source
+// by recognition. Like OpenError, its text names paths and a fixed reason only.
+type BackupError struct {
+	Source      string
+	Destination string
+	Failure     BackupFailure
+	cause       error
+}
+
+func (err *BackupError) Error() string {
+	switch err.Failure {
+	case BackupSourceMissing:
+		return fmt.Sprintf("authored: %s does not exist or is empty; it was not created and nothing was copied", err.Source)
+	case BackupDestinationTaken:
+		return fmt.Sprintf("authored: %s already exists; it was left untouched and no backup was taken", err.Destination)
+	case BackupCopyFailed:
+		return fmt.Sprintf("authored: the copy of %s could not be written beside %s; nothing was published", err.Source, err.Destination)
+	case BackupCheckFailed:
+		return fmt.Sprintf("authored: the copy of %s did not pass its check; nothing was published at %s", err.Source, err.Destination)
+	case BackupTemporaryLeft:
+		return fmt.Sprintf("authored: the copy was published at %s but its temporary name beside it could not be removed; no backup was recorded in %s", err.Destination, err.Source)
+	case BackupNotRecorded:
+		return fmt.Sprintf("authored: the backup could not be recorded in %s, so the copy at %s was removed", err.Source, err.Destination)
+	case BackupNotWithdrawn:
+		return fmt.Sprintf("authored: the backup could not be recorded in %s, and the copy at %s could not be removed", err.Source, err.Destination)
+	default:
+		return fmt.Sprintf("authored: the copy could not be published at %s", err.Destination)
+	}
+}
+
+func (err *BackupError) Unwrap() error { return err.cause }
+
 // TransactionError is a read or a write that did not complete; a write that
 // returns it kept nothing.
 type TransactionError struct {

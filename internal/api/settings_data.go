@@ -7,16 +7,21 @@ import (
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
-// dataSettingsOf is the connections as the bank reports them and the last
-// complete synchronisation. This backend makes no backup, so there is none to
-// show.
-func dataSettingsOf(state ledger.SyncState, now time.Time, itemBanks map[string]string) dataSettingsWire {
+// dataSettingsOf is the connections as the bank reports them, the last complete
+// synchronisation and the last backup, nil while none was recorded.
+func dataSettingsOf(state ledger.SyncState, lastBackup *time.Time, now time.Time, itemBanks map[string]string) dataSettingsWire {
 	data := dataSettingsWire{Connections: connectionsOf(state.Connections, now, itemBanks)}
 	if state.LastCompleteSync != nil {
-		finished := *state.LastCompleteSync
-		data.LastSync = &momentWire{Day: string(brday.DayOf(finished)), Time: clockTimeOf(finished)}
+		data.LastSync = momentOf(*state.LastCompleteSync)
+	}
+	if lastBackup != nil {
+		data.LastBackup = momentOf(*lastBackup)
 	}
 	return data
+}
+
+func momentOf(instant time.Time) *momentWire {
+	return &momentWire{Day: string(brday.DayOf(instant)), Time: clockTimeOf(instant)}
 }
 
 // connectionsOf has one entry per bank link. The contract knows two states, and

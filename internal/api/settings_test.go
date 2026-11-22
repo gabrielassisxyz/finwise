@@ -3,10 +3,12 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 )
 
@@ -79,6 +81,42 @@ func TestTheSettingsReportTheLastCompleteRunAndNoBackup(t *testing.T) {
 	}
 	if backup, present := data["lastBackup"]; !present || backup != nil {
 		t.Errorf("lastBackup = %v, want null", backup)
+	}
+}
+
+func lastBackupOver(t *testing.T, database *authored.Database) any {
+	t.Helper()
+	env := newTestEnv(t, withLedger(newFullLedger(t).Path, fixtureNow), func(config *Config) { config.Database = database })
+	data := objectAt(t, answerOf(t, &readEnv{testEnv: env, cookie: env.unlock()}, "settings.overview", `[]`), "data")
+	backup, present := data["lastBackup"]
+	if !present {
+		t.Fatal("the answer has no lastBackup")
+	}
+	return backup
+}
+
+// The backups are taken while the server holds the database, as the nightly
+// job takes them; the first falls on the evening before in Brazil.
+func TestTheSettingsShowTheLastBackupInBrazilTime(t *testing.T) {
+	database, path := openAppDatabase(t)
+	if backup := lastBackupOver(t, database); backup != nil {
+		t.Errorf("before any backup lastBackup = %v, want null", backup)
+	}
+	for _, c := range []struct {
+		at        time.Time
+		day, time string
+	}{
+		{utc(2026, time.December, 1, 1, 30), "2026-11-30", "22:30"},
+		{utc(2026, time.December, 2, 5, 15), "2026-12-02", "02:15"},
+	} {
+		options := authored.BackupOptions{Now: func() time.Time { return c.at }}
+		if err := authored.Backup(t.Context(), path, filepath.Join(t.TempDir(), "copy.db"), options); err != nil {
+			t.Fatalf("backup at %v: %v", c.at, err)
+		}
+		backup, ok := lastBackupOver(t, database).(map[string]any)
+		if !ok || backup["day"] != c.day || backup["time"] != c.time || len(backup) != 2 {
+			t.Errorf("after the backup at %v lastBackup = %v, want %s %s", c.at, backup, c.day, c.time)
+		}
 	}
 }
 
