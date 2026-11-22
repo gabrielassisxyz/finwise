@@ -80,6 +80,7 @@ export interface FakeEstablishment {
 export type BudgetGroupKey = 'rec' | 'fix' | 'var' | 'prov' | 'res';
 
 export interface FakeBudgetLine {
+  id?: string;
   name: string;
   amount: number;
   flag?: string;

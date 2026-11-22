@@ -235,6 +235,9 @@ describe.each(STATES)('the stand-in over $name against the schemas', ({ name, bu
     const view = validators.get('budget.view')!.args;
     expect(view([NOV, null])).toBe(true);
     expect(view([NOV, 'draft'])).toBe(false);
+    const line = (id: unknown) => [{ key: 'var', name: 'Variáveis', lines: [{ id, name: 'Mercado', amount: 1 }] }];
+    expect(view([NOV, line('7')])).toBe(true);
+    expect(view([NOV, line(7)])).toBe(false);
     const list = validators.get('savingsPots.list')!.args;
     expect(list([{ includeClosed: 'yes' }])).toBe(false);
     expect(list([{ includeClosed: true, extra: 1 }])).toBe(false);

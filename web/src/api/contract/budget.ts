@@ -8,6 +8,11 @@ export type BudgetGroupKey = EditableGroupKey | 'rf' | 'tar' | 'inv';
 
 /** One line of the budget as it is stored and edited. */
 export interface BudgetLineDoc {
+  /**
+   * A decimal string the server mints when a budget is saved or applied; it keeps a line's history
+   * through a rename. A line the person has just added has none.
+   */
+  id?: string;
   name: string;
   amount: number;
   /** A marker the line carries, such as "Não garantida". */
