@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "changeId": "1"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "establishments",
+      "key": [
+        "doc:11122233344"
+      ],
+      "column": "nickname",
+      "before": null,
+      "after": "Tia Maria"
+    }
+  ]
+}

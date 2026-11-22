@@ -22,10 +22,9 @@ const changePin = "session.changePin"
 // empty when every write of the contract is implemented.
 var writesWithoutHandler = []string{
 	"transactions.setLine", "transactions.applyLineToEstablishment",
-	"transactions.setLineForMany", "transactions.addTagToMany", "transactions.excludeMany",
-	"transactions.confirmLine", "transactions.setReason", "transactions.setNickname",
-	"transactions.setDefaultLine", "transactions.addFixedTag", "transactions.removeFixedTag",
-	"transactions.addTag", "transactions.removeTag", "transactions.setNote", "transactions.setSplit",
+	"transactions.setLineForMany", "transactions.excludeMany",
+	"transactions.confirmLine", "transactions.setReason",
+	"transactions.setSplit",
 	"transactions.setReimbursable", "transactions.setExpectedReimbursement",
 	"transactions.linkReimbursement", "transactions.unlinkReimbursement", "transactions.setExcluded",
 	"transactions.setExclusionReason", "transactions.setRefund", "transactions.setRefundLine",
@@ -132,12 +131,14 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 		"budget.applyScenario", "budget.save", "budget.saveScenario", "changes.undo",
 		"settings.setCardLabel", "settings.setClosing", "settings.setMinExamples", "settings.setPotBucket",
 		"settings.setThreshold", "settings.toggleLinkedLine",
+		"transactions.addFixedTag", "transactions.addTag", "transactions.addTagToMany", "transactions.removeFixedTag",
+		"transactions.removeTag", "transactions.setDefaultLine", "transactions.setNickname", "transactions.setNote",
 	}
 	if !slices.Equal(registered, implemented) {
 		t.Errorf("the registry implements %v, want %v", registered, implemented)
 	}
-	if len(writesWithoutHandler) != 45 || slices.Contains(writesWithoutHandler, changePin) {
-		t.Errorf("the list holds %d names, want 45 without %s", len(writesWithoutHandler), changePin)
+	if len(writesWithoutHandler) != 37 || slices.Contains(writesWithoutHandler, changePin) {
+		t.Errorf("the list holds %d names, want 37 without %s", len(writesWithoutHandler), changePin)
 	}
 	if !slices.Contains(writesWithoutHandler, "budget.evaluateScenario") {
 		t.Error("budget.evaluateScenario has no handler yet and belongs in the list")
