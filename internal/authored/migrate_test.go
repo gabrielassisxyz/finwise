@@ -57,7 +57,7 @@ func TestAMissingMigrationIsAppliedWhateverItsPosition(t *testing.T) {
 	openAndClose(t, path, creationInstant, withMigrations(t, map[string]string{"0003_x": createX3}))
 
 	openAndClose(t, path, laterInstant, withMigrations(t, map[string]string{"0002_x": createX2, "0003_x": createX3}))
-	if got, want := namesOf(t, path), []string{"0001_journal", "0002_budget", "0002_x", "0003_transactions", "0003_x", "0004_settings", "0008_session"}; !equalStrings(got, want) {
+	if got, want := namesOf(t, path), []string{"0001_journal", "0002_budget", "0002_x", "0003_transactions", "0003_x", "0004_settings", "0005_pots", "0008_session"}; !equalStrings(got, want) {
 		t.Errorf("recorded = %v, want %v", got, want)
 	}
 	if tables := tableNames(t, inspect(t, path)); !slices.Contains(tables, "x2") {
@@ -130,10 +130,10 @@ func TestACopyIsTakenBeforeMigratingADatabaseThatRecordsOne(t *testing.T) {
 	if err := copyDatabase.QueryRow("PRAGMA integrity_check").Scan(&integrity); err != nil || integrity != "ok" {
 		t.Errorf("integrity_check = %q (%v)", integrity, err)
 	}
-	if names := columnValues(t, copyDatabase, "SELECT name FROM schema_migrations"); !equalStrings(names, []string{"0001_journal", "0002_budget", "0003_transactions", "0004_settings", "0008_session"}) {
+	if names := columnValues(t, copyDatabase, "SELECT name FROM schema_migrations"); !equalStrings(names, []string{"0001_journal", "0002_budget", "0003_transactions", "0004_settings", "0005_pots", "0008_session"}) {
 		t.Errorf("the copy records %v: it was not taken before the migration", names)
 	}
-	if names := namesOf(t, path); !equalStrings(names, []string{"0001_journal", "0002_budget", "0002_x", "0003_transactions", "0004_settings", "0008_session"}) {
+	if names := namesOf(t, path); !equalStrings(names, []string{"0001_journal", "0002_budget", "0002_x", "0003_transactions", "0004_settings", "0005_pots", "0008_session"}) {
 		t.Errorf("the database records %v", names)
 	}
 }
@@ -160,7 +160,7 @@ func TestACopyNameAlreadyTakenStopsTheStartAndIsNotOverwritten(t *testing.T) {
 			if hashAfter := fileHash(t, occupied); hashAfter != hashBefore {
 				t.Error("the file at the copy's name was overwritten")
 			}
-			if names := namesOf(t, path); !equalStrings(names, []string{"0001_journal", "0002_budget", "0003_transactions", "0004_settings", "0008_session"}) {
+			if names := namesOf(t, path); !equalStrings(names, []string{"0001_journal", "0002_budget", "0003_transactions", "0004_settings", "0005_pots", "0008_session"}) {
 				t.Errorf("the migration ran without its copy: %v", names)
 			}
 		})
@@ -183,8 +183,8 @@ func TestAFailingMigrationRollsBackAndKeepsWhatCameBefore(t *testing.T) {
 	if !strings.Contains(err.Error(), path) || strings.Contains(err.Error(), "nowhere") {
 		t.Errorf("message %q must name the path and not quote SQLite", err)
 	}
-	if names := namesOf(t, path); !equalStrings(names, []string{"0001_journal", "0002_budget", "0002_x", "0003_transactions", "0004_settings", "0008_session"}) {
-		t.Errorf("recorded = %v, want 0001_journal, 0002_budget, 0002_x, 0003_transactions, 0004_settings and 0008_session", names)
+	if names := namesOf(t, path); !equalStrings(names, []string{"0001_journal", "0002_budget", "0002_x", "0003_transactions", "0004_settings", "0005_pots", "0008_session"}) {
+		t.Errorf("recorded = %v, want 0001_journal, 0002_budget, 0002_x, 0003_transactions, 0004_settings, 0005_pots and 0008_session", names)
 	}
 	tables := tableNames(t, inspect(t, path))
 	if slices.Contains(tables, "x3") || !slices.Contains(tables, "x2") {
