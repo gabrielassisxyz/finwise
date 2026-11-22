@@ -45,5 +45,5 @@ func disposeMonth(ctx context.Context, views Views, month brday.Month) (monthDis
 	for _, listed := range view.listed {
 		inputs = append(inputs, rows.disposable(listed))
 	}
-	return monthDispositions{listed: view.listed, outcomes: budgetrules.Dispose(monthLinesOf(budget).budget, inputs)}, nil
+	return monthDispositions{listed: view.listed, outcomes: budgetrules.Dispose(transactionLinesOf(budget).budget, inputs)}, nil
 }

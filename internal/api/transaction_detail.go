@@ -133,7 +133,7 @@ func interpretMonthOf(all []ledger.Transaction, source ledger.Transaction, aroun
 // budget, which names an establishment's default line, the tags in use, and
 // the history with what of it can still be taken back.
 type panelExtras struct {
-	current monthLines
+	current transactionLines
 	known   []string
 	history []historyEntry
 }
@@ -147,7 +147,7 @@ func readPanelExtras(ctx context.Context, view *authored.View, rows authoredRows
 	if err != nil {
 		return panelExtras{}, err
 	}
-	extras := panelExtras{current: monthLinesOf(current), known: known, history: []historyEntry{}}
+	extras := panelExtras{current: transactionLinesOf(current), known: known, history: []historyEntry{}}
 	if kept, key, indexed := rows.keptOf(listed); indexed {
 		if extras.history, err = historyOf(ctx, view, key, kept.History); err != nil {
 			return panelExtras{}, err
@@ -241,7 +241,7 @@ func suggestedTags(known []string, own []authored.Tag) []string {
 
 // splitPartsOf names each part's line in the transaction's own month. One part
 // is not a split, as Dispose counts it.
-func splitPartsOf(parts []authored.SplitPart, month monthLines) []splitPart {
+func splitPartsOf(parts []authored.SplitPart, month transactionLines) []splitPart {
 	if len(parts) < 2 {
 		return nil
 	}
@@ -302,7 +302,7 @@ func sectionsOf(listed txrules.Transaction) panelSections {
 
 // counterpartyOf names the default line as the current month's budget does: an
 // establishment's default has no month of its own, and is applied from now on.
-func counterpartyOf(listed txrules.Transaction, sections panelSections, kept authored.Establishment, current monthLines) *counterpartyDetail {
+func counterpartyOf(listed txrules.Transaction, sections panelSections, kept authored.Establishment, current transactionLines) *counterpartyDetail {
 	if !sections.Establishment && !sections.Person {
 		return nil
 	}

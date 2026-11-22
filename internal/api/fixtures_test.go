@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -260,12 +261,17 @@ func inventedAuthoredState(t testing.TB, scratch *authoredtest.Scratch) {
 	}
 }
 
-// seedPotChoices gives one invented pot a bucket and a linked line of the seeded
-// budget, in the change that is being recorded.
+// seedPotChoices places two pots of the full ledger in a bucket other than the
+// bank's word, a reserve in Disponível and an investment in Reservado, and
+// links a line of the seeded budget to each, in the change that is being
+// recorded.
 func seedPotChoices(ctx context.Context, recorder *authored.Recorder) error {
-	const pot = "reserve:acc-seed/pot-seed"
-	if err := recorder.SetPotBucket(ctx, pot, authored.BucketAvailable); err != nil {
-		return err
+	choices := []struct {
+		pot, line string
+		bucket    authored.PotBucket
+	}{
+		{"reserve:acc-pots/pot-1", "Remédios", authored.BucketAvailable},
+		{"investment:inv-it-1", "Viagens", authored.BucketReserved},
 	}
 	view := recorder.View()
 	defer view.Close()
@@ -273,10 +279,17 @@ func seedPotChoices(ctx context.Context, recorder *authored.Recorder) error {
 	if err != nil {
 		return err
 	}
-	for _, line := range budget.Lines {
-		if line.Name == "Remédios" {
-			return recorder.ToggleLink(ctx, line.ID, pot)
+	for _, choice := range choices {
+		if err := recorder.SetPotBucket(ctx, choice.pot, choice.bucket); err != nil {
+			return err
+		}
+		index := slices.IndexFunc(budget.Lines, func(line authored.BudgetLine) bool { return line.Name == choice.line })
+		if index < 0 {
+			return errors.New("the seeded budget has no line to link")
+		}
+		if err := recorder.ToggleLink(ctx, budget.Lines[index].ID, choice.pot); err != nil {
+			return err
 		}
 	}
-	return errors.New("the seeded budget has no line to link")
+	return nil
 }

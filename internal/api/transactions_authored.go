@@ -13,10 +13,6 @@ import (
 	"github.com/gabrielassisxyz/finwise/internal/txrules"
 )
 
-// feesLineID is the id migration 0002_budget gives the built-in fees line, the
-// same in every database.
-const feesLineID authored.LineID = 1
-
 // The contract's Classifier: who put a transaction on its line.
 const (
 	classifiedByPerson = "Você"
@@ -24,15 +20,15 @@ const (
 	classifiedByModel  = "IA"
 )
 
-// monthLines is one month's budget as a transaction of that month reads it:
+// transactionLines is one month's budget as a transaction of that month reads it:
 // the name each line has in it, and what Dispose needs of it.
-type monthLines struct {
+type transactionLines struct {
 	names  map[authored.LineID]string
 	budget budgetrules.Budget
 }
 
-func monthLinesOf(budget authored.Budget) monthLines {
-	lines := monthLines{
+func transactionLinesOf(budget authored.Budget) transactionLines {
+	lines := transactionLines{
 		names:  map[authored.LineID]string{feesLineID: authored.FeesLineName},
 		budget: budgetrules.Budget{Lines: map[budgetrules.LineID]budgetrules.Group{}, FeesLine: budgetrules.LineID(feesLineID)},
 	}
@@ -46,7 +42,7 @@ func monthLinesOf(budget authored.Budget) monthLines {
 // nameOf is the line's name in this month. A line the month's budget does not
 // have is no line, as Dispose counts it, so the name shown and the total it
 // is counted in never disagree.
-func (lines monthLines) nameOf(id *authored.LineID) *string {
+func (lines transactionLines) nameOf(id *authored.LineID) *string {
 	if id == nil {
 		return nil
 	}
@@ -65,7 +61,7 @@ type authoredRows struct {
 	kept           map[authored.TxKey]authored.AuthoredTransaction
 	establishments map[string]authored.Establishment
 	linkedCredits  map[authored.TxKey]bool
-	months         map[brday.Month]monthLines
+	months         map[brday.Month]transactionLines
 }
 
 func readAuthoredRows(ctx context.Context, view *authored.View, listed []txrules.Transaction) (authoredRows, error) {
@@ -126,8 +122,8 @@ func linkedCreditsOf(ctx context.Context, view *authored.View, listed []txrules.
 
 // budgetsOfMonths is the budget of every month a listed transaction falls in:
 // each transaction is read against its own month's, never the current one's.
-func budgetsOfMonths(ctx context.Context, view *authored.View, listed []txrules.Transaction) (map[brday.Month]monthLines, error) {
-	months := map[brday.Month]monthLines{}
+func budgetsOfMonths(ctx context.Context, view *authored.View, listed []txrules.Transaction) (map[brday.Month]transactionLines, error) {
+	months := map[brday.Month]transactionLines{}
 	for _, transaction := range listed {
 		month := monthOfDay(transaction.Day)
 		if _, read := months[month]; read {
@@ -137,7 +133,7 @@ func budgetsOfMonths(ctx context.Context, view *authored.View, listed []txrules.
 		if err != nil {
 			return nil, err
 		}
-		months[month] = monthLinesOf(budget)
+		months[month] = transactionLinesOf(budget)
 	}
 	return months, nil
 }
@@ -253,7 +249,7 @@ func classifierOf(author authored.Author) *string {
 // pendingOf is the review a transaction waits for, its suggestion named in the
 // transaction's month. The contract cannot say yet that a review has no
 // suggestion, so a missing one reads as an empty name and a zero confidence.
-func (lines monthLines) pendingOf(state authored.TransactionState) *pendingReview {
+func (lines transactionLines) pendingOf(state authored.TransactionState) *pendingReview {
 	if state.PendingReason == "" {
 		return nil
 	}

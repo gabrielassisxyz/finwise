@@ -230,7 +230,7 @@ func reimbursedPurchase(credit money.Cents) (txrules.Transaction, authoredRows) 
 			1: {State: authored.TransactionState{Reimbursable: true, Credit: &creditKey, CreditCents: &credit}},
 		},
 		linkedCredits: map[authored.TxKey]bool{creditKey: true},
-		months:        map[brday.Month]monthLines{"2026-03": monthLinesOf(authored.Budget{})},
+		months:        map[brday.Month]transactionLines{"2026-03": transactionLinesOf(authored.Budget{})},
 	}
 	return purchase, rows
 }

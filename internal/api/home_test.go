@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/gabrielassisxyz/finwise/internal/authored"
 )
 
 func TestTheHomeSummaryHasNoLimitNoWeeksAndNothingPendingOverAMonthWithPurchases(t *testing.T) {
@@ -103,7 +105,7 @@ func TestTheHomeHandlerLoadsThePotsWithoutAYield(t *testing.T) {
 		if !ok {
 			return true
 		}
-		if name, isName := call.Fun.(*ast.Ident); !isName || name.Name != "loadPots" {
+		if name, isName := call.Fun.(*ast.Ident); !isName || name.Name != "loadPotsWithChoices" {
 			return true
 		}
 		calls++
@@ -113,7 +115,7 @@ func TestTheHomeHandlerLoadsThePotsWithoutAYield(t *testing.T) {
 		return true
 	})
 	if calls != 1 {
-		t.Errorf("home.go calls loadPots %d times, want once", calls)
+		t.Errorf("home.go calls loadPotsWithChoices %d times, want once", calls)
 	}
 }
 
@@ -121,5 +123,20 @@ func TestTheHomeOffersNoPayAheadWhenTheNextBillsAmountIsNotKnown(t *testing.T) {
 	home := answerOf(t, envAt(t, noTableLedger(t), 2026, time.March, 20), "home.summary", `["2026-03"]`)
 	if home["payAhead"] != nil {
 		t.Errorf("home offers a pay-ahead figure for an amount that is not known: %v", home["payAhead"])
+	}
+}
+
+func TestTheHomeNetWorthFollowsTheBucketsThePersonChose(t *testing.T) {
+	env := potsPlacedEnv(t, newFullLedger(t), map[string]authored.PotBucket{
+		potCaixinha: authored.BucketAvailable, potLCI: authored.BucketReserved,
+	})
+	home := answerOf(t, env, "home.summary", `["2026-03"]`)["netWorth"].(map[string]any)
+	got := [3]int64{cents(home["available"].(float64)), cents(home["reserved"].(float64)), cents(home["invested"].(float64))}
+	if want := [3]int64{285966, 827580, 300000}; got != want {
+		t.Errorf("the home shows %v cents, want %v", got, want)
+	}
+	totals := bucketTotals(t, answerOf(t, env, "netWorth.overview", `[]`))
+	if got != [3]int64{totals["Disponível"], totals["Reservado"], totals["Investido"]} {
+		t.Errorf("the home shows %v and the net worth screen %v", got, totals)
 	}
 }

@@ -44,7 +44,7 @@ func readHomeSummary(ctx context.Context, args []json.RawMessage, views Views) (
 		return nil, err
 	}
 	// The summary shows the parts and not the yield, so the statement is not asked.
-	view, err := loadPots(ctx, views.Ledger, false)
+	view, err := loadPotsWithChoices(ctx, views, false)
 	if err != nil {
 		return nil, err
 	}

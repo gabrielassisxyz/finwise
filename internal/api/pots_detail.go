@@ -24,6 +24,13 @@ type potInvestmentWire struct {
 	RedeemableOn *string `json:"redeemableOn"`
 }
 
+// potLinkedLineWire is a budget line the pot feeds. Its share of the balance is
+// null: nothing splits a pot's balance between the lines it feeds yet.
+type potLinkedLineWire struct {
+	Name  string `json:"name"`
+	Share *Reais `json:"share"`
+}
+
 type potYieldDayWire struct {
 	Day    string `json:"day"`
 	Amount *Reais `json:"amount"`
@@ -35,9 +42,9 @@ type potYieldWire struct {
 	Days  []potYieldDayWire `json:"days"`
 }
 
-// potDetailWire is the contract's SavingsPotDetail. A target, a planned
-// contribution and the budget lines a pot feeds are the person's to author, so
-// they are the contract's empty value.
+// potDetailWire is the contract's SavingsPotDetail. A target and a planned
+// contribution are the person's to author and nothing stores them yet, so they
+// are the contract's empty value.
 type potDetailWire struct {
 	ID           string              `json:"id"`
 	Name         *string             `json:"name"`
@@ -47,7 +54,7 @@ type potDetailWire struct {
 	Balance      Reais               `json:"balance"`
 	BelowTarget  any                 `json:"belowTarget"`
 	Contribution potContributionWire `json:"contribution"`
-	LinkedLines  []any               `json:"linkedLines"`
+	LinkedLines  []potLinkedLineWire `json:"linkedLines"`
 	Investment   *potInvestmentWire  `json:"investment"`
 	Movements    []potMovementWire   `json:"movements"`
 	Yield        potYieldWire        `json:"yield"`
@@ -61,7 +68,7 @@ func readPotDetail(ctx context.Context, args []json.RawMessage, views Views) (an
 	if err != nil {
 		return nil, err
 	}
-	view, err := loadPots(ctx, views.Ledger, true)
+	view, err := loadPotsWithChoices(ctx, views, true)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +84,7 @@ func (view *potsView) detailOf(entry potEntry) potDetailWire {
 	detail := potDetailWire{
 		ID: entry.id, Name: entry.name, Bank: entry.bank, Bucket: textPointer(entry.bucket),
 		CDIPercent: entry.cdiPercent, Balance: Reais(entry.balance), Contribution: contributionOf(entry),
-		LinkedLines: []any{}, Movements: movementsOrEmpty(entry.movements),
+		LinkedLines: linkedLinesOf(entry), Movements: movementsOrEmpty(entry.movements),
 		Yield:        potYieldWire{Month: string(view.month), Total: reaisPointer(monthlyYieldOf(entry)), Days: yieldDaysOf(entry)},
 		HistoryStart: string(entry.historyStart),
 	}
@@ -105,6 +112,14 @@ func yieldDaysOf(entry potEntry) []potYieldDayWire {
 		days = append(days, potYieldDayWire{Day: string(row.To), Amount: reaisPointer(row.Yield)})
 	}
 	return days
+}
+
+func linkedLinesOf(entry potEntry) []potLinkedLineWire {
+	lines := make([]potLinkedLineWire, 0, len(entry.linkedLines))
+	for _, name := range entry.linkedLines {
+		lines = append(lines, potLinkedLineWire{Name: name})
+	}
+	return lines
 }
 
 func contributionOf(entry potEntry) potContributionWire {
@@ -137,7 +152,7 @@ func (view *potsView) accountSideDetail(accountID string) any {
 		return potDetailWire{
 			ID: account.ID, Name: &name, Bank: view.banks[account.ID], Bucket: textPointer(bucketAvailable),
 			Balance: Reais(account.Balance), Contribution: potContributionWire{State: contributionNonePlanned},
-			LinkedLines: []any{}, Movements: movements,
+			LinkedLines: []potLinkedLineWire{}, Movements: movements,
 			Yield:        potYieldWire{Month: string(view.month), Days: []potYieldDayWire{}},
 			HistoryStart: string(monthOfDay(firstOf(view.sightings[account.ID]))),
 		}
