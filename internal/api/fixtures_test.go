@@ -251,6 +251,9 @@ func inventedAuthoredState(t testing.TB, scratch *authoredtest.Scratch) {
 		if err := authoredtest.SeedBudget(recorder); err != nil {
 			return err
 		}
+		if err := authoredtest.SeedTransactions(recorder); err != nil {
+			return err
+		}
 		return seedPotChoices(ctx, recorder)
 	})
 	if err != nil {
