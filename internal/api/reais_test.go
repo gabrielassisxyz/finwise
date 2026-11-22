@@ -2,13 +2,17 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"math"
 	"math/rand/v2"
+	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -229,37 +233,133 @@ func bytesAllocatedPerCall(call func()) uint64 {
 	return (after.TotalAlloc - before.TotalAlloc) / calls
 }
 
+// floatFreePackages are the packages money passes through, relative to the
+// repository's root. Those not written yet are named already so that each is
+// covered from its first file.
+var floatFreePackages = []string{
+	"internal/api",
+	"internal/authored",
+	"internal/ingest",
+	"internal/budgetrules",
+	"internal/classrules",
+	"internal/subrules",
+}
+
 // The guard that keeps the rule from rotting: a handler that went through a
 // float would pass every test on round figures and fail on 1.005.
-func TestNoSourceFileOfTheHTTPLayerTouchesAFloat(t *testing.T) {
-	files, err := filepath.Glob("*.go")
+func TestNoSourceFileOfTheMoneyPathTouchesAFloat(t *testing.T) {
+	findings, scanned, err := floatUsesUnder(filepath.Join("..", ".."), floatFreePackages)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, file := range files {
-		if strings.HasSuffix(file, "_test.go") {
-			continue
-		}
-		parsed, err := parser.ParseFile(token.NewFileSet(), file, nil, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
-		ast.Inspect(parsed, func(node ast.Node) bool {
-			switch found := node.(type) {
-			case *ast.Ident:
-				if found.Name == "float64" || found.Name == "float32" {
-					t.Errorf("%s uses %s", file, found.Name)
-				}
-			case *ast.SelectorExpr:
-				if found.Sel.Name == "ParseFloat" || found.Sel.Name == "FromFloat" {
-					t.Errorf("%s calls %s", file, found.Sel.Name)
-				}
-			case *ast.BasicLit:
-				if found.Kind == token.FLOAT {
-					t.Errorf("%s has the float literal %s", file, found.Value)
+	if !slices.Contains(scanned, filepath.Join("..", "..", "internal", "api", "reais.go")) {
+		t.Fatalf("the guard did not read internal/api/reais.go; it read %v", scanned)
+	}
+	for _, finding := range findings {
+		t.Error(finding)
+	}
+}
+
+func TestTheFloatGuardSeesAFloatInEveryPackageItNames(t *testing.T) {
+	plants := map[string]string{
+		"a float type":    "package p\n\nvar x float64\n",
+		"a float literal": "package p\n\nvar x = 1.5\n",
+		"ParseFloat":      "package p\n\nimport \"strconv\"\n\nvar x, _ = strconv.ParseFloat(\"1\", 64)\n",
+		"FromFloat":       "package p\n\nimport \"m/money\"\n\nvar x, _ = money.FromFloat(1)\n",
+		"a big.Float":     "package p\n\nimport \"math/big\"\n\nvar x big.Float\n",
+	}
+	for _, pkg := range floatFreePackages {
+		for _, where := range []string{"plant.go", filepath.Join("inner", "plant.go")} {
+			for plant, source := range plants {
+				root := t.TempDir()
+				writeSource(t, filepath.Join(root, "internal", "api", "clean.go"), "package api\n")
+				writeSource(t, filepath.Join(root, pkg, where), source)
+				findings, _, err := floatUsesUnder(root, floatFreePackages)
+				if err != nil || len(findings) == 0 {
+					t.Errorf("%s planted in %s: findings %v, err %v", plant, filepath.Join(pkg, where), findings, err)
 				}
 			}
-			return true
-		})
+		}
 	}
+}
+
+func TestTheFloatGuardPassesWhileThePackagesToComeDoNotExist(t *testing.T) {
+	root := t.TempDir()
+	writeSource(t, filepath.Join(root, "internal", "api", "clean.go"), "package api\n\nvar cents int64 = 1999\n")
+	writeSource(t, filepath.Join(root, "internal", "api", "clean_test.go"), "package api\n\nvar ratio = 0.5\n")
+	writeSource(t, filepath.Join(root, "internal", "api", "testdata", "fixture.go"), "package fixture\n\nvar ratio = 0.5\n")
+	findings, scanned, err := floatUsesUnder(root, floatFreePackages)
+	if err != nil || len(findings) != 0 || len(scanned) != 1 {
+		t.Errorf("findings %v, scanned %v, err %v; want one clean file and nothing else", findings, scanned, err)
+	}
+}
+
+func writeSource(t *testing.T, path, source string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// floatUsesUnder reads every non-test Go file under each package that exists,
+// testdata aside, and reports what in it is a float.
+func floatUsesUnder(root string, packages []string) (findings, scanned []string, err error) {
+	for _, pkg := range packages {
+		dir := filepath.Join(root, filepath.FromSlash(pkg))
+		if _, statErr := os.Stat(dir); errors.Is(statErr, fs.ErrNotExist) {
+			continue
+		} else if statErr != nil {
+			return nil, nil, statErr
+		}
+		walkErr := filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entry.IsDir() && entry.Name() == "testdata" {
+				return filepath.SkipDir
+			}
+			if entry.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+				return nil
+			}
+			scanned = append(scanned, path)
+			found, err := floatUsesIn(path)
+			findings = append(findings, found...)
+			return err
+		})
+		if walkErr != nil {
+			return nil, nil, walkErr
+		}
+	}
+	return findings, scanned, nil
+}
+
+// Any selector naming a Float counts, which takes in big.Float, a type the
+// identifier check alone does not see.
+func floatUsesIn(file string) ([]string, error) {
+	parsed, err := parser.ParseFile(token.NewFileSet(), file, nil, 0)
+	if err != nil {
+		return nil, err
+	}
+	var findings []string
+	ast.Inspect(parsed, func(node ast.Node) bool {
+		switch found := node.(type) {
+		case *ast.Ident:
+			if found.Name == "float64" || found.Name == "float32" {
+				findings = append(findings, file+" uses "+found.Name)
+			}
+		case *ast.SelectorExpr:
+			if strings.Contains(found.Sel.Name, "Float") {
+				findings = append(findings, file+" names "+found.Sel.Name)
+			}
+		case *ast.BasicLit:
+			if found.Kind == token.FLOAT {
+				findings = append(findings, file+" has the float literal "+found.Value)
+			}
+		}
+		return true
+	})
+	return findings, nil
 }
