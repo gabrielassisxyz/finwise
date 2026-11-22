@@ -1,0 +1,34 @@
+{
+  "answer": {
+    "changeId": "5"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_state",
+      "key": [
+        11
+      ],
+      "column": "refund_line_id",
+      "before": 9,
+      "after": 6
+    },
+    {
+      "seq": 2,
+      "table": "history_steps",
+      "key": [
+        8
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "id": 8,
+        "tx_key": 11,
+        "change_id": 5,
+        "kind": "step",
+        "text": "Você definiu que o estorno abate Feira",
+        "day": "2026-03-20"
+      }
+    }
+  ]
+}

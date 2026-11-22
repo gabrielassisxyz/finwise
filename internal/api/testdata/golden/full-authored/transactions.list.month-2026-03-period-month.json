@@ -266,7 +266,7 @@
     "reimbursementIncome": false,
     "reimbursed": false,
     "excluded": false,
-    "split": false,
+    "split": true,
     "installment": null,
     "bill": null,
     "originalAmount": null,

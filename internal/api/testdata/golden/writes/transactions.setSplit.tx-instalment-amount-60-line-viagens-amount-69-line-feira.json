@@ -1,0 +1,44 @@
+{
+  "answer": {
+    "changeId": "5"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_split_parts",
+      "key": [
+        16,
+        2
+      ],
+      "column": null,
+      "before": {
+        "tx_key": 16,
+        "position": 2,
+        "line_id": null,
+        "cents": 2000
+      },
+      "after": null
+    },
+    {
+      "seq": 2,
+      "table": "tx_split_parts",
+      "key": [
+        16,
+        1
+      ],
+      "column": null,
+      "before": {
+        "tx_key": 16,
+        "position": 1,
+        "line_id": 5,
+        "cents": 4000
+      },
+      "after": {
+        "tx_key": 16,
+        "position": 1,
+        "line_id": 6,
+        "cents": 6900
+      }
+    }
+  ]
+}

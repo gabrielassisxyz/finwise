@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "changeId": "5"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_state",
+      "key": [
+        17
+      ],
+      "column": "exclusion",
+      "before": "Empréstimo, ela devolve",
+      "after": ""
+    }
+  ]
+}

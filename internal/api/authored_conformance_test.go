@@ -75,6 +75,7 @@ var authoredReadCases = []authoredReadCase{
 	authoredRead("budget.establishments", `["2026-03","Delivery"]`),
 	authoredRead("budget.establishments", `["2026-03","Tarifas e juros"]`),
 	authoredRead("budget.establishments", `["2026-03","Academia"]`),
+	authoredRead("transactions.detail", `["tx-refund"]`),
 }
 
 // newAuthoredReadEnv is the third state: both stores, the database holding the
