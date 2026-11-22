@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
 )
@@ -439,6 +440,26 @@ func TestAFailedRecordLeavesAFileThatTookTheNameAfterThePublication(t *testing.T
 	}
 	if got := recordedBackup(t, source); got != "" {
 		t.Errorf("a failed backup recorded %q", got)
+	}
+}
+
+// The clock may answer in any zone; the stored text is the same instant in UTC.
+func TestTheInstantIsStoredInUTCWhateverTheClocksZone(t *testing.T) {
+	source := databasePath(t)
+	database := openDatabase(t, source, creationInstant, nil)
+	brasilia := time.FixedZone("BRT", -3*60*60)
+	instant := time.Date(2026, time.November, 30, 22, 30, 0, 0, brasilia)
+	options := authored.BackupOptions{Now: func() time.Time { return instant }}
+	if err := authored.Backup(t.Context(), source, filepath.Join(t.TempDir(), "copy.db"), options); err != nil {
+		t.Fatal(err)
+	}
+	stored := storedBackupText(t, database.Pool())
+	parsed, err := time.Parse(time.RFC3339, stored)
+	if !strings.HasSuffix(stored, "Z") || err != nil || !parsed.Equal(instant) {
+		t.Errorf("stored %q (%v), want %s in UTC ending in Z", stored, err, instant.UTC().Format(time.RFC3339))
+	}
+	if stored != firstBackupInstant {
+		t.Errorf("stored %q, want %q", stored, firstBackupInstant)
 	}
 }
 
