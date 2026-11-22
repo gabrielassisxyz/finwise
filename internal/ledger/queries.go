@@ -376,6 +376,11 @@ SELECT finished_at FROM runs WHERE outcome = 'complete'`
 const queryLatestRun = `
 SELECT id, outcome, finished_at FROM runs ORDER BY id DESC LIMIT 1`
 
+// queryProjectedRun is the run whose observations the current-state tables
+// hold; neither the latest run nor the latest complete one is always it.
+const queryProjectedRun = `
+SELECT projected_run FROM projection_state WHERE id = 1`
+
 // allQueries lists every statement above by name so the schema test can prepare
 // them all; a test fails if a query constant is missing from it.
 var allQueries = map[string]string{
@@ -401,4 +406,5 @@ var allQueries = map[string]string{
 	"queryConnections":          queryConnections,
 	"queryCompleteRunFinishes":  queryCompleteRunFinishes,
 	"queryLatestRun":            queryLatestRun,
+	"queryProjectedRun":         queryProjectedRun,
 }
