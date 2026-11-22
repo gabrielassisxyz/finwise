@@ -94,3 +94,15 @@ func TestInvalidInputIsRefused(t *testing.T) {
 		t.Error("a month name was accepted")
 	}
 }
+
+func TestMonthAfterCrossesTheEndOfAYear(t *testing.T) {
+	for month, want := range map[brday.Month]brday.Month{"2026-03": "2026-04", "2026-12": "2027-01", "2027-01": "2027-02", "2028-01": "2028-02"} {
+		got, err := brday.MonthAfter(month)
+		if err != nil || got != want {
+			t.Errorf("MonthAfter(%s) = %s, %v; want %s", month, got, err, want)
+		}
+	}
+	if _, err := brday.MonthAfter("March"); err == nil {
+		t.Error("a month name was accepted")
+	}
+}

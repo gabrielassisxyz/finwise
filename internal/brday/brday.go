@@ -65,6 +65,15 @@ func MonthOf(instant time.Time) Month {
 	return Month(instant.In(zone).Format(monthLayout))
 }
 
+// MonthAfter is the month that follows one, across the end of a year.
+func MonthAfter(month Month) (Month, error) {
+	first, err := time.ParseInLocation(monthLayout, string(month), zone)
+	if err != nil {
+		return "", fmt.Errorf("brday: %q is not a YYYY-MM month", month)
+	}
+	return Month(first.AddDate(0, 1, 0).Format(monthLayout)), nil
+}
+
 // MonthPeriod is every day of a month.
 func MonthPeriod(month Month) (Period, error) {
 	first, err := time.ParseInLocation(monthLayout, string(month), zone)
