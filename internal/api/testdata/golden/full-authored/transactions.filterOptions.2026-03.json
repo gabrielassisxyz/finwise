@@ -25,7 +25,16 @@
       "label": "Platinum Visa"
     }
   ],
-  "tags": [],
+  "tags": [
+    "#água",
+    "#casa",
+    "#essencial",
+    "#lanche",
+    "#manhã",
+    "#mensal",
+    "#mercado",
+    "#Trabalho"
+  ],
   "lines": [
     {
       "name": "Feira",

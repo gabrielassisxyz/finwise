@@ -43,9 +43,13 @@ func readTransactionsList(ctx context.Context, args []json.RawMessage, views Vie
 	if err != nil {
 		return nil, err
 	}
+	rows, err := readAuthoredRows(ctx, views.Authored, view.listed)
+	if err != nil {
+		return nil, err
+	}
 	list := make([]transactionWire, 0, len(view.listed))
 	for _, listed := range view.listed {
-		list = append(list, transactionFrom(listed, view.rows[listed.ID], around))
+		list = append(list, rows.transactionOf(listed, view.rows[listed.ID], around))
 	}
 	return list, nil
 }
@@ -61,8 +65,8 @@ func queryPeriod(args []json.RawMessage) (brday.Period, error) {
 	return periodOf(query)
 }
 
-// readTransactionFilterOptions offers every account and the lines of the budget
-// in force for the month asked. Tags are not kept yet.
+// readTransactionFilterOptions offers every account, every tag in use and the
+// lines of the budget in force for the month asked.
 func readTransactionFilterOptions(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
 	month, err := onlyMonthArgument(args)
 	if err != nil {
@@ -82,7 +86,11 @@ func readTransactionFilterOptions(ctx context.Context, args []json.RawMessage, v
 	if err != nil {
 		return nil, err
 	}
-	return transactionFilterOptions{Accounts: options, Tags: []string{}, Lines: lineMenuOf(budget)}, nil
+	tags, err := knownTags(ctx, views.Authored)
+	if err != nil {
+		return nil, err
+	}
+	return transactionFilterOptions{Accounts: options, Tags: tags, Lines: lineMenuOf(budget)}, nil
 }
 
 // lineMenuGroups is the order of a line menu, group by group; the fees line
