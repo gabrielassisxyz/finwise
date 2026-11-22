@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -245,9 +247,33 @@ func inventedAuthoredState(t testing.TB, scratch *authoredtest.Scratch) {
 		if err := recorder.SetCardClosing(ctx, *inventedSettings.ClosingMode, *inventedSettings.ManualClosingDay); err != nil {
 			return err
 		}
-		return authoredtest.SeedBudget(recorder)
+		if err := authoredtest.SeedBudget(recorder); err != nil {
+			return err
+		}
+		return seedPotChoices(ctx, recorder)
 	})
 	if err != nil {
 		t.Fatalf("the invented authored state: %v", err)
 	}
+}
+
+// seedPotChoices gives one invented pot a bucket and a linked line of the seeded
+// budget, in the change that is being recorded.
+func seedPotChoices(ctx context.Context, recorder *authored.Recorder) error {
+	const pot = "reserve:acc-seed/pot-seed"
+	if err := recorder.SetPotBucket(ctx, pot, authored.BucketAvailable); err != nil {
+		return err
+	}
+	view := recorder.View()
+	defer view.Close()
+	budget, err := view.BudgetOf(ctx, "2026-03")
+	if err != nil {
+		return err
+	}
+	for _, line := range budget.Lines {
+		if line.Name == "Remédios" {
+			return recorder.ToggleLink(ctx, line.ID, pot)
+		}
+	}
+	return errors.New("the seeded budget has no line to link")
 }

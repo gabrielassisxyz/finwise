@@ -78,7 +78,7 @@ func TestTheCanonicalDumpIsOneJSONDocumentWithEveryTableInNameOrder(t *testing.T
 		t.Fatalf("the dump is not JSON: %v\n%s", err, dump)
 	}
 	names := []string{
-		"budget_version_lines", "budget_versions", "closed_months", "scenarios",
+		"budget_version_lines", "budget_versions", "closed_months", "pot_lines", "pot_settings", "scenarios",
 		authoredtest.Children, authoredtest.Facts, authoredtest.Parents, authoredtest.Tags, authoredtest.Things,
 		"settings",
 	}
