@@ -60,14 +60,14 @@ type dataSettingsWire struct {
 }
 
 type settingsOverviewWire struct {
-	Pots           []settingsPotWire  `json:"pots"`
-	Establishments []any              `json:"establishments"`
-	People         []any              `json:"people"`
-	CardTitle      *string            `json:"cardTitle"`
-	CardLabel      string             `json:"cardLabel"`
-	Categorization categorizationWire `json:"categorization"`
-	Closing        cardClosingWire    `json:"closing"`
-	Data           dataSettingsWire   `json:"data"`
+	Pots           []settingsPotWire           `json:"pots"`
+	Establishments []settingsEstablishmentWire `json:"establishments"`
+	People         []settingsPersonWire        `json:"people"`
+	CardTitle      *string                     `json:"cardTitle"`
+	CardLabel      string                      `json:"cardLabel"`
+	Categorization categorizationWire          `json:"categorization"`
+	Closing        cardClosingWire             `json:"closing"`
+	Data           dataSettingsWire            `json:"data"`
 }
 
 func registerSettings(registry *Registry) {
@@ -99,10 +99,14 @@ func readSettingsOverview(ctx context.Context, _ []json.RawMessage, views Views)
 	if err != nil {
 		return nil, err
 	}
+	counterparts, err := settingsCounterpartsOf(ctx, views)
+	if err != nil {
+		return nil, err
+	}
 	return settingsOverviewWire{
 		Pots:           settingsPotsOf(pots),
-		Establishments: []any{},
-		People:         []any{},
+		Establishments: counterparts.establishments,
+		People:         counterparts.people,
 		CardTitle:      cardTitleOf(card),
 		CardLabel:      chosen.cardLabel,
 		Categorization: categorizationOf(chosen.threshold, chosen.minExamples),
