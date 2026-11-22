@@ -205,7 +205,7 @@ func TestUndoingTheLaterChangeFreesTheFirst(t *testing.T) {
 func TestAWriteAroundTheRecorderMakesTheLastChangeStaleAndRestoresNothing(t *testing.T) {
 	env := newWriteEnv(t, withScratchWriters)
 	id := env.setFact("a", 5)
-	env.scratch.Around(t, "UPDATE scratch_facts SET amount = 99 WHERE id = ?", "a")
+	env.scratch.OverwriteFactAmount(t, "a", 99)
 	state := env.scratch.State(t)
 
 	expectRefused(t, "undo after a write around the recorder", env.undo(id), "stale_change")

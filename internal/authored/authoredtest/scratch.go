@@ -185,10 +185,13 @@ func (scratch *Scratch) State(t testing.TB) string {
 	return dump + "--\n" + strings.Join(journal, "\n")
 }
 
-// Around writes straight to the file, as a write that escaped the journal would.
-func (scratch *Scratch) Around(t testing.TB, statement string, args ...any) {
+const overwriteFactAmount = `UPDATE scratch_facts SET amount = ? WHERE id = ?`
+
+// OverwriteFactAmount sets a fact's amount straight in the file, as a write
+// that escaped the journal would.
+func (scratch *Scratch) OverwriteFactAmount(t testing.TB, fact string, amount int64) {
 	t.Helper()
-	around(t, scratch.Path, statement, args...)
+	around(t, scratch.Path, overwriteFactAmount, amount, fact)
 }
 
 // HoldWriteLock takes the file's write lock on a connection of its own and
