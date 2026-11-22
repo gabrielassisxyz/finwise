@@ -129,5 +129,7 @@ var allStatements = map[string]string{
 
 	"statementNextTagPosition":      statementNextTagPosition,
 	"statementNextFixedTagPosition": statementNextFixedTagPosition,
+	"statementStateLineReferences":  statementStateLineReferences,
+	"statementSplitLineReferences":  statementSplitLineReferences,
 	"statementStepsOfChange":        statementStepsOfChange,
 }
