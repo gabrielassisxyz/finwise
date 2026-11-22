@@ -60,6 +60,7 @@ var authoredReadCases = []authoredReadCase{
 	authoredRead("transactions.detail", `["tx-foreign"]`),
 	authoredRead("transactions.detail", `["tx-stale"]`),
 	authoredRead("transactions.detail", `["tx-first-of-march"]`),
+	authoredRead("transactions.detail", `["tx-refund"]`),
 }
 
 // newAuthoredReadEnv is the third state: both stores, the database holding the
