@@ -84,7 +84,7 @@ func (history *lineHistory) linesOf(month brday.Month) []authored.LineID {
 
 // indexTransactions writes count transactions on random days, each holding
 // random references to the lines its month has, so the history starts with
-// none stray.
+// none stray, and random facts that name no line, which no save may touch.
 func (history *lineHistory) indexTransactions(count int) {
 	history.t.Helper()
 	history.change("scratch.randomTransactions", func(recorder *authored.Recorder) error {
@@ -102,6 +102,11 @@ func (history *lineHistory) indexTransactions(count int) {
 			if err := authoredtest.WriteSplit(history.t.Context(), recorder, key, split); err != nil {
 				return err
 			}
+			if history.random.IntN(2) == 0 {
+				if err := authoredtest.AddTag(history.t.Context(), recorder, key, "viagem"); err != nil {
+					return err
+				}
+			}
 		}
 		return nil
 	})
@@ -110,7 +115,13 @@ func (history *lineHistory) indexTransactions(count int) {
 
 func (history *lineHistory) randomReferences(lines []authored.LineID) (authored.TransactionState, []authored.SplitPart) {
 	random := history.random
-	state := authored.TransactionState{Note: "nota"}
+	state := authored.TransactionState{Note: "nota", Reimbursable: random.IntN(2) == 0}
+	if random.IntN(3) == 0 {
+		state.Exclusion = authoredtest.Some("pessoal")
+	}
+	if random.IntN(3) == 0 {
+		state.ExpectedCents = authoredtest.Some(money.Cents(100 * random.IntN(500)))
+	}
 	if len(lines) == 0 {
 		return state, nil
 	}
