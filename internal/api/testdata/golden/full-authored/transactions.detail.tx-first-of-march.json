@@ -66,9 +66,21 @@
   "splitRemaining": 0.00,
   "reimbursement": {
     "expected": 5.00,
-    "link": null
+    "link": {
+      "transactionId": "tx-stale",
+      "name": "Amigo Exemplo",
+      "day": "2026-01-05",
+      "amount": 50.00
+    }
   },
-  "reimbursementCandidates": [],
+  "reimbursementCandidates": [
+    {
+      "transactionId": "tx-stale",
+      "name": "Amigo Exemplo",
+      "day": "2026-01-05",
+      "amount": 50.00
+    }
+  ],
   "exclusion": null,
   "refundLine": null,
   "history": []

@@ -43,7 +43,7 @@ func readTransactionsList(ctx context.Context, args []json.RawMessage, views Vie
 	if err != nil {
 		return nil, err
 	}
-	rows, err := readAuthoredRows(ctx, views.Authored, view.listed)
+	rows, err := readAuthoredRows(ctx, views, view.listed)
 	if err != nil {
 		return nil, err
 	}

@@ -27,21 +27,22 @@ type counterpartyDetail struct {
 }
 
 // The shapes below are the contract's, for the parts of the panel a person
-// fills. A reimbursement's link and its candidates are not read yet, so they
-// are always null and empty.
+// fills.
 type splitPart struct {
 	Line   *string `json:"line"`
 	Amount Reais   `json:"amount"`
 }
 
 type reimbursementDetail struct {
-	Expected *Reais `json:"expected"`
-	Link     *struct {
-		TransactionID string `json:"transactionId"`
-		Name          string `json:"name"`
-		Day           string `json:"day"`
-		Amount        Reais  `json:"amount"`
-	} `json:"link"`
+	Expected *Reais             `json:"expected"`
+	Link     *reimbursementLink `json:"link"`
+}
+
+type reimbursementLink struct {
+	TransactionID string `json:"transactionId"`
+	Name          string `json:"name"`
+	Day           string `json:"day"`
+	Amount        Reais  `json:"amount"`
 }
 
 type reimbursementCandidate struct {
@@ -97,11 +98,11 @@ func readTransactionDetail(ctx context.Context, args []json.RawMessage, views Vi
 	if err != nil || !found {
 		return nil, err
 	}
-	rows, err := readAuthoredRows(ctx, views.Authored, []txrules.Transaction{row.listed})
+	rows, err := readAuthoredRows(ctx, views, []txrules.Transaction{row.listed})
 	if err != nil {
 		return nil, err
 	}
-	extras, err := readPanelExtras(ctx, views.Authored, rows, row.listed)
+	extras, err := readPanelExtras(ctx, views, rows, row.listed)
 	if err != nil {
 		return nil, err
 	}
@@ -130,15 +131,18 @@ func interpretMonthOf(all []ledger.Transaction, source ledger.Transaction, aroun
 }
 
 // panelExtras is what the panel reads beyond the list: the current month's
-// budget, which names an establishment's default line, the tags in use, and
-// the history with what of it can still be taken back.
+// budget, which names an establishment's default line, the tags in use, the
+// history with what of it can still be taken back, and the credits that may
+// pay a purchase back.
 type panelExtras struct {
-	current transactionLines
-	known   []string
-	history []historyEntry
+	current    transactionLines
+	known      []string
+	history    []historyEntry
+	candidates []reimbursementCandidate
 }
 
-func readPanelExtras(ctx context.Context, view *authored.View, rows authoredRows, listed txrules.Transaction) (panelExtras, error) {
+func readPanelExtras(ctx context.Context, views Views, rows authoredRows, listed txrules.Transaction) (panelExtras, error) {
+	view := views.Authored
 	current, err := view.BudgetOf(ctx, brday.MonthOf(nowOf(ctx)))
 	if err != nil {
 		return panelExtras{}, err
@@ -147,11 +151,19 @@ func readPanelExtras(ctx context.Context, view *authored.View, rows authoredRows
 	if err != nil {
 		return panelExtras{}, err
 	}
-	extras := panelExtras{current: transactionLinesOf(current), known: known, history: []historyEntry{}}
-	if kept, key, indexed := rows.keptOf(listed); indexed {
+	extras := panelExtras{current: transactionLinesOf(current), known: known, history: []historyEntry{}, candidates: []reimbursementCandidate{}}
+	kept, key, indexed := rows.keptOf(listed)
+	if indexed {
 		if extras.history, err = historyOf(ctx, view, key, kept.History); err != nil {
 			return panelExtras{}, err
 		}
+	}
+	if sectionsOf(listed).Reimbursement {
+		candidates, err := readCandidates(ctx, views, key, indexed)
+		if err != nil {
+			return panelExtras{}, err
+		}
+		extras.candidates = candidates.wire()
 	}
 	return extras, nil
 }
@@ -200,8 +212,8 @@ func detailFrom(row listedRow, rows authoredRows, extras panelExtras) transactio
 		Note:                    state.Note,
 		SplitParts:              splitPartsOf(kept.Split, month),
 		SplitRemaining:          splitRemainingOf(listed, kept.Split),
-		Reimbursement:           reimbursementOf(state),
-		ReimbursementCandidates: []reimbursementCandidate{},
+		Reimbursement:           rows.reimbursementOf(state),
+		ReimbursementCandidates: extras.candidates,
 		Exclusion:               exclusionDetailOf(state.Exclusion),
 		RefundLine:              month.nameOf(state.RefundLine),
 		History:                 extras.history,
@@ -268,7 +280,10 @@ func splitRemainingOf(listed txrules.Transaction, parts []authored.SplitPart) Re
 	return Reais(remaining)
 }
 
-func reimbursementOf(state authored.TransactionState) *reimbursementDetail {
+// reimbursementOf answers the link only while it applies, with the amount it
+// was linked with, which may be more than the purchase: the panel says what
+// arrived, and the effective amount what of it was taken off.
+func (rows authoredRows) reimbursementOf(state authored.TransactionState) *reimbursementDetail {
 	if !state.Reimbursable {
 		return nil
 	}
@@ -276,6 +291,12 @@ func reimbursementOf(state authored.TransactionState) *reimbursementDetail {
 	if state.ExpectedCents != nil {
 		expected := Reais(*state.ExpectedCents)
 		detail.Expected = &expected
+	}
+	if credit, applied := rows.appliedCredit(state); applied {
+		detail.Link = &reimbursementLink{
+			TransactionID: credit.ID, Name: shownName(rows.establishments, credit.EstablishmentKey, credit.Name),
+			Day: string(credit.Day), Amount: Reais(*state.CreditCents),
+		}
 	}
 	return detail
 }

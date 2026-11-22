@@ -217,10 +217,15 @@ func TestTransactionDetailForAnInstalmentCardPurchase(t *testing.T) {
 			t.Errorf("%s = %v, want %v", field, detail[field], value)
 		}
 	}
-	for _, field := range []string{"history", "tags", "ownTags", "suggestedTags", "reimbursementCandidates"} {
+	for _, field := range []string{"history", "tags", "ownTags", "suggestedTags"} {
 		if list, ok := detail[field].([]any); !ok || len(list) != 0 {
 			t.Errorf("%s = %v, want []", field, detail[field])
 		}
+	}
+	// The received PIX of the whole ledger, newest first, whatever month they came in.
+	candidates, _ := detail["reimbursementCandidates"].([]any)
+	if len(candidates) != 2 || candidates[0].(map[string]any)["transactionId"] != txSalary || candidates[1].(map[string]any)["transactionId"] != txStale {
+		t.Errorf("reimbursementCandidates = %v, want tx-salary then tx-stale", detail["reimbursementCandidates"])
 	}
 	sections := detail["sections"].(map[string]any)
 	if sections["establishment"] != true || sections["person"] != false || sections["split"] != true || sections["refund"] != false {

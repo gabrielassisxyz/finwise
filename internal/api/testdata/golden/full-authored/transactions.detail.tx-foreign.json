@@ -61,7 +61,10 @@
   "note": "",
   "splitParts": null,
   "splitRemaining": 0.00,
-  "reimbursement": null,
+  "reimbursement": {
+    "expected": 56.93,
+    "link": null
+  },
   "reimbursementCandidates": [],
   "exclusion": {
     "reason": ""

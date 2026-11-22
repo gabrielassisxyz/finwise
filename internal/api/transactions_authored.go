@@ -62,9 +62,13 @@ type authoredRows struct {
 	establishments map[string]authored.Establishment
 	linkedCredits  map[authored.TxKey]bool
 	months         map[brday.Month]transactionLines
+	// credits is the listed row of each credit a kept purchase links, for the
+	// credits the ledger lists now.
+	credits map[authored.TxKey]txrules.Transaction
 }
 
-func readAuthoredRows(ctx context.Context, view *authored.View, listed []txrules.Transaction) (authoredRows, error) {
+func readAuthoredRows(ctx context.Context, views Views, listed []txrules.Transaction) (authoredRows, error) {
+	view := views.Authored
 	ids := make([]string, 0, len(listed))
 	for _, transaction := range listed {
 		ids = append(ids, transaction.ID)
@@ -77,7 +81,14 @@ func readAuthoredRows(ctx context.Context, view *authored.View, listed []txrules
 	if rows.kept, err = view.Transactions(ctx, keysInOrder(ids, rows.keys)); err != nil {
 		return authoredRows{}, err
 	}
-	if rows.establishments, err = establishmentsOf(ctx, view, listed); err != nil {
+	if rows.credits, err = linkedCreditRows(ctx, views, rows.kept); err != nil {
+		return authoredRows{}, err
+	}
+	named := slices.Clone(listed)
+	for _, credit := range rows.credits {
+		named = append(named, credit)
+	}
+	if rows.establishments, err = establishmentsOf(ctx, view, named); err != nil {
 		return authoredRows{}, err
 	}
 	if rows.linkedCredits, err = linkedCreditsOf(ctx, view, listed, rows.keys); err != nil {
@@ -163,10 +174,22 @@ func (rows authoredRows) disposable(listed txrules.Transaction) budgetrules.Tran
 	for _, part := range kept.Split {
 		transaction.Split = append(transaction.Split, budgetrules.SplitPart{Line: lineRefOf(part.Line), Amount: part.Cents})
 	}
-	if state.Credit != nil && state.CreditCents != nil {
+	if _, applied := rows.appliedCredit(state); applied {
 		transaction.LinkedCredit = *state.CreditCents
 	}
 	return transaction
+}
+
+// appliedCredit is the credit linked to a purchase, while the ledger lists it:
+// a link to a credit it stopped listing is kept, and takes nothing off until
+// the credit is listed again, so the purchase never vanishes from the totals
+// for money nobody can see arriving.
+func (rows authoredRows) appliedCredit(state authored.TransactionState) (txrules.Transaction, bool) {
+	if state.Credit == nil || state.CreditCents == nil {
+		return txrules.Transaction{}, false
+	}
+	credit, listed := rows.credits[*state.Credit]
+	return credit, listed
 }
 
 func lineRefOf(id *authored.LineID) budgetrules.LineRef {
@@ -229,7 +252,7 @@ func (rows authoredRows) transactionOf(listed txrules.Transaction, source ledger
 		wire.Refund = *state.Refund
 	}
 	wire.ReimbursementIncome = indexed && rows.linkedCredits[key]
-	wire.Reimbursed = state.Credit != nil
+	_, wire.Reimbursed = rows.appliedCredit(state)
 	wire.Excluded = excluded
 	wire.Split = len(kept.Split) >= 2
 	return wire
