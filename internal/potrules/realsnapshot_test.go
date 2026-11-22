@@ -21,22 +21,23 @@ func TestPotRulesOverARealSnapshot(t *testing.T) {
 	if path == "" {
 		t.Skip("FINWISE_LEDGER_SNAPSHOT is not set")
 	}
-	reader := ledger.New(path)
-	accounts := bankAccounts(t, reader)
-	sightings, sightingDays := readSightings(t, reader)
+	view := ledger.New(path).View()
+	defer view.Close()
+	accounts := bankAccounts(t, view)
+	sightings, sightingDays := readSightings(t, view)
 
 	pots := potrules.Identify(sightings)
 	logPotCounts(t, pots, sightingDays)
 
-	rows, unmatched := readYieldRows(t, reader, sightingDays)
+	rows, unmatched := readYieldRows(t, view, sightingDays)
 	months := monthsOf(sightingDays)
 	logYieldCounts(t, pots, accounts, months, rows, unmatched)
-	logMovementCounts(t, reader, sightings, sightingDays, accounts)
+	logMovementCounts(t, view, sightings, sightingDays, accounts)
 }
 
-func bankAccounts(t *testing.T, reader *ledger.Reader) map[string]ledger.Account {
+func bankAccounts(t *testing.T, view *ledger.View) map[string]ledger.Account {
 	t.Helper()
-	all, err := reader.Accounts(t.Context())
+	all, err := view.Accounts(t.Context())
 	if err != nil {
 		t.Fatalf("accounts failed (%T); the message is withheld because it may name a real id", err)
 	}
@@ -55,14 +56,14 @@ func bankAccounts(t *testing.T, reader *ledger.Reader) map[string]ledger.Account
 // account stops where the reader returns no pot for it, which is also where a
 // sighting that held no pot would hide the older ones; that is the reader's
 // shape, and the counts say how far back the history reaches.
-func readSightings(t *testing.T, reader *ledger.Reader) ([]potrules.Sighting, map[string][]brday.Day) {
+func readSightings(t *testing.T, view *ledger.View) ([]potrules.Sighting, map[string][]brday.Day) {
 	t.Helper()
 	cursor := map[string]brday.Day{}
 	var sightings []potrules.Sighting
 	days := map[string][]brday.Day{}
 	asOf := brday.Day("2999-12-31")
 	for asOf != "" {
-		pots, err := reader.Pots(t.Context(), asOf)
+		pots, err := view.Pots(t.Context(), asOf)
 		if err != nil {
 			t.Fatalf("pots failed (%T); the message is withheld because it may name a real id", err)
 		}
@@ -146,14 +147,14 @@ func logPotCounts(t *testing.T, pots []potrules.Pot, days map[string][]brday.Day
 // readYieldRows asks the ledger for every pair of consecutive sightings of each
 // account. A row that names no stable reserve cannot be given to a pot and is
 // counted instead.
-func readYieldRows(t *testing.T, reader *ledger.Reader, days map[string][]brday.Day) ([]potrules.DayYield, int) {
+func readYieldRows(t *testing.T, view *ledger.View, days map[string][]brday.Day) ([]potrules.DayYield, int) {
 	t.Helper()
 	var rows []potrules.DayYield
 	unmatched := 0
 	for account, accountDays := range days {
 		sort.Slice(accountDays, func(i, j int) bool { return accountDays[i] < accountDays[j] })
 		for index := 1; index < len(accountDays); index++ {
-			yields, err := reader.PotYields(t.Context(), account, accountDays[index-1], accountDays[index])
+			yields, err := view.PotYields(t.Context(), account, accountDays[index-1], accountDays[index])
 			if err != nil {
 				t.Fatalf("pot yield failed (%T); the message is withheld because it may name a real id", err)
 			}
@@ -238,10 +239,10 @@ func logYieldCounts(t *testing.T, pots []potrules.Pot, accounts map[string]ledge
 	}
 }
 
-func logMovementCounts(t *testing.T, reader *ledger.Reader, sightings []potrules.Sighting,
+func logMovementCounts(t *testing.T, view *ledger.View, sightings []potrules.Sighting,
 	days map[string][]brday.Day, accounts map[string]ledger.Account) {
 	t.Helper()
-	movements := reserveMovements(t, reader.CleanTransactions, accounts)
+	movements := reserveMovements(t, view.CleanTransactions, accounts)
 	var inWindow []potrules.Movement
 	for _, movement := range movements {
 		if first := firstDay(days[movement.AccountID]); first != "" && movement.Day >= first {

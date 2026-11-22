@@ -22,7 +22,7 @@ func TestYieldHistoryHoldsEverySightingWithItsEntriesAndTheCheckedAmounts(t *tes
 	f := yieldLedger(t,
 		[]ledgertest.Reserve{{ID: "pot-a", Name: "Trip", Amount: 100, CDIRatio: 1}, {Name: "Loose", Amount: 7, CDIRatio: 1}},
 		[]ledgertest.Reserve{{ID: "pot-a", Name: "Trip", Amount: 150.30, CDIRatio: 1}})
-	history, err := ledger.New(f.Path).YieldHistory(t.Context())
+	history, err := viewOf(t, f.Path).YieldHistory(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestYieldHistoryLeavesOutASightingThatReportsNoListOfReserves(t *testing.T)
 		[]ledgertest.Reserve{{ID: "pot-a", Name: "Trip", Amount: 101, CDIRatio: 1}})
 	f.ObserveAccount("acc-1", "2026-03-12", map[string]any{"bankData": map[string]any{}})
 
-	history, err := ledger.New(f.Path).YieldHistory(t.Context())
+	history, err := viewOf(t, f.Path).YieldHistory(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestYieldHistoryFlagsAnAmountTheStatementWouldNotTrust(t *testing.T) {
 				map[string]any{"currencyCode": "USD", "amount": 10.005}}},
 		}},
 	})
-	history, err := ledger.New(f.Path).YieldHistory(t.Context())
+	history, err := viewOf(t, f.Path).YieldHistory(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestYieldHistoryHoldsEveryVersionOfATransferAndOnlyTransfers(t *testing.T) 
 		Description: "Coffee", Amount: -3, Currency: "BRL", Type: "DEBIT"})
 	f.RecordEvent("transactions", "tx-dep", 1, "removed", "2026-03-17")
 
-	history, err := ledger.New(f.Path).YieldHistory(t.Context())
+	history, err := viewOf(t, f.Path).YieldHistory(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

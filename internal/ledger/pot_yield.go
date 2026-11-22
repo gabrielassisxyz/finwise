@@ -60,14 +60,6 @@ func (view *View) PotYields(ctx context.Context, accountID string, from, to brda
 	return yields, err
 }
 
-// PotYields is View.PotYields on a view of its own. It is here and not beside
-// the reader's other queries because no other file may name it.
-func (reader *Reader) PotYields(ctx context.Context, accountID string, from, to brday.Day) ([]PotYield, error) {
-	view := reader.View()
-	defer view.Close()
-	return view.PotYields(ctx, accountID, from, to)
-}
-
 func collectPotYields(run func() (*sql.Rows, error), accountID string, from, to brday.Day) ([]PotYield, error) {
 	rows, err := run()
 	if err != nil {

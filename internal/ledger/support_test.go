@@ -42,24 +42,32 @@ func february2026(t testing.TB) brday.Period {
 	return period
 }
 
+// viewOf opens a view of the snapshot at path that lives as long as the test.
+func viewOf(t testing.TB, path string) *ledger.View {
+	t.Helper()
+	view := ledger.New(path).View()
+	t.Cleanup(func() { view.Close() })
+	return view
+}
+
 // everyQuery runs each public query once and returns the error of each.
-func everyQuery(reader *ledger.Reader) map[string]error {
+func everyQuery(view *ledger.View) map[string]error {
 	ctx := context.Background()
 	period := brday.Period{First: "2026-02-01", Last: "2026-02-28"}
 	failure := func(_ any, err error) error { return err }
 	return map[string]error{
-		"Accounts":             failure(reader.Accounts(ctx)),
-		"CleanTransactions":    failure(reader.CleanTransactions(ctx, period)),
-		"Bills":                failure(reader.Bills(ctx)),
-		"Pots":                 failure(reader.Pots(ctx, "2026-03-15")),
-		"BalanceHistory":       failure(reader.BalanceHistory(ctx)),
-		"ReserveHistory":       failure(reader.ReserveHistory(ctx)),
-		"YieldHistory":         failure(reader.YieldHistory(ctx)),
-		"InvestmentPrincipals": failure(reader.InvestmentPrincipals(ctx)),
-		"Investments":          failure(reader.Investments(ctx)),
-		"InvestmentHistory":    failure(reader.InvestmentHistory(ctx, "inv-1")),
-		"Identities":           failure(reader.Identities(ctx)),
-		"SyncState":            failure(reader.SyncState(ctx)),
+		"Accounts":             failure(view.Accounts(ctx)),
+		"CleanTransactions":    failure(view.CleanTransactions(ctx, period)),
+		"Bills":                failure(view.Bills(ctx)),
+		"Pots":                 failure(view.Pots(ctx, "2026-03-15")),
+		"BalanceHistory":       failure(view.BalanceHistory(ctx)),
+		"ReserveHistory":       failure(view.ReserveHistory(ctx)),
+		"YieldHistory":         failure(view.YieldHistory(ctx)),
+		"InvestmentPrincipals": failure(view.InvestmentPrincipals(ctx)),
+		"Investments":          failure(view.Investments(ctx)),
+		"InvestmentHistory":    failure(view.InvestmentHistory(ctx, "inv-1")),
+		"Identities":           failure(view.Identities(ctx)),
+		"SyncState":            failure(view.SyncState(ctx)),
 	}
 }
 
