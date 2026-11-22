@@ -131,4 +131,5 @@ var allStatements = map[string]string{
 	"statementNextFixedTagPosition": statementNextFixedTagPosition,
 	"statementStateLineReferences":  statementStateLineReferences,
 	"statementSplitLineReferences":  statementSplitLineReferences,
+	"statementStepsOfChange":        statementStepsOfChange,
 }

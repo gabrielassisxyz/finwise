@@ -21,12 +21,9 @@ const changePin = "session.changePin"
 // Each piece of work that implements one removes its name here, and the list is
 // empty when every write of the contract is implemented.
 var writesWithoutHandler = []string{
-	"transactions.setLine", "transactions.applyLineToEstablishment",
-	"transactions.setLineForMany",
-	"transactions.confirmLine", "transactions.setReason",
 	"transactions.setReimbursable", "transactions.setExpectedReimbursement",
 	"transactions.linkReimbursement", "transactions.unlinkReimbursement",
-	"transactions.undoHistoryStep", "subscriptions.create", "subscriptions.acceptSuggestion",
+	"subscriptions.create", "subscriptions.acceptSuggestion",
 	"subscriptions.rejectSuggestion", "subscriptions.setStatus", "subscriptions.setLine",
 	"subscriptions.setReviewDate", "subscriptions.setNote", "review.acceptPending", "review.approve",
 	"review.refuse", "review.propose", "review.dismissWarning", "review.runWarningAction",
@@ -129,16 +126,17 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 		"budget.applyScenario", "budget.evaluateScenario", "budget.save", "budget.saveScenario", "changes.undo",
 		"settings.setCardLabel", "settings.setClosing", "settings.setMinExamples", "settings.setPotBucket",
 		"settings.setThreshold", "settings.toggleLinkedLine",
-		"transactions.addFixedTag", "transactions.addTag", "transactions.addTagToMany", "transactions.excludeMany",
-		"transactions.removeFixedTag", "transactions.removeTag", "transactions.setDefaultLine", "transactions.setExcluded",
-		"transactions.setExclusionReason", "transactions.setNickname", "transactions.setNote", "transactions.setRefund",
-		"transactions.setRefundLine", "transactions.setSplit",
+		"transactions.addFixedTag", "transactions.addTag", "transactions.addTagToMany", "transactions.applyLineToEstablishment",
+		"transactions.confirmLine", "transactions.excludeMany", "transactions.removeFixedTag", "transactions.removeTag",
+		"transactions.setDefaultLine", "transactions.setExcluded", "transactions.setExclusionReason", "transactions.setLine",
+		"transactions.setLineForMany", "transactions.setNickname", "transactions.setNote", "transactions.setReason",
+		"transactions.setRefund", "transactions.setRefundLine", "transactions.setSplit", "transactions.undoHistoryStep",
 	}
 	if !slices.Equal(registered, implemented) {
 		t.Errorf("the registry implements %v, want %v", registered, implemented)
 	}
-	if len(writesWithoutHandler) != 30 || slices.Contains(writesWithoutHandler, changePin) {
-		t.Errorf("the list holds %d names, want 30 without %s", len(writesWithoutHandler), changePin)
+	if len(writesWithoutHandler) != 24 || slices.Contains(writesWithoutHandler, changePin) {
+		t.Errorf("the list holds %d names, want 24 without %s", len(writesWithoutHandler), changePin)
 	}
 }
 
