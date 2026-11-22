@@ -86,3 +86,15 @@ const (
 	budgetGroupFees       = "Tarifas e juros"
 	budgetGroupInvestment = "Investimento"
 )
+
+// The steps a transaction's history records when the person changes what it
+// counts for.
+const (
+	countedAgainStep   = "Você voltou a contar esta transação"
+	refundMarkedStep   = "Você marcou como estorno"
+	refundUnmarkedStep = "Você desmarcou o estorno"
+)
+
+func refundLineStep(line string) string {
+	return "Você definiu que o estorno abate " + line
+}
