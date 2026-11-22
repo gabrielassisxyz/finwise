@@ -40,7 +40,7 @@ func readPotsList(ctx context.Context, args []json.RawMessage, views Views) (any
 	if err != nil {
 		return nil, err
 	}
-	view, err := loadPots(ctx, views.Ledger, true)
+	view, err := loadPotsWithChoices(ctx, views, true)
 	if err != nil {
 		return nil, err
 	}
@@ -58,12 +58,12 @@ func includeClosedOf(args []json.RawMessage) (bool, error) {
 	return *options.IncludeClosed, nil
 }
 
-// groups lists the pots by bucket, the reserved ones first. The pots are never
-// in a group of their own for want of a bucket: until the person assigns one, a
-// pot is where the bank says it is.
+// groups lists the pots by bucket, reserved, invested and then available, as
+// the stand-in orders them. The pots are never in a group of their own for want
+// of a bucket: until the person assigns one, a pot is where the bank says it is.
 func (view *potsView) groups(includeClosed bool) []potGroupWire {
 	groups := []potGroupWire{}
-	for _, bucket := range []string{bucketReserved, bucketInvested} {
+	for _, bucket := range []string{bucketReserved, bucketInvested, bucketAvailable} {
 		group := potGroupWire{Bucket: textPointer(bucket), Pots: []potRowWire{}}
 		var subtotal money.Cents
 		for _, entry := range view.entries {

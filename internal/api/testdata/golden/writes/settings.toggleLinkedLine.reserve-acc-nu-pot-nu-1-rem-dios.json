@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "changeId": "3"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "pot_lines",
+      "key": [
+        8
+      ],
+      "column": "pot_id",
+      "before": "reserve:acc-pots/pot-1",
+      "after": "reserve:acc-nu/pot-nu-1"
+    }
+  ]
+}

@@ -75,6 +75,8 @@ var secrets = []string{
 	// The line and scenario names of the budget's write cases and its invented state.
 	"Mercado", "Feira", "Salário", "Bônus", "Sem extra", "Sem viagem", "Antes", "Cenário", "garantida",
 	inventedLabel, "Virtual", "manual",
+	// The pots, the buckets and the line names of the pots' write cases.
+	"inv-", "pot-", "Disponível", "Reservado", "Investido", "Remédios", "Viagens", "Tarifas",
 }
 
 // capturedLogs is what reached each of the three places a log could go.

@@ -66,6 +66,8 @@ type potEntry struct {
 	// yieldAsked is false for what the yield rules do not apply to: an
 	// investment, and an entry with no identity to follow.
 	yieldAsked bool
+	// linkedLines are the names of the budget lines the person linked to the pot.
+	linkedLines []string
 }
 
 // potsView is what the pots, the net worth and the home summary read from.
@@ -88,6 +90,9 @@ type potsView struct {
 	// itself shows back the reserve and which are therefore not counted twice.
 	onReserveAccounts int
 	leftOut           int
+	// chosenBuckets holds the bucket of each pot the person placed, by its id;
+	// the chart reads it for the reserve rows and investment days of the past.
+	chosenBuckets map[string]string
 }
 
 func loadPots(ctx context.Context, snapshot *ledger.View, withYield bool) (*potsView, error) {

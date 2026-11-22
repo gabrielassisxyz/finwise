@@ -79,12 +79,30 @@ func (parts netWorthParts) total() money.Cents {
 	return parts.available + parts.reserved + parts.invested
 }
 
+// add counts an amount in the part a bucket names.
+func (parts *netWorthParts) add(bucket string, amount money.Cents) {
+	switch bucket {
+	case bucketAvailable:
+		parts.available += amount
+	case bucketReserved:
+		parts.reserved += amount
+	case bucketInvested:
+		parts.invested += amount
+	}
+}
+
+func (parts *netWorthParts) addParts(other netWorthParts) {
+	parts.available += other.available
+	parts.reserved += other.reserved
+	parts.invested += other.invested
+}
+
 func registerNetWorth(registry *Registry) {
 	registry.Register("netWorth.overview", readNetWorthOverview)
 }
 
 func readNetWorthOverview(ctx context.Context, _ []json.RawMessage, views Views) (any, error) {
-	view, err := loadPots(ctx, views.Ledger, true)
+	view, err := loadPotsWithChoices(ctx, views, true)
 	if err != nil {
 		return nil, err
 	}
@@ -101,14 +119,7 @@ func (view *potsView) partsOf() netWorthParts {
 		}
 	}
 	for _, entry := range view.entries {
-		switch entry.bucket {
-		case bucketAvailable:
-			parts.available += entry.balance
-		case bucketReserved:
-			parts.reserved += entry.balance
-		case bucketInvested:
-			parts.invested += entry.balance
-		}
+		parts.add(entry.bucket, entry.balance)
 	}
 	return parts
 }

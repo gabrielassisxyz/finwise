@@ -48,7 +48,8 @@ func nextMonth(month brday.Month) brday.Month {
 
 // pointOf is the net worth at the end of a month, each account at its latest
 // sighting up to then, and recorded only when some account was sighted in the
-// month. A reading that cannot be read leaves the month out.
+// month. A reading that cannot be read leaves the month out. Each pot counts in
+// the bucket it has today, since no history of buckets is kept.
 func (view *potsView) pointOf(month brday.Month) (netWorthPointWire, bool) {
 	end := lastDayOf(month)
 	var parts netWorthParts
@@ -63,17 +64,17 @@ func (view *potsView) pointOf(month brday.Month) (netWorthPointWire, bool) {
 		}
 		recorded = recorded || monthOfDay(latest.Day) == month
 		parts.available += *latest.Balance
-		reserved, readable := view.reservedOn(accountID, latest.Day)
+		reserves, readable := view.reservesOn(accountID, latest.Day)
 		if !readable {
 			return netWorthPointWire{}, false
 		}
-		parts.reserved += reserved
+		parts.addParts(reserves)
 	}
-	invested, readable := view.investedUpTo(end)
+	investments, readable := view.investmentsUpTo(end)
 	if !recorded || !readable {
 		return netWorthPointWire{}, false
 	}
-	parts.invested = invested
+	parts.addParts(investments)
 	return netWorthPointWire{
 		Month: string(month), Available: Reais(parts.available), Reserved: Reais(parts.reserved),
 		Invested: Reais(parts.invested), Total: Reais(parts.total()),
@@ -91,41 +92,51 @@ func latestUpTo(days []ledger.AccountDay, end brday.Day) (ledger.AccountDay, boo
 	return latest, found
 }
 
-// reservedOn adds the reserve entries of one sighting; false when one of them
-// has no readable amount.
-func (view *potsView) reservedOn(accountID string, day brday.Day) (money.Cents, bool) {
-	var total money.Cents
+// reservesOn adds the reserve entries of one sighting, each in the bucket of
+// its pot; false when one of them has no readable amount.
+func (view *potsView) reservesOn(accountID string, day brday.Day) (netWorthParts, bool) {
+	var parts netWorthParts
 	for _, row := range view.reserveHistory {
 		if row.AccountID != accountID || row.Day != day {
 			continue
 		}
 		if row.Amount == nil || row.AmountStatus != "ok" {
-			return 0, false
+			return netWorthParts{}, false
 		}
-		total += *row.Amount
+		parts.add(view.bucketOfReserveRow(row), *row.Amount)
 	}
-	return total, true
+	return parts, true
 }
 
-// investedUpTo adds each investment at its latest day up to the end; an
-// investment not yet in the ledger counts for nothing.
-func (view *potsView) investedUpTo(end brday.Day) (money.Cents, bool) {
-	var total money.Cents
-	for _, days := range view.investmentDays {
+// bucketOfReserveRow is the bucket of the pot a row belongs to. A row whose
+// identity the bank does not keep names no pot a choice could be stored for, so
+// it stays where the bank's word puts it.
+func (view *potsView) bucketOfReserveRow(row ledger.Pot) string {
+	if !row.StableIdentity || row.ReserveID == nil {
+		return bucketReserved
+	}
+	return view.effectiveBucket(reservePotID(row.AccountID, *row.ReserveID), bucketReserved)
+}
+
+// investmentsUpTo adds each investment at its latest day up to the end, in the
+// bucket of that investment; one not yet in the ledger counts for nothing.
+func (view *potsView) investmentsUpTo(end brday.Day) (netWorthParts, bool) {
+	var parts netWorthParts
+	for id, days := range view.investmentDays {
 		var net *money.Cents
 		for _, day := range days {
 			if day.Day <= end {
 				net = day.AmountNet
 				if net == nil {
-					return 0, false
+					return netWorthParts{}, false
 				}
 			}
 		}
 		if net != nil {
-			total += *net
+			parts.add(view.effectiveBucket(id, bucketInvested), *net)
 		}
 	}
-	return total, true
+	return parts, true
 }
 
 // chartMaxOf is the smallest 1, 2 or 5 followed by zeros, in reais, that holds

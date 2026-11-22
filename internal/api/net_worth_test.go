@@ -2,9 +2,11 @@ package api
 
 import (
 	"math"
+	"slices"
 	"testing"
 	"time"
 
+	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 )
 
@@ -230,5 +232,92 @@ func TestAPotThatWasEmptiedNoLongerCountsInTheNetWorth(t *testing.T) {
 	worth := answerOf(t, envAt(t, emptiedLedger(t), 2026, time.March, 20), "netWorth.overview", `[]`)
 	if worth["total"].(float64) != 15 {
 		t.Errorf("the net worth is %v, want the two accounts' 15 and nothing for the pot that was emptied", worth["total"])
+	}
+}
+
+func TestAPotPlacedInDisponivelCountsAsAvailableAfterTheAccountsAndTheTotalStays(t *testing.T) {
+	env := potsPlacedEnv(t, newFullLedger(t), map[string]authored.PotBucket{potCaixinha: authored.BucketAvailable})
+	worth := answerOf(t, env, "netWorth.overview", `[]`)
+	totals := bucketTotals(t, worth)
+	want := map[string]int64{"Disponível": 285966, "Reservado": 127580, "Investido": 1000000}
+	for bucket, amount := range want {
+		if totals[bucket] != amount {
+			t.Errorf("%s is %d cents, want %d", bucket, totals[bucket], amount)
+		}
+	}
+	if cents(worth["total"].(float64)) != 1413546 {
+		t.Errorf("the total is %v, want 14135.46 whatever the buckets", worth["total"])
+	}
+	available := worth["buckets"].([]any)[0].(map[string]any)
+	var names []string
+	for _, item := range available["items"].([]any) {
+		names = append(names, item.(map[string]any)["name"].(string))
+	}
+	wantNames := []string{"Banco não identificado · Conta Digital", "C6 · Conta C6", "Itaú · Conta Corrente", "Mercado Pago",
+		"Nubank · Conta Nubank", "Caixinha da casa"}
+	if available["bucket"] != "Disponível" || !slices.Equal(names, wantNames) {
+		t.Errorf("%v lists %v, want the five accounts and then the pot", available["bucket"], names)
+	}
+}
+
+// chartLedger is the full ledger with a February sighting of the Mercado Pago
+// pot (400.00, on an account holding 100.00) and a February day of the Itaú
+// investment (6000.00), so that a point before the current month holds both.
+func chartLedger(t *testing.T) *ledgertest.Fixture {
+	t.Helper()
+	f := newFullLedger(t)
+	f.ObserveAccount(accountPots, "2026-02-12", sightedAt("2026-02-12", 100,
+		ledgertest.Reserve{ID: "pot-1", Name: "Caixinha da casa", Amount: 400, CDIRatio: 1.1}))
+	f.ObserveInvestment(investmentItau, "2026-02-11", map[string]any{"amount": 6000, "amountWithdrawal": 6000, "balance": 6000})
+	return f
+}
+
+type chartPoint struct {
+	month                         string
+	available, reserved, invested int64
+}
+
+func chartPointsOf(t *testing.T, worth map[string]any) []chartPoint {
+	t.Helper()
+	var points []chartPoint
+	for _, raw := range worth["chart"].(map[string]any)["points"].([]any) {
+		point := raw.(map[string]any)
+		read := chartPoint{point["month"].(string), cents(point["available"].(float64)), cents(point["reserved"].(float64)),
+			cents(point["invested"].(float64))}
+		if sum := read.available + read.reserved + read.invested; cents(point["total"].(float64)) != sum {
+			t.Errorf("%s: the total is %v and its parts add up to %d cents", read.month, point["total"], sum)
+		}
+		points = append(points, read)
+	}
+	return points
+}
+
+// The figures are worked out by hand from chartLedger: January holds the Nubank
+// account alone, February adds the Mercado Pago account and its pot and the Itaú
+// investment's February day, and March is the net worth shown above the chart.
+func TestEveryPointOfTheChartCountsEachPotInTheBucketItHasToday(t *testing.T) {
+	cases := []struct {
+		label  string
+		placed map[string]authored.PotBucket
+		want   []chartPoint
+	}{
+		{"nothing chosen", nil, []chartPoint{
+			{"2026-01", 12000, 90000, 0}, {"2026-02", 36000, 140000, 600000}, {"2026-03", 205966, 207580, 1000000}}},
+		{"the Mercado Pago pot available", map[string]authored.PotBucket{potCaixinha: authored.BucketAvailable}, []chartPoint{
+			{"2026-01", 12000, 90000, 0}, {"2026-02", 76000, 100000, 600000}, {"2026-03", 285966, 127580, 1000000}}},
+		{"the Itaú investment reserved", map[string]authored.PotBucket{potLCI: authored.BucketReserved}, []chartPoint{
+			{"2026-01", 12000, 90000, 0}, {"2026-02", 36000, 740000, 0}, {"2026-03", 205966, 907580, 300000}}},
+	}
+	for _, c := range cases {
+		worth := answerOf(t, potsPlacedEnv(t, chartLedger(t), c.placed), "netWorth.overview", `[]`)
+		points := chartPointsOf(t, worth)
+		if !slices.Equal(points, c.want) {
+			t.Errorf("%s: the chart is %+v, want %+v", c.label, points, c.want)
+			continue
+		}
+		totals, last := bucketTotals(t, worth), points[len(points)-1]
+		if last.available != totals["Disponível"] || last.reserved != totals["Reservado"] || last.invested != totals["Investido"] {
+			t.Errorf("%s: the chart ends at %+v and the net worth shows %v", c.label, last, totals)
+		}
 	}
 }

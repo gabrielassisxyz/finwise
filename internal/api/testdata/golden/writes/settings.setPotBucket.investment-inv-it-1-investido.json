@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "changeId": "2"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "pot_settings",
+      "key": [
+        "investment:inv-it-1"
+      ],
+      "column": "bucket",
+      "before": "Reservado",
+      "after": null
+    }
+  ]
+}

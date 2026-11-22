@@ -1,0 +1,41 @@
+{
+  "id": "reserve:acc-pots/pot-1",
+  "name": "Caixinha da casa",
+  "bank": "Mercado Pago",
+  "bucket": "Disponível",
+  "cdiPercent": 110.00,
+  "balance": 800.00,
+  "belowTarget": null,
+  "contribution": {
+    "state": "none-planned"
+  },
+  "linkedLines": [
+    {
+      "name": "Remédios",
+      "share": null
+    }
+  ],
+  "investment": null,
+  "movements": [
+    {
+      "day": "2026-03-09",
+      "description": "Depósito",
+      "amount": 200.00
+    }
+  ],
+  "yield": {
+    "month": "2026-03",
+    "total": 10.00,
+    "days": [
+      {
+        "day": "2026-03-10",
+        "amount": 0.00
+      },
+      {
+        "day": "2026-03-15",
+        "amount": 10.00
+      }
+    ]
+  },
+  "historyStart": "2026-03"
+}
