@@ -206,7 +206,7 @@ func TestOpeningWithoutAClockFailsBeforeTouchingTheFile(t *testing.T) {
 }
 
 // requireFreshSchema checks a closed database is exactly what the embedded set
-// creates: our id, write-ahead mode, the four tables and one recorded migration.
+// creates: our id, write-ahead mode, the tables and the recorded migrations.
 func requireFreshSchema(t *testing.T, path string) {
 	t.Helper()
 	if got := headerID(t, path); got != ourID {
@@ -221,18 +221,18 @@ func requireFreshSchema(t *testing.T, path string) {
 	if err := database.QueryRow("PRAGMA journal_mode").Scan(&mode); err != nil || mode != "wal" {
 		t.Errorf("PRAGMA journal_mode = %q (%v)", mode, err)
 	}
-	want := []string{"change_effects", "changes", "meta", "schema_migrations", "sqlite_sequence"}
+	want := []string{"change_effects", "changes", "meta", "pin", "schema_migrations", "sqlite_sequence"}
 	if got := tableNames(t, database); !equalStrings(got, want) {
 		t.Errorf("tables = %v, want %v", got, want)
 	}
-	if got, want := recordedMigrations(t, database), []string{"0001_journal=" + embeddedSum(t)}; !equalStrings(got, want) {
+	if got, want := recordedMigrations(t, database), []string{"0001_journal=" + embeddedSum(t, "0001_journal"), "0008_session=" + embeddedSum(t, "0008_session")}; !equalStrings(got, want) {
 		t.Errorf("schema_migrations = %v, want %v", got, want)
 	}
 }
 
-func embeddedSum(t testing.TB) string {
+func embeddedSum(t testing.TB, name string) string {
 	t.Helper()
-	content, err := os.ReadFile(filepath.Join("migrations", "0001_journal.sql"))
+	content, err := os.ReadFile(filepath.Join("migrations", name+".sql"))
 	if err != nil {
 		t.Fatal(err)
 	}
