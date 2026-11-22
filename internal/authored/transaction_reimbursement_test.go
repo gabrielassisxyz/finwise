@@ -17,7 +17,7 @@ type reimbursementKeys struct {
 	purchase, credit, otherCredit, otherPurchase authored.TxKey
 }
 
-const linkedStepText = "Você ligou ao PIX de Ana Exemplo · R$ 150,00"
+const linkedStepText = "Você ligou ao PIX de Ana Exemplo · R$\u00a0150,00"
 
 func reimbursementDatabase(t *testing.T) (*authored.Database, reimbursementKeys) {
 	t.Helper()

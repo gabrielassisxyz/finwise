@@ -24,8 +24,6 @@ var writesWithoutHandler = []string{
 	"transactions.setLine", "transactions.applyLineToEstablishment",
 	"transactions.setLineForMany",
 	"transactions.confirmLine", "transactions.setReason",
-	"transactions.setReimbursable", "transactions.setExpectedReimbursement",
-	"transactions.linkReimbursement", "transactions.unlinkReimbursement",
 	"transactions.undoHistoryStep", "subscriptions.create", "subscriptions.acceptSuggestion",
 	"subscriptions.rejectSuggestion", "subscriptions.setStatus", "subscriptions.setLine",
 	"subscriptions.setReviewDate", "subscriptions.setNote", "review.acceptPending", "review.approve",
@@ -133,12 +131,15 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 		"transactions.removeFixedTag", "transactions.removeTag", "transactions.setDefaultLine", "transactions.setExcluded",
 		"transactions.setExclusionReason", "transactions.setNickname", "transactions.setNote", "transactions.setRefund",
 		"transactions.setRefundLine", "transactions.setSplit",
+		"transactions.linkReimbursement", "transactions.setExpectedReimbursement", "transactions.setReimbursable",
+		"transactions.unlinkReimbursement",
 	}
+	slices.Sort(implemented)
 	if !slices.Equal(registered, implemented) {
 		t.Errorf("the registry implements %v, want %v", registered, implemented)
 	}
-	if len(writesWithoutHandler) != 30 || slices.Contains(writesWithoutHandler, changePin) {
-		t.Errorf("the list holds %d names, want 30 without %s", len(writesWithoutHandler), changePin)
+	if len(writesWithoutHandler) != 26 || slices.Contains(writesWithoutHandler, changePin) {
+		t.Errorf("the list holds %d names, want 26 without %s", len(writesWithoutHandler), changePin)
 	}
 }
 

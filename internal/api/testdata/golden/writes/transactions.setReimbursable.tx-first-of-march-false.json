@@ -1,0 +1,47 @@
+{
+  "answer": {
+    "changeId": "5"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_state",
+      "key": [
+        15
+      ],
+      "column": "reimbursable",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "seq": 2,
+      "table": "tx_state",
+      "key": [
+        15
+      ],
+      "column": "expected_cents",
+      "before": 500,
+      "after": null
+    },
+    {
+      "seq": 3,
+      "table": "tx_state",
+      "key": [
+        15
+      ],
+      "column": "credit_tx_key",
+      "before": 19,
+      "after": null
+    },
+    {
+      "seq": 4,
+      "table": "tx_state",
+      "key": [
+        15
+      ],
+      "column": "credit_cents",
+      "before": 5000,
+      "after": null
+    }
+  ]
+}

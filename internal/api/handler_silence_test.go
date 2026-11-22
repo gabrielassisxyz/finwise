@@ -84,6 +84,9 @@ var secrets = []string{
 	// The reasons of the exclusion's write cases, and the cents of the purchase the
 	// split cases divide, a form no timestamp of a log line can hold.
 	"Compra da empresa", "Marcada em lote", "20700",
+	// The amount the reimbursement's write cases expect back, which no instant
+	// of a log line can hold since 61 is no second.
+	"61.73",
 }
 
 // capturedLogs is what reached each of the three places a log could go.

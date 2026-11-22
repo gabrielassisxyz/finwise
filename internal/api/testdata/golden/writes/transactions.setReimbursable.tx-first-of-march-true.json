@@ -1,0 +1,27 @@
+{
+  "answer": {
+    "changeId": "5"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_state",
+      "key": [
+        15
+      ],
+      "column": "credit_tx_key",
+      "before": 19,
+      "after": null
+    },
+    {
+      "seq": 2,
+      "table": "tx_state",
+      "key": [
+        15
+      ],
+      "column": "credit_cents",
+      "before": 5000,
+      "after": null
+    }
+  ]
+}

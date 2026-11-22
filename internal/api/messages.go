@@ -1,6 +1,10 @@
 package api
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/gabrielassisxyz/finwise/internal/money"
+)
 
 // Everything a person reads that the server writes lives in this file, in
 // Brazilian Portuguese. The wording follows the stand-in's.
@@ -104,4 +108,13 @@ const (
 
 func refundLineStep(line string) string {
 	return "Você definiu que o estorno abate " + line
+}
+
+// The steps of a purchase's history when a received PIX is linked to it as its
+// reimbursement and when the link is undone. The amount is written as the
+// interface writes reais: a no-break space after R$.
+const unlinkedReimbursementStep = "Você desfez a ligação com o PIX"
+
+func linkedReimbursementStep(name string, cents money.Cents) string {
+	return "Você ligou ao PIX de " + name + " · R$\u00a0" + brazilianDecimal(cents)
 }
