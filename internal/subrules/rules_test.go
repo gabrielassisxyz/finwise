@@ -27,6 +27,17 @@ func TestEachBoundaryBetweenTwoCyclesFallsWhereTheMidpointIs(t *testing.T) {
 	}
 }
 
+// No whole median is as far from two of the five lengths, so the tie is shown
+// on two lengths that have one: 60 is as far from 30 as from 90.
+func TestTheShorterCycleWinsATieWhateverOrderTheLengthsAreTriedIn(t *testing.T) {
+	shorter, longer := cycleLength{Monthly, 30, 1}, cycleLength{Quarterly, 90, 3}
+	for _, lengths := range [][]cycleLength{{shorter, longer}, {longer, shorter}} {
+		if got := nearestOf(60, lengths); got != Monthly {
+			t.Errorf("a median of 60 tried against %+v is cycle %d, want the shorter, %d", lengths, got, Monthly)
+		}
+	}
+}
+
 func twoChargesApart(t *testing.T, days int) []Row {
 	t.Helper()
 	first := time.Date(2024, time.January, 15, 0, 0, 0, 0, time.UTC)

@@ -21,8 +21,7 @@ type cycleLength struct {
 	months int
 }
 
-// cycleLengths are the five cycles from the shortest; that order is what makes
-// the shorter one win when a median is as far from two of them.
+// cycleLengths are the five cycles from the shortest.
 var cycleLengths = []cycleLength{
 	{Monthly, 30, 1},
 	{Quarterly, 91, 3},
@@ -83,10 +82,15 @@ func medianGap(gaps []int) int {
 
 // cycleNearest is the cycle whose length is nearest the median, the shorter
 // one when two are as near.
-func cycleNearest(median int) Cycle {
-	nearest := cycleLengths[0]
-	for _, length := range cycleLengths[1:] {
-		if distance(median, length.days) < distance(median, nearest.days) {
+func cycleNearest(median int) Cycle { return nearestOf(median, cycleLengths) }
+
+// nearestOf settles a tie in the comparison itself, so the answer does not
+// hang on the order the lengths are tried in.
+func nearestOf(median int, lengths []cycleLength) Cycle {
+	nearest := lengths[0]
+	for _, length := range lengths[1:] {
+		gap, best := distance(median, length.days), distance(median, nearest.days)
+		if gap < best || gap == best && length.days < nearest.days {
 			nearest = length
 		}
 	}
