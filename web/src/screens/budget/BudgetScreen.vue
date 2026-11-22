@@ -66,7 +66,13 @@ function askToSave(): void {
 
 async function save(): Promise<void> {
   if (!budget.draft.value) return;
-  await api.budget.save(month.selected, budget.draft.value);
+  try {
+    await api.budget.save(month.selected, budget.draft.value);
+  } catch (error) {
+    // Any other failure keeps the draft so what the toast names can be fixed; no fix saves into a month closed since.
+    if (isApiFailure(error) && error.kind === 'refused' && error.reason === 'month_closed') budget.discard();
+    throw error;
+  }
   budget.discard();
   revision.bump();
 }
