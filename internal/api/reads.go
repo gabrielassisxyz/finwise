@@ -5,16 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-
-	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
 // ReadHandler serves one `read` method. args are the raw elements of the
 // request's argument array, already counted against the manifest but not
-// decoded; the result is encoded as JSON, and nil becomes null. The reader
-// opens the snapshot on each call, so a handler holds nothing between calls.
+// decoded; the result is encoded as JSON, and nil becomes null. Every query of
+// one call goes through views, which are opened for the request and closed
+// after it, so a handler holds nothing between calls.
 // An error is mapped by its class and its text is never logged or sent.
-type ReadHandler func(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error)
+type ReadHandler func(ctx context.Context, args []json.RawMessage, views Views) (any, error)
 
 // Registry maps "domain.name" to the handler of a `read` method.
 type Registry struct {

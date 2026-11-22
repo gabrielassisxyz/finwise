@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/gabrielassisxyz/finwise/internal/contract"
-	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
 // testEnv is one handler with an injected clock, a counting PIN check and a
@@ -155,7 +154,7 @@ func withRead(method string, handler ReadHandler) envOption {
 	return func(config *Config) { config.Reads.Register(method, handler) }
 }
 
-func returnsNothing(context.Context, []json.RawMessage, *ledger.Reader) (any, error) { return nil, nil }
+func returnsNothing(context.Context, []json.RawMessage, Views) (any, error) { return nil, nil }
 
 func newRecorder() *httptest.ResponseRecorder { return httptest.NewRecorder() }
 

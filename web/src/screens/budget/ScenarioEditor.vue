@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import type { BudgetDoc, ScenarioImpact } from '@/api/types';
 import ActionButton from '@/components/ui/ActionButton.vue';
 import { brl, brlWhole, percentText, signedBrl } from '@/lib/format';
+import { typedAmount } from './typedAmount';
 
 const props = defineProps<{ name: string; budget: BudgetDoc; impact: ScenarioImpact }>();
 
@@ -55,7 +56,7 @@ function typed(event: Event): string {
           type="number"
           :value="line.amount"
           :aria-label="line.name"
-          @change="emit('setAmount', groupIndex, lineIndex, Number(typed($event)) || 0)"
+          @change="emit('setAmount', groupIndex, lineIndex, typedAmount(typed($event)))"
         />
       </div>
     </template>

@@ -14,7 +14,7 @@ func TestEveryQueryRefusesAnUnsupportedVersion(t *testing.T) {
 	f := populated(t)
 	f.SetUserVersion(2)
 
-	for name, err := range everyQuery(ledger.New(f.Path)) {
+	for name, err := range everyQuery(viewOf(t, f.Path)) {
 		if !ledger.IsUnsupportedVersion(err) {
 			t.Errorf("%s: err = %v, want the unsupported-version error", name, err)
 		}
@@ -25,7 +25,7 @@ func TestUnsupportedVersionErrorNamesTheVersionFound(t *testing.T) {
 	f := populated(t)
 	f.SetUserVersion(7)
 
-	_, err := ledger.New(f.Path).Accounts(t.Context())
+	_, err := viewOf(t, f.Path).Accounts(t.Context())
 	var versionErr *ledger.UnsupportedVersionError
 	if !asVersionError(err, &versionErr) || versionErr.Found != 7 {
 		t.Fatalf("err = %v, want UnsupportedVersionError{Found: 7}", err)
@@ -35,10 +35,10 @@ func TestUnsupportedVersionErrorNamesTheVersionFound(t *testing.T) {
 func TestUnsupportedVersionYieldsNoRows(t *testing.T) {
 	f := populated(t)
 	f.SetUserVersion(2)
-	reader := ledger.New(f.Path)
+	view := viewOf(t, f.Path)
 
-	accounts, _ := reader.Accounts(t.Context())
-	transactions, _ := reader.CleanTransactions(t.Context(), february2026(t))
+	accounts, _ := view.Accounts(t.Context())
+	transactions, _ := view.CleanTransactions(t.Context(), february2026(t))
 	if len(accounts) != 0 || len(transactions) != 0 {
 		t.Fatalf("rows came back from an unsupported snapshot: %d accounts, %d transactions",
 			len(accounts), len(transactions))
@@ -71,7 +71,7 @@ func TestQueriesLeaveTheSnapshotByteForByteUntouched(t *testing.T) {
 	directory := filepath.Dir(f.Path)
 	before, filesBefore := fileHash(t, f.Path), listDirectory(t, directory)
 
-	for name, err := range everyQuery(ledger.New(f.Path)) {
+	for name, err := range everyQuery(viewOf(t, f.Path)) {
 		if err != nil {
 			t.Errorf("%s: %v", name, err)
 		}
@@ -85,12 +85,14 @@ func TestQueriesLeaveTheSnapshotByteForByteUntouched(t *testing.T) {
 	}
 }
 
-func TestEachCallSeesTheFileThatIsThereNow(t *testing.T) {
+func TestAViewOpenedAfterTheRenameSeesTheFileThatIsThereNow(t *testing.T) {
 	f := populated(t)
 	reader := ledger.New(f.Path)
-	accounts, err := reader.Accounts(t.Context())
+	before := reader.View()
+	defer before.Close()
+	accounts, err := before.Accounts(t.Context())
 	if err != nil || len(accounts) != 1 || accounts[0].ID != "acc-1" {
-		t.Fatalf("first call: %v, %v", accounts, err)
+		t.Fatalf("first view: %v, %v", accounts, err)
 	}
 
 	replacement := ledgertest.NewAt(t, f.Path+".next")
@@ -99,15 +101,17 @@ func TestEachCallSeesTheFileThatIsThereNow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	accounts, err = reader.Accounts(t.Context())
+	after := reader.View()
+	defer after.Close()
+	accounts, err = after.Accounts(t.Context())
 	if err != nil || len(accounts) != 1 || accounts[0].ID != "acc-new" {
-		t.Fatalf("second call after the rename: %v, %v", accounts, err)
+		t.Fatalf("view opened after the rename: %v, %v", accounts, err)
 	}
 }
 
 func TestMissingSnapshotIsAnErrorNotAnEmptyLedger(t *testing.T) {
-	reader := ledger.New(filepath.Join(t.TempDir(), "absent.db"))
-	if _, err := reader.Accounts(t.Context()); err == nil {
+	view := viewOf(t, filepath.Join(t.TempDir(), "absent.db"))
+	if _, err := view.Accounts(t.Context()); err == nil {
 		t.Fatal("a missing snapshot returned no error")
 	}
 }
@@ -118,7 +122,7 @@ func TestEveryQueryNamesAFileThatIsNotADatabaseAsUnreadable(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for name, err := range everyQuery(ledger.New(path)) {
+	for name, err := range everyQuery(viewOf(t, path)) {
 		if !ledger.IsUnreadableSnapshot(err) {
 			t.Errorf("%s: err = %T, want the unreadable-snapshot error", name, err)
 		}
@@ -145,22 +149,22 @@ func TestADamagedDatabaseIsUnreadableToo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	reader := ledger.New(f.Path)
-	if _, err := reader.Accounts(t.Context()); !ledger.IsUnreadableSnapshot(err) {
+	view := viewOf(t, f.Path)
+	if _, err := view.Accounts(t.Context()); !ledger.IsUnreadableSnapshot(err) {
 		t.Errorf("Accounts: err = %T, want the unreadable-snapshot error", err)
 	}
-	if _, err := reader.CleanTransactions(t.Context(), february2026(t)); !ledger.IsUnreadableSnapshot(err) {
+	if _, err := view.CleanTransactions(t.Context(), february2026(t)); !ledger.IsUnreadableSnapshot(err) {
 		t.Errorf("CleanTransactions: err = %T, want the unreadable-snapshot error", err)
 	}
 }
 
 func TestAMissingFileAndAnotherVersionAreNotUnreadable(t *testing.T) {
-	if _, err := ledger.New(filepath.Join(t.TempDir(), "absent.db")).Accounts(t.Context()); ledger.IsUnreadableSnapshot(err) {
+	if _, err := viewOf(t, filepath.Join(t.TempDir(), "absent.db")).Accounts(t.Context()); ledger.IsUnreadableSnapshot(err) {
 		t.Error("a missing file was reported as unreadable")
 	}
 	f := populated(t)
 	f.SetUserVersion(2)
-	if _, err := ledger.New(f.Path).Accounts(t.Context()); ledger.IsUnreadableSnapshot(err) {
+	if _, err := viewOf(t, f.Path).Accounts(t.Context()); ledger.IsUnreadableSnapshot(err) {
 		t.Error("another schema version was reported as unreadable")
 	}
 }

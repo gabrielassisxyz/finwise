@@ -83,8 +83,8 @@ func registerNetWorth(registry *Registry) {
 	registry.Register("netWorth.overview", readNetWorthOverview)
 }
 
-func readNetWorthOverview(ctx context.Context, _ []json.RawMessage, reader *ledger.Reader) (any, error) {
-	view, err := loadPots(ctx, reader, true)
+func readNetWorthOverview(ctx context.Context, _ []json.RawMessage, views Views) (any, error) {
+	view, err := loadPots(ctx, views.Ledger, true)
 	if err != nil {
 		return nil, err
 	}

@@ -353,3 +353,52 @@ describe('scenarios', () => {
     expect((await api.budget.view(DEC)).income).toBe(12000);
   });
 });
+
+describe('line ids', () => {
+  // The stand-in mints no id; it keeps the ones it is given, as the server will answer them.
+  async function withIds(api: FinwiseApi): Promise<BudgetDoc> {
+    const doc = await api.budget.document(NOV);
+    let next = 1;
+    for (const groupDoc of doc) for (const lineDoc of groupDoc.lines) lineDoc.id = String(next++);
+    return doc;
+  }
+  const idsOf = (doc: BudgetDoc) => doc.map((groupDoc) => groupDoc.lines.map((lineDoc) => [lineDoc.id, lineDoc.name]));
+  const hasAnyId = (doc: BudgetDoc) => doc.some((groupDoc) => groupDoc.lines.some((lineDoc) => 'id' in lineDoc));
+
+  it('keeps the id of every line through a save', async () => {
+    const api = createFakeApi();
+    const draft = await withIds(api);
+    await api.budget.save(NOV, draft);
+    expect(idsOf(await api.budget.document(NOV))).toEqual(idsOf(draft));
+    expect(idsOf(await api.budget.document(DEC))).toEqual(idsOf(draft));
+  });
+
+  it('keeps the id of every line through an applied scenario and a saved one', async () => {
+    const api = createFakeApi();
+    const draft = await withIds(api);
+    await api.budget.applyScenario(NOV, draft);
+    expect(idsOf(await api.budget.document(NOV))).toEqual(idsOf(draft));
+    await api.budget.saveScenario('Com ids', draft);
+    const [kept] = await api.budget.scenarios();
+    expect(idsOf(kept!.budget)).toEqual(idsOf(draft));
+  });
+
+  it('mints none: a draft saved without ids is stored without any', async () => {
+    const api = createFakeApi();
+    expect(hasAnyId(await api.budget.document(NOV))).toBe(false);
+    await api.budget.save(NOV, await withAmount(api, 'fix', 'Saúde', 900));
+    await api.budget.saveScenario('Sem ids', await api.budget.document(NOV));
+    expect(hasAnyId(await api.budget.document(NOV))).toBe(false);
+    expect(hasAnyId((await api.budget.scenarios())[0]!.budget)).toBe(false);
+  });
+
+  it('figures a draft the same with ids as without', async () => {
+    const api = createFakeApi();
+    const plain = await withAmount(api, 'rec', 'Renda extra', 0);
+    const marked = structuredClone(plain);
+    let next = 1;
+    for (const groupDoc of marked) for (const lineDoc of groupDoc.lines) lineDoc.id = String(next++);
+    expect(await api.budget.view(NOV, marked)).toEqual(await api.budget.view(NOV, plain));
+    expect(await api.budget.evaluateScenario(NOV, marked)).toEqual(await api.budget.evaluateScenario(NOV, plain));
+  });
+});

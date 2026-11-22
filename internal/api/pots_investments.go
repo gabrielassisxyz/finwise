@@ -20,19 +20,19 @@ const (
 // and counts the ones that sit beside reserve entries. Some banks back a pot
 // with an investment, so one sum can appear as both; an investment is left out
 // only when the ledger itself shows it is that sum, never on a guess.
-func loadInvestments(ctx context.Context, reader *ledger.Reader, view *potsView, reserves []potEntry) ([]potEntry, error) {
-	investments, err := reader.Investments(ctx)
+func loadInvestments(ctx context.Context, snapshot *ledger.View, view *potsView, reserves []potEntry) ([]potEntry, error) {
+	investments, err := snapshot.Investments(ctx)
 	if err != nil {
 		return nil, err
 	}
-	principals, err := reader.InvestmentPrincipals(ctx)
+	principals, err := snapshot.InvestmentPrincipals(ctx)
 	if err != nil {
 		return nil, err
 	}
 	entries := make([]potEntry, 0, len(investments))
 	view.investmentDays = map[string][]ledger.InvestmentDay{}
 	for _, investment := range investments {
-		days, err := reader.InvestmentHistory(ctx, investment.ID)
+		days, err := snapshot.InvestmentHistory(ctx, investment.ID)
 		if err != nil {
 			return nil, err
 		}

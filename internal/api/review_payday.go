@@ -24,15 +24,15 @@ type paydayView struct {
 	Transfers    []any   `json:"transfers"`
 }
 
-func readPayday(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
+func readPayday(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
 	if _, err := onlyMonthArgument(args); err != nil {
 		return nil, err
 	}
-	accounts, err := reader.Accounts(ctx)
+	accounts, err := views.Ledger.Accounts(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := reader.CleanTransactions(ctx, wholeLedger)
+	rows, err := views.Ledger.CleanTransactions(ctx, wholeLedger)
 	if err != nil {
 		return nil, err
 	}

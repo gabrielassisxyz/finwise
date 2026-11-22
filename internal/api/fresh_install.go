@@ -32,7 +32,7 @@ func onlyMonthArgument(args []json.RawMessage) (brday.Month, error) {
 // requireReadableLedger keeps a method that answers a fixed value from
 // answering it over a ledger that is gone: an empty budget would read as the
 // person's own, when it is the snapshot that cannot be opened.
-func requireReadableLedger(ctx context.Context, reader *ledger.Reader) error {
-	_, err := reader.Accounts(ctx)
+func requireReadableLedger(ctx context.Context, snapshot *ledger.View) error {
+	_, err := snapshot.Accounts(ctx)
 	return err
 }

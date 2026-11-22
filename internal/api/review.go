@@ -3,8 +3,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-
-	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
 // The weekly review is built on the budget's variable lines and on what the
@@ -37,11 +35,11 @@ func registerReview(registry *Registry) {
 	registry.Register("review.payday", readPayday)
 }
 
-func readWeeklyReview(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
+func readWeeklyReview(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
 	if _, err := onlyMonthArgument(args); err != nil {
 		return nil, err
 	}
-	if err := requireReadableLedger(ctx, reader); err != nil {
+	if err := requireReadableLedger(ctx, views.Ledger); err != nil {
 		return nil, err
 	}
 	return weeklyReview{

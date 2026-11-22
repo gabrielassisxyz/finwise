@@ -127,14 +127,31 @@ type Run struct {
 	FinishedAt time.Time
 }
 
-// AddRun appends a run that finished at the given instant.
-func (f *Fixture) AddRun(run Run) {
+// AddRun appends a run that finished at the given instant and returns its id.
+// It leaves the projection where it was: see ProjectTo.
+func (f *Fixture) AddRun(run Run) int64 {
 	f.t.Helper()
 	finished := run.FinishedAt.UTC().Format("2006-01-02T15:04:05+00:00")
 	day := run.FinishedAt.UTC().Format("2006-01-02")
-	f.exec(`INSERT INTO runs (started_at, started_day, finished_at, finished_day, outcome,
+	return f.lastID(f.exec(`INSERT INTO runs (started_at, started_day, finished_at, finished_day, outcome,
 	        api_calls, code_version, item_ids) VALUES (?, ?, ?, ?, ?, 1, 'fixture', '[]')`,
-		finished, day, finished, day, run.Outcome)
+		finished, day, finished, day, run.Outcome))
+}
+
+// ProjectTo records run as the one that produced the current rows. The
+// fixture's scopes all belong to run 1, and a document is covered only while
+// its scope's run is the projected one, so projecting a later run leaves every
+// document the fixture added uncovered.
+func (f *Fixture) ProjectTo(run int64) {
+	f.t.Helper()
+	var exists bool
+	if err := f.db.QueryRow("SELECT EXISTS (SELECT 1 FROM runs WHERE id = ?)", run).Scan(&exists); err != nil {
+		f.t.Fatalf("ledgertest: run lookup: %v", err)
+	}
+	if !exists {
+		f.t.Fatalf("ledgertest: cannot project run %d: the ledger has no such run", run)
+	}
+	f.exec("UPDATE projection_state SET projected_run = ? WHERE id = 1", run)
 }
 
 func (f *Fixture) exec(query string, args ...any) sql.Result {

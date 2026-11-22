@@ -3,6 +3,7 @@ package ledger
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -65,6 +66,40 @@ func (view *View) SyncState(ctx context.Context) (SyncState, error) {
 		return err
 	})
 	return state, err
+}
+
+// NotProjectedError means the snapshot records no run as the one that produced
+// its current rows. Its text says nothing about the file's content.
+type NotProjectedError struct{}
+
+func (err *NotProjectedError) Error() string {
+	return "ledger: snapshot records no projected run"
+}
+
+// IsNotProjected reports whether err is a NotProjectedError.
+func IsNotProjected(err error) bool {
+	var target *NotProjectedError
+	return errors.As(err, &target)
+}
+
+// ProjectedRun reads which run produced the snapshot's current rows, whatever
+// that run's outcome.
+func (view *View) ProjectedRun(ctx context.Context) (int64, error) {
+	var run int64
+	err := view.read(ctx, func(tx *sql.Tx) error {
+		err := tx.QueryRowContext(ctx, queryProjectedRun).Scan(&run)
+		if err == sql.ErrNoRows {
+			return &NotProjectedError{}
+		}
+		if err != nil {
+			return fmt.Errorf("ledger: projected run: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return run, nil
 }
 
 // The maximum is taken after parsing: the run clock carries an offset, and

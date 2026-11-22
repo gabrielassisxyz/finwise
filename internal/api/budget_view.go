@@ -113,16 +113,16 @@ func investmentGroup() budgetGroupView {
 
 // feesOfMonth reads the month the way the transaction list does, widened and
 // then cut, so a fee is paired and placed exactly as the list shows it.
-func feesOfMonth(ctx context.Context, reader *ledger.Reader, month brday.Month) (Reais, error) {
+func feesOfMonth(ctx context.Context, snapshot *ledger.View, month brday.Month) (Reais, error) {
 	period, err := brday.MonthPeriod(month)
 	if err != nil {
 		return 0, &badArgumentsError{}
 	}
-	around, err := loadContext(ctx, reader)
+	around, err := loadContext(ctx, snapshot)
 	if err != nil {
 		return 0, err
 	}
-	view, err := interpretPeriod(ctx, reader, around, period)
+	view, err := interpretPeriod(ctx, snapshot, around, period)
 	if err != nil {
 		return 0, err
 	}

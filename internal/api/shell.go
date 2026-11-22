@@ -31,16 +31,16 @@ func registerShell(registry *Registry) {
 
 // readShellOverview answers what the ledger knows of the frame. Nobody has
 // reviewed or closed anything yet, so those figures are the fresh install's.
-func readShellOverview(ctx context.Context, _ []json.RawMessage, reader *ledger.Reader) (any, error) {
-	accounts, err := reader.Accounts(ctx)
+func readShellOverview(ctx context.Context, _ []json.RawMessage, views Views) (any, error) {
+	accounts, err := views.Ledger.Accounts(ctx)
 	if err != nil {
 		return nil, err
 	}
-	state, err := reader.SyncState(ctx)
+	state, err := views.Ledger.SyncState(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := reader.CleanTransactions(ctx, wholeLedger)
+	rows, err := views.Ledger.CleanTransactions(ctx, wholeLedger)
 	if err != nil {
 		return nil, err
 	}

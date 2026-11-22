@@ -20,15 +20,16 @@ func TestEveryMonthOfARealSnapshotIsAccountedFor(t *testing.T) {
 	if path == "" {
 		t.Skip("FINWISE_LEDGER_SNAPSHOT is not set")
 	}
-	reader, ctx := ledger.New(path), t.Context()
-	accounts, err := reader.Accounts(ctx)
+	view, ctx := ledger.New(path).View(), t.Context()
+	defer view.Close()
+	accounts, err := view.Accounts(ctx)
 	failWithoutValues(t, "accounts", err)
-	identities, err := reader.Identities(ctx)
+	identities, err := view.Identities(ctx)
 	failWithoutValues(t, "identities", err)
 	reference := txrules.Reference{Accounts: accounts, Identities: identities}
 
 	everything := brday.Period{First: "1970-01-01", Last: "2999-12-31"}
-	all, err := reader.CleanTransactions(ctx, everything)
+	all, err := view.CleanTransactions(ctx, everything)
 	failWithoutValues(t, "transactions", err)
 
 	months := monthsOf(all)
@@ -36,7 +37,7 @@ func TestEveryMonthOfARealSnapshotIsAccountedFor(t *testing.T) {
 	for _, month := range months {
 		period, err := brday.MonthPeriod(month)
 		failWithoutValues(t, "month period", err)
-		rows, err := reader.CleanTransactions(ctx, period)
+		rows, err := view.CleanTransactions(ctx, period)
 		failWithoutValues(t, "month transactions", err)
 
 		result := txrules.Interpret(rows, reference)

@@ -46,12 +46,12 @@ func registerAccounts(registry *Registry) {
 	registry.Register("accounts.detail", readAccountDetail)
 }
 
-func readAccountsList(ctx context.Context, _ []json.RawMessage, reader *ledger.Reader) (any, error) {
-	accounts, err := reader.Accounts(ctx)
+func readAccountsList(ctx context.Context, _ []json.RawMessage, views Views) (any, error) {
+	accounts, err := views.Ledger.Accounts(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := reader.CleanTransactions(ctx, wholeLedger)
+	rows, err := views.Ledger.CleanTransactions(ctx, wholeLedger)
 	if err != nil {
 		return nil, err
 	}
@@ -109,12 +109,12 @@ func orderedAccounts(accounts []ledger.Account, banks map[string]string) []ledge
 
 // readAccountDetail answers null for an unknown id and for a card, which has a
 // page of its own.
-func readAccountDetail(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
+func readAccountDetail(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
 	id, err := stringArgument(args)
 	if err != nil {
 		return nil, err
 	}
-	accounts, err := reader.Accounts(ctx)
+	accounts, err := views.Ledger.Accounts(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -20,10 +20,10 @@ const (
 )
 
 func TestTheLogHoldsNoBodyPINCookiePathOrErrorText(t *testing.T) {
-	echo := func(_ context.Context, args []json.RawMessage, _ *ledger.Reader) (any, error) {
+	echo := func(_ context.Context, args []json.RawMessage, _ Views) (any, error) {
 		return map[string]string{"echo": string(args[0])}, nil
 	}
-	failing := func(context.Context, []json.RawMessage, *ledger.Reader) (any, error) {
+	failing := func(context.Context, []json.RawMessage, Views) (any, error) {
 		return nil, errors.New("row " + rowIDSentinel + " " + errorSentinel)
 	}
 	env := newTestEnv(t, withRead("transactions.detail", echo), withRead("shell.overview", failing))
@@ -45,7 +45,7 @@ func TestTheLogHoldsNoBodyPINCookiePathOrErrorText(t *testing.T) {
 }
 
 func TestTheLogLineCarriesVerbRouteStatusDurationAndKind(t *testing.T) {
-	failing := func(context.Context, []json.RawMessage, *ledger.Reader) (any, error) {
+	failing := func(context.Context, []json.RawMessage, Views) (any, error) {
 		return nil, &ledger.UnsupportedVersionError{Found: 3}
 	}
 	env := newTestEnv(t, withRead("shell.overview", failing))

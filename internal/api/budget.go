@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 
 	"github.com/gabrielassisxyz/finwise/internal/brday"
-	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
 // The budget is something the person builds inside the app, and the backend has
@@ -31,11 +30,11 @@ func registerBudget(registry *Registry) {
 	registry.Register("budget.scenarios", readBudgetScenarios)
 }
 
-func readBudgetDocument(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
+func readBudgetDocument(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
 	if _, err := onlyMonthArgument(args); err != nil {
 		return nil, err
 	}
-	if err := requireReadableLedger(ctx, reader); err != nil {
+	if err := requireReadableLedger(ctx, views.Ledger); err != nil {
 		return nil, err
 	}
 	return emptyBudgetDocument(), nil
@@ -43,7 +42,7 @@ func readBudgetDocument(ctx context.Context, args []json.RawMessage, reader *led
 
 // readBudgetView refuses a draft: evaluating one is the budget's arithmetic,
 // which belongs to the part of the app that is not built.
-func readBudgetView(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
+func readBudgetView(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
 	if len(args) == 0 {
 		return nil, &badArgumentsError{}
 	}
@@ -54,14 +53,14 @@ func readBudgetView(ctx context.Context, args []json.RawMessage, reader *ledger.
 	if len(args) > 1 && !isNull(args[1]) {
 		return nil, &readOnlyError{}
 	}
-	fees, err := feesOfMonth(ctx, reader, month)
+	fees, err := feesOfMonth(ctx, views.Ledger, month)
 	if err != nil {
 		return nil, err
 	}
 	return budgetView{Month: month, Groups: emptyBudgetGroups(fees)}, nil
 }
 
-func readBudgetEstablishments(ctx context.Context, args []json.RawMessage, reader *ledger.Reader) (any, error) {
+func readBudgetEstablishments(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
 	if len(args) != 2 {
 		return nil, &badArgumentsError{}
 	}
@@ -72,14 +71,14 @@ func readBudgetEstablishments(ctx context.Context, args []json.RawMessage, reade
 	if err := decodeArgument(args[1], &line); err != nil || line == nil {
 		return nil, &badArgumentsError{}
 	}
-	if err := requireReadableLedger(ctx, reader); err != nil {
+	if err := requireReadableLedger(ctx, views.Ledger); err != nil {
 		return nil, err
 	}
 	return []any{}, nil
 }
 
-func readBudgetScenarios(ctx context.Context, _ []json.RawMessage, reader *ledger.Reader) (any, error) {
-	if err := requireReadableLedger(ctx, reader); err != nil {
+func readBudgetScenarios(ctx context.Context, _ []json.RawMessage, views Views) (any, error) {
+	if err := requireReadableLedger(ctx, views.Ledger); err != nil {
 		return nil, err
 	}
 	return []any{}, nil

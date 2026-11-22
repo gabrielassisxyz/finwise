@@ -5,7 +5,13 @@ import TransactionList from '@/components/transactions/TransactionList.vue';
 import { useMonthStore } from '@/stores/month';
 import { usePanelStore } from '@/stores/panel';
 import { useShellStore } from '@/stores/shell';
+import { createFakeApi } from '@/api/fake';
+import { prototypeState } from '@/api/fake/prototype-data';
+import { useOverlayStore } from '@/stores/overlay';
+import { useRevisionStore } from '@/stores/revision';
+import { lineNamed, recordLineMenu, tagNamed } from '@/test/lineMenu';
 import { mountAt, prototypeOverview } from '@/test/mount';
+import { mountWithFailures } from '@/test/readOnly';
 import TransactionPanel from './TransactionPanel.vue';
 
 const Host = defineComponent({
@@ -197,5 +203,136 @@ describe('the other sections, untouched', () => {
       'IA classificou como Lazer · 03/11',
     ]);
     expect(steps.map((step) => step.find('.undo').exists())).toEqual([true, false]);
+  });
+});
+
+describe('the line menus ask for the month they are for', () => {
+  const NOV = '2026-11';
+  const OCT = '2026-10';
+  const PanelOnly = defineComponent({ components: { TransactionPanel }, template: '<TransactionPanel />' });
+
+  /** t60 is an October card purchase, split; t64 an October income marked as a refund; t2 a purchase of November. */
+  function octoberWithSplitAndRefund() {
+    const state = prototypeState();
+    state.transactions.find((transaction) => transaction.id === 't60')!.split = [
+      { line: 'Mercado', amount: 40 },
+      { line: null, amount: 24.2 },
+    ];
+    state.transactions.find((transaction) => transaction.id === 't64')!.refund = true;
+    return state;
+  }
+
+  /** `frame: false` mounts the panel before the shell has its overview, so the current month is not known yet. */
+  async function mountPanel(options: { named?: boolean; frame?: boolean } = { named: true }) {
+    const api = createFakeApi({ startLocked: false, state: octoberWithSplitAndRefund() });
+    const recorded = recordLineMenu(api, options);
+    const mounted = await mountWithFailures(PanelOnly, [{ path: '/', component: { template: '<div />' } }], '/', {
+      api,
+      frame: options.frame ?? true,
+      mounting: { attachTo: document.body },
+    });
+    const overlay = useOverlayStore(mounted.pinia);
+    const open = async (id: string) => {
+      usePanelStore(mounted.pinia).open(id);
+      await mounted.settle();
+    };
+    const menuOf = async (selector: string) => {
+      await mounted.wrapper.find(selector).trigger('click');
+      return overlay.menu!.items.map((item) => item.label);
+    };
+    const defaultLineMenu = () => menuOf('.panel .section:has(.nickname) .select');
+    return { ...mounted, ...recorded, open, menuOf, defaultLineMenu };
+  }
+
+  it('asks nothing while no transaction is open, not even after a write elsewhere', async () => {
+    const m = await mountPanel();
+    useRevisionStore(m.pinia).bump();
+    await m.settle();
+    expect(m.months).toEqual([]);
+  });
+
+  it('waits for the current month when the shell has no overview yet, then asks for both months and shows', async () => {
+    const m = await mountPanel({ named: true, frame: false });
+    await m.open('t60');
+    expect(m.months).toEqual([]);
+    expect(m.wrapper.find('.panel').exists()).toBe(false);
+
+    useShellStore(m.pinia).overview = prototypeOverview();
+    await m.settle();
+    expect([...m.months].sort()).toEqual([OCT, NOV]);
+    expect(m.wrapper.find('.panel .name').text()).toBe('Pão de Açúcar');
+    expect(await m.menuOf('.panel .line-button')).toEqual([lineNamed(OCT, 1)]);
+    expect(await m.defaultLineMenu()).toEqual([lineNamed(NOV, 1)]);
+  });
+
+  it('asks once for a transaction of the current month, whose answer serves every menu', async () => {
+    const m = await mountPanel();
+    await m.open('t2');
+    expect(m.months).toEqual([NOV]);
+    expect(await m.menuOf('.panel .line-button')).toEqual([lineNamed(NOV, 1)]);
+    expect(await m.defaultLineMenu()).toEqual([lineNamed(NOV, 1)]);
+  });
+
+  it('lists the lines of the transaction\'s month for its line, a split part\'s and the refund\'s', async () => {
+    const m = await mountPanel();
+    await m.open('t60');
+    expect(await m.menuOf('.panel .line-button')).toEqual([lineNamed(OCT, 1)]);
+    expect(await m.menuOf('.panel .part .pick')).toEqual([lineNamed(OCT, 1)]);
+    await m.open('t64');
+    expect(await m.menuOf('.panel .offsets .select')).toEqual([lineNamed(OCT, 2)]);
+    expect(new Set(m.months)).toEqual(new Set([OCT, NOV]));
+  });
+
+  it('lists the current month\'s lines for the establishment\'s default line of an earlier transaction', async () => {
+    const m = await mountPanel();
+    await m.open('t60');
+    expect(await m.defaultLineMenu()).toEqual([lineNamed(NOV, 1)]);
+    expect(await m.menuOf('.panel .line-button')).toEqual([lineNamed(OCT, 1)]);
+    expect([...m.months].sort()).toEqual([OCT, NOV]);
+  });
+
+  it('shows the month of the transaction opened last, also when the one before answers after it', async () => {
+    const m = await mountPanel();
+    const release = m.hold(OCT);
+    usePanelStore(m.pinia).open('t60');
+    await m.settle();
+    await m.open('t2');
+    release();
+    await m.settle();
+    expect(m.months).toContain(OCT);
+    expect(m.months.at(-1)).toBe(NOV);
+    expect(m.wrapper.find('.panel .name').text()).toBe('Posto Shell');
+    expect(await m.menuOf('.panel .line-button')).toEqual([lineNamed(NOV, 2)]);
+  });
+
+  it('shows nothing to pick from until the menus of the transaction\'s month arrived', async () => {
+    const m = await mountPanel();
+    const release = m.hold(OCT);
+    await m.open('t60');
+    expect(m.wrapper.find('.panel .line-button').exists()).toBe(false);
+    release();
+    await m.settle();
+    expect(await m.menuOf('.panel .line-button')).toEqual([lineNamed(OCT, 1)]);
+  });
+
+  it('opens its line menu on the month\'s lines right away, never empty, over the prototype\'s dataset', async () => {
+    const m = await mountPanel({ named: false });
+    await m.open('t2');
+    const labels = await m.menuOf('.panel .line-button');
+    expect(labels.length).toBeGreaterThan(0);
+    expect(labels).toEqual((await createFakeApi().transactions.filterOptions(NOV)).lines.map((line) => line.name));
+  });
+
+  it('asks again for the months it holds after a write, and its menus show the new answer without reopening', async () => {
+    const m = await mountPanel();
+    await m.open('t60');
+    expect(await m.menuOf('.panel .line-button')).toEqual([lineNamed(OCT, 1)]);
+    useRevisionStore(m.pinia).bump();
+    await m.settle();
+    expect([...m.months].sort()).toEqual([OCT, OCT, NOV, NOV]);
+    expect(await m.menuOf('.panel .line-button')).toEqual([lineNamed(OCT, 2)]);
+    expect(await m.menuOf('.panel .part .pick')).toEqual([lineNamed(OCT, 2)]);
+    expect(await m.defaultLineMenu()).toEqual([lineNamed(NOV, 2)]);
+    expect(await m.menuOf('.panel .section:has(.nickname) .add')).toEqual([tagNamed(OCT, 2)]);
   });
 });

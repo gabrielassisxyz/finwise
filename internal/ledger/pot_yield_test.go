@@ -68,7 +68,7 @@ func walkReachesBack(t *testing.T, f *ledgertest.Fixture) {
 
 func yieldOf(t *testing.T, f *ledgertest.Fixture, name string) ledger.PotYield {
 	t.Helper()
-	yields, err := ledger.New(f.Path).PotYields(t.Context(), "acc-1", yieldFrom, yieldTo)
+	yields, err := viewOf(t, f.Path).PotYields(t.Context(), "acc-1", yieldFrom, yieldTo)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func TestATransferNamingNoReserveIsAnUnknownRowOfItsOwn(t *testing.T) {
 	walkReachesBack(t, f)
 	addReserveTransfer(t, f, "tx-lost", "Dinheiro reservado Gone", -20)
 
-	yields, err := ledger.New(f.Path).PotYields(t.Context(), "acc-1", yieldFrom, yieldTo)
+	yields, err := viewOf(t, f.Path).PotYields(t.Context(), "acc-1", yieldFrom, yieldTo)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestNoRowWhenADayHasNoSighting(t *testing.T) {
 		[]ledgertest.Reserve{{ID: "pot-a", Name: "Trip", Amount: 101, CDIRatio: 1}})
 	walkReachesBack(t, f)
 
-	yields, err := ledger.New(f.Path).PotYields(t.Context(), "acc-1", "2026-03-01", "2026-03-05")
+	yields, err := viewOf(t, f.Path).PotYields(t.Context(), "acc-1", "2026-03-01", "2026-03-05")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,9 +199,9 @@ func TestNoRowWhenADayHasNoSighting(t *testing.T) {
 
 func TestAWindowThatDoesNotIncreaseIsRefused(t *testing.T) {
 	f := yieldLedger(t, []ledgertest.Reserve{}, []ledgertest.Reserve{})
-	reader := ledger.New(f.Path)
+	view := viewOf(t, f.Path)
 	for _, window := range [][2]brday.Day{{yieldTo, yieldFrom}, {yieldFrom, yieldFrom}, {"nonsense", yieldTo}} {
-		if _, err := reader.PotYields(t.Context(), "acc-1", window[0], window[1]); err == nil {
+		if _, err := view.PotYields(t.Context(), "acc-1", window[0], window[1]); err == nil {
 			t.Errorf("window %v was accepted", window)
 		}
 	}

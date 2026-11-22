@@ -7,6 +7,7 @@ import { prototypeOverview } from '@/test/mount';
 import { createMemoryHistory, createRouter } from 'vue-router';
 import { apiKey } from '@/api/context';
 import { createFakeApi } from '@/api/fake';
+import type { FinwiseApi } from '@/api/types';
 import BudgetScreen from './BudgetScreen.vue';
 import ScenariosScreen from './ScenariosScreen.vue';
 
@@ -22,10 +23,11 @@ export const plain = (text: string) => text.replace(/ /g, ' ').replace(/\s+/g, '
 
 /**
  * Mounts a budget screen with the month store set as the frame would set it,
- * before the screen exists. `earlier` starts on the month before the current one.
+ * before the screen exists. `earlier` starts on the month before the current one; `api` is a stand-in
+ * prepared beforehand.
  */
-export async function mountBudgetAt(path: string, component: Component, options: { earlier?: boolean } = {}) {
-  const api = createFakeApi();
+export async function mountBudgetAt(path: string, component: Component, options: { earlier?: boolean; api?: FinwiseApi } = {}) {
+  const api = options.api ?? createFakeApi();
   const pinia = createPinia();
   setActivePinia(pinia);
   const month = useMonthStore(pinia);

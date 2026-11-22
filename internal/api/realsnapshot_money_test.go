@@ -19,25 +19,25 @@ const recentDays = 60
 // opt-in. Only counts are logged, on the same terms as the test beside it.
 func TestTheCardPotsNetWorthAndHomeOverARealSnapshot(t *testing.T) {
 	path := realSnapshotPath(t)
-	reader, now := ledger.New(path), time.Now()
+	snapshot, now := viewOf(t, path), time.Now()
 	ctx := withNow(t.Context(), func() time.Time { return now })
 	env := newTestEnv(t, withLedger(path, now))
 	run := &realRun{t: t, env: &readEnv{testEnv: env, cookie: env.unlock()}}
 
-	cards, withBill, withPurchase, err := cardCounts(ctx, reader, brday.DayOf(now))
+	cards, withBill, withPurchase, err := cardCounts(ctx, snapshot, brday.DayOf(now))
 	withoutValues(t, "card counts", err)
 	run.answer("card.overview", `[]`)
 	run.answer("savingsPots.list", includeClosed)
 	run.answer("netWorth.overview", `[]`)
 	run.answer("home.summary", `["`+string(brday.MonthOf(now))+`"]`)
 
-	view, err := loadPots(ctx, reader, true)
+	view, err := loadPots(ctx, snapshot, true)
 	withoutValues(t, "pots", err)
 	for _, id := range someDetails(view) {
 		run.answer("savingsPots.detail", `["`+id+`"]`)
 	}
 
-	known, unknown := yieldMonthCounts(t, reader, view)
+	known, unknown := yieldMonthCounts(t, snapshot, view)
 	t.Logf("answers_validated=%d answers_not_conforming=%d", run.answers, run.nonConforming)
 	t.Logf("card_accounts=%d with_a_bill_due_in_the_last_%d_days=%d with_a_purchase_in_the_last_%d_days=%d",
 		cards, recentDays, withBill, recentDays, withPurchase)
@@ -76,16 +76,16 @@ func someDetails(view *potsView) []string {
 
 // cardCounts counts the card accounts, those with a bill due in the last
 // recentDays days or later, and those with a purchase in the last recentDays days.
-func cardCounts(ctx context.Context, reader *ledger.Reader, today brday.Day) (cards, withBill, withPurchase int, err error) {
-	around, err := loadContext(ctx, reader)
+func cardCounts(ctx context.Context, snapshot *ledger.View, today brday.Day) (cards, withBill, withPurchase int, err error) {
+	around, err := loadContext(ctx, snapshot)
 	if err != nil {
 		return 0, 0, 0, err
 	}
-	bills, err := reader.Bills(ctx)
+	bills, err := snapshot.Bills(ctx)
 	if err != nil {
 		return 0, 0, 0, err
 	}
-	lastPurchase, err := lastPurchaseDays(ctx, reader, around, today)
+	lastPurchase, err := lastPurchaseDays(ctx, snapshot, around, today)
 	if err != nil {
 		return 0, 0, 0, err
 	}
@@ -139,9 +139,9 @@ func movementCounts(view *potsView) (attributed, unattributed int) {
 
 // yieldMonthCounts counts, for each open pot with an identity and each month its
 // account was sighted in, whether that month's yield is known.
-func yieldMonthCounts(t *testing.T, reader *ledger.Reader, view *potsView) (known, unknown int) {
+func yieldMonthCounts(t *testing.T, snapshot *ledger.View, view *potsView) (known, unknown int) {
 	t.Helper()
-	history, err := reader.YieldHistory(t.Context())
+	history, err := snapshot.YieldHistory(t.Context())
 	withoutValues(t, "yield history", err)
 	var accounts []string
 	for accountID := range view.sightings {
@@ -195,7 +195,7 @@ func TestTheCardCountsSeparateABillFromAPurchase(t *testing.T) {
 	addPurchaseOn(f, "card-a", "tx-recent", utc(2026, time.March, 10, 15, 0), 10, "")
 	addPurchaseOn(f, "card-b", "tx-older", utc(2025, time.December, 1, 15, 0), 10, "")
 
-	cards, withBill, withPurchase, err := cardCounts(t.Context(), ledgerOf(f), "2026-03-20")
+	cards, withBill, withPurchase, err := cardCounts(t.Context(), ledgerOf(t, f), "2026-03-20")
 	if err != nil || cards != 2 || withBill != 2 || withPurchase != 1 {
 		t.Errorf("cards %d with a bill %d with a purchase %d (%v), want 2, 2 and 1", cards, withBill, withPurchase, err)
 	}

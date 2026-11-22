@@ -1,5 +1,7 @@
 import { flushPromises } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { createFakeApi } from '@/api/fake';
+import type { BudgetDoc, FinwiseApi } from '@/api/types';
 import { useRevisionStore } from '@/stores/revision';
 import BudgetScreen from './BudgetScreen.vue';
 import { mountBudgetAt, plain, typeInto } from './budgetTestSupport';
@@ -270,5 +272,89 @@ describe('Budget editing', () => {
     m.wrapper.unmount();
     const again = await mountBudget();
     expect(again.wrapper.find('.fig .positive').text()).toBe('32%');
+  });
+});
+
+describe('Budget editing keeps each line its id', () => {
+  const NOV = '2026-11';
+  const plainCopy = (doc: BudgetDoc): BudgetDoc => JSON.parse(JSON.stringify(doc)) as BudgetDoc;
+
+  /** A stand-in whose budget of the month answers an id on every line, and that records the drafts it is given. */
+  async function withIds() {
+    const api: FinwiseApi = createFakeApi();
+    const doc = await api.budget.document(NOV);
+    let next = 100;
+    for (const group of doc) for (const line of group.lines) line.id = String(next++);
+    await api.budget.save(NOV, doc);
+    const viewed: BudgetDoc[] = [];
+    const saved: BudgetDoc[] = [];
+    const { view, save } = api.budget;
+    api.budget.view = (month, draft) => (draft && viewed.push(plainCopy(draft)), view(month, draft));
+    api.budget.save = (month, draft) => (saved.push(plainCopy(draft)), save(month, draft));
+    return { api, doc, viewed, saved };
+  }
+
+  it('sends the view and the save each original line with its id and the added line with none', async () => {
+    const { api, doc, viewed, saved } = await withIds();
+    const m = await mountBudgetAt('/budget', BudgetScreen, { api });
+    await button(m, 'Editar budget').trigger('click');
+    await flushPromises();
+    const wishes = () => groupNamed(m, 'Reservas de desejo');
+    await typeInto(editRow(m, 'Reservas de desejo', 'Compras').findAll('input')[0]!, 'Compras online');
+    await wishes().findAll('button[aria-label="Subir"]')[1]!.trigger('click');
+    await typeInto(editRow(m, 'Reservas de desejo', 'Viagens').findAll('input')[1]!, '900');
+    await wishes().find('.add').trigger('click');
+    await flushPromises();
+
+    const original = doc.find((group) => group.key === 'res')!.lines;
+    const idOf = (name: string) => original.find((line) => line.name === name)!.id;
+    const expectEdited = (draft: BudgetDoc) => {
+      const lines = draft.find((group) => group.key === 'res')!.lines;
+      expect(lines.map((line) => [line.id, line.name, line.amount])).toEqual([
+        [idOf('Viagens'), 'Viagens', 900],
+        [idOf('Compras'), 'Compras online', original.find((line) => line.name === 'Compras')!.amount],
+        [undefined, 'Nova linha', 0],
+      ]);
+      expect('id' in lines[2]!).toBe(false);
+      const others = (budget: BudgetDoc) => budget.filter((group) => group.key !== 'res');
+      expect(others(draft)).toEqual(others(doc));
+    };
+    expectEdited(viewed.at(-1)!);
+
+    await button(m, 'Salvar').trigger('click');
+    m.overlay.confirmation!.onConfirm();
+    await flushPromises();
+    expect(saved).toHaveLength(1);
+    expectEdited(saved[0]!);
+  });
+});
+
+describe('Budget amounts in edit mode', () => {
+  async function viewCallsAfterTyping(value: string) {
+    const m = await mountBudget();
+    await button(m, 'Editar budget').trigger('click');
+    await flushPromises();
+    const view = vi.spyOn(m.api.budget, 'view');
+    await typeInto(editRow(m, 'Receita', 'Renda extra').findAll('input')[1]!, value);
+    const sent = view.mock.calls.map(([, draft]) => draft!.flatMap((group) => group.lines.map((line) => line.amount)));
+    return { m, sent };
+  }
+
+  it.each([
+    ['-50', 0],
+    ['0', 0],
+    ['150', 150],
+    ['12.5', 12.5],
+    ['', 0],
+  ])('puts %j in the draft as %d', async (typed, amount) => {
+    const { sent } = await viewCallsAfterTyping(typed);
+    expect(sent.length).toBeGreaterThan(0);
+    expect(sent.at(-1)).toContain(amount);
+    expect(sent.flat().every((value) => value >= 0)).toBe(true);
+  });
+
+  it('carries 0 for the line that was given a negative', async () => {
+    const { m } = await viewCallsAfterTyping('-50');
+    expect((editRow(m, 'Receita', 'Renda extra').findAll('input')[1]!.element as HTMLInputElement).value).toBe('0');
   });
 });

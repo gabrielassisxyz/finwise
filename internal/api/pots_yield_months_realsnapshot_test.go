@@ -17,12 +17,12 @@ const monthsPerAccount = 3
 // window. They agree unless a transfer reached the ledger after the window it
 // belongs to closed.
 func TestTheMonthsYieldFromItsDaysAgreesWithTheCollectorsOneWindowOverARealSnapshot(t *testing.T) {
-	reader := ledger.New(realSnapshotPath(t))
+	snapshot := viewOf(t, realSnapshotPath(t))
 	now := time.Now()
 	ctx := withNow(t.Context(), func() time.Time { return now })
-	view, err := loadPots(ctx, reader, true)
+	view, err := loadPots(ctx, snapshot, true)
 	withoutValues(t, "pots", err)
-	rules := rulesOfLedger(t, reader, view.sightings)
+	rules := rulesOfLedger(t, snapshot, view.sightings)
 
 	outcomes := map[string]int{}
 	for _, entry := range view.entries {
@@ -32,19 +32,19 @@ func TestTheMonthsYieldFromItsDaysAgreesWithTheCollectorsOneWindowOverARealSnaps
 		days := view.sightings[entry.accountID]
 		months := monthsOfDays(days)
 		for _, month := range months[max(0, len(months)-monthsPerAccount):] {
-			outcomes[compareMonth(t, reader, rules[entry.accountID], entry, days, month)]++
+			outcomes[compareMonth(t, snapshot, rules[entry.accountID], entry, days, month)]++
 		}
 	}
 	t.Logf("pot_months_by_outcome=%s", render(outcomes))
 }
 
-func compareMonth(t *testing.T, reader *ledger.Reader, rules potrules.AccountYield, entry potEntry, days []brday.Day, month brday.Month) string {
+func compareMonth(t *testing.T, snapshot *ledger.View, rules potrules.AccountYield, entry potEntry, days []brday.Day, month brday.Month) string {
 	t.Helper()
 	from, to, ok := yieldSpanOf(days, month, lastDayOf(month))
 	if !ok {
 		return "no_span"
 	}
-	reference, err := reader.PotYields(t.Context(), entry.accountID, from, to)
+	reference, err := snapshot.PotYields(t.Context(), entry.accountID, from, to)
 	withoutValues(t, "the collector's statement", err)
 	var oneWindow []potrules.DayYield
 	for _, row := range reference {

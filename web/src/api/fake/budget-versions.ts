@@ -21,6 +21,7 @@ export function cleanDraft(draft: BudgetDoc): FakeBudgetGroup[] {
     key: group.key,
     name: group.name,
     lines: group.lines.map((line) => ({
+      ...(line.id !== undefined ? { id: line.id } : {}),
       name: line.name,
       amount: Number.isFinite(line.amount) ? line.amount : 0,
       ...(line.flag ? { flag: line.flag } : {}),

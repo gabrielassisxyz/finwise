@@ -48,7 +48,7 @@ func TestCleanListKeepsOnlyWhatTheCollectorVouchesFor(t *testing.T) {
 		f.AddTransaction(row)
 	}
 
-	got, err := ledger.New(f.Path).CleanTransactions(t.Context(), february2026(t))
+	got, err := viewOf(t, f.Path).CleanTransactions(t.Context(), february2026(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestPendingRowWhosePostedTwinIsOnAnotherDayStaysListed(t *testing.T) {
 		f.AddTransaction(row)
 	}
 
-	got, err := ledger.New(f.Path).CleanTransactions(t.Context(), february2026(t))
+	got, err := viewOf(t, f.Path).CleanTransactions(t.Context(), february2026(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,17 +82,17 @@ func TestInstantAfterMidnightUTCBelongsToTheLastDayOfThePreviousMonth(t *testing
 	f.AddAccount(ledgertest.Account{ID: "acc-1", ItemID: "item-1", Type: "BANK", Name: "Checking", Currency: "BRL"})
 	f.AddTransaction(ledgertest.Transaction{ID: "edge", AccountID: "acc-1",
 		Date: instant(t, "2026-03-01T02:30:00Z"), Description: "Late on the 28th", Amount: -1, Currency: "BRL", Type: "DEBIT"})
-	reader := ledger.New(f.Path)
+	view := viewOf(t, f.Path)
 
 	march, err := brday.MonthPeriod("2026-03")
 	if err != nil {
 		t.Fatal(err)
 	}
-	inFebruary, err := reader.CleanTransactions(t.Context(), february2026(t))
+	inFebruary, err := view.CleanTransactions(t.Context(), february2026(t))
 	if err != nil || len(inFebruary) != 1 || inFebruary[0].Day != "2026-02-28" {
 		t.Fatalf("February: %v, %v", inFebruary, err)
 	}
-	inMarch, err := reader.CleanTransactions(t.Context(), march)
+	inMarch, err := view.CleanTransactions(t.Context(), march)
 	if err != nil || len(inMarch) != 0 {
 		t.Fatalf("March: %v, %v", inMarch, err)
 	}
@@ -109,7 +109,7 @@ func TestPeriodBoundsAreHalfOpenAtThreeOClockUTC(t *testing.T) {
 			Description: id, Amount: -1, Currency: "BRL", Type: "DEBIT"})
 	}
 
-	got, err := ledger.New(f.Path).CleanTransactions(t.Context(), february2026(t))
+	got, err := viewOf(t, f.Path).CleanTransactions(t.Context(), february2026(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func TestCleanListIsNewestFirst(t *testing.T) {
 			Description: row.id, Amount: -1, Currency: "BRL", Type: "DEBIT"})
 	}
 
-	got, err := ledger.New(f.Path).CleanTransactions(t.Context(), february2026(t))
+	got, err := viewOf(t, f.Path).CleanTransactions(t.Context(), february2026(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +159,7 @@ func TestTransactionCarriesEveryRawFieldParsed(t *testing.T) {
 		},
 	})
 
-	got, err := ledger.New(f.Path).CleanTransactions(t.Context(), february2026(t))
+	got, err := viewOf(t, f.Path).CleanTransactions(t.Context(), february2026(t))
 	if err != nil || len(got) != 1 {
 		t.Fatalf("%v, %v", got, err)
 	}
@@ -187,7 +187,7 @@ func TestTransactionWithoutOptionalFieldsHasNoneOfThem(t *testing.T) {
 	f.AddTransaction(ledgertest.Transaction{ID: "tx-1", AccountID: "acc-1", Date: instant(t, "2026-02-10T12:00:00Z"),
 		Description: "Bare", Amount: -1, Currency: "BRL", Type: "DEBIT"})
 
-	got, err := ledger.New(f.Path).CleanTransactions(t.Context(), february2026(t))
+	got, err := viewOf(t, f.Path).CleanTransactions(t.Context(), february2026(t))
 	if err != nil || len(got) != 1 {
 		t.Fatalf("%v, %v", got, err)
 	}
@@ -204,14 +204,14 @@ func TestRowWithAnUnreadableDateFailsTheCallInsteadOfVanishing(t *testing.T) {
 		Description: "Fine", Amount: -1, Currency: "BRL", Type: "DEBIT"})
 	f.CorruptTransactionDate("tx-1", "yesterday")
 
-	if _, err := ledger.New(f.Path).CleanTransactions(t.Context(), february2026(t)); err == nil {
+	if _, err := viewOf(t, f.Path).CleanTransactions(t.Context(), february2026(t)); err == nil {
 		t.Fatal("a row with an unreadable date was dropped without an error")
 	}
 }
 
 func TestPeriodThatEndsBeforeItStartsIsRefused(t *testing.T) {
 	f := populated(t)
-	_, err := ledger.New(f.Path).CleanTransactions(t.Context(), brday.Period{First: "2026-03-02", Last: "2026-03-01"})
+	_, err := viewOf(t, f.Path).CleanTransactions(t.Context(), brday.Period{First: "2026-03-02", Last: "2026-03-01"})
 	if err == nil {
 		t.Fatal("inverted period accepted")
 	}

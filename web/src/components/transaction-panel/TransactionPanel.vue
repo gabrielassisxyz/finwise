@@ -19,8 +19,8 @@ import { useTransactionDetail } from './useTransactionDetail';
 
 const panel = usePanelStore();
 const route = useRoute();
-providePanelActions();
 const { detail } = useTransactionDetail(computed(() => panel.openId));
+const actions = providePanelActions(computed(() => detail.value?.day.slice(0, 7) ?? null));
 
 // Leaving the screen, or the app being locked (which unmounts the shell), closes the panel.
 watch(() => route.fullPath, () => panel.close());
@@ -28,7 +28,7 @@ onUnmounted(() => panel.close());
 </script>
 
 <template>
-  <template v-if="detail">
+  <template v-if="detail && actions.menusReady.value">
     <div class="scrim" @click="panel.close()" />
     <aside class="panel" data-screen-label="Painel da transação">
       <PanelHeader :detail="detail" @close="panel.close()" />

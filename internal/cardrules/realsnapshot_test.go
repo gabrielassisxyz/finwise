@@ -18,8 +18,9 @@ func TestCardRulesOverARealSnapshot(t *testing.T) {
 	if path == "" {
 		t.Skip("FINWISE_LEDGER_SNAPSHOT is not set")
 	}
-	reader := ledger.New(path)
-	accounts, bills, transactions := readCardLedger(t, reader)
+	view := ledger.New(path).View()
+	defer view.Close()
+	accounts, bills, transactions := readCardLedger(t, view)
 
 	var counts snapshotCounts
 	for _, account := range accounts {
@@ -53,17 +54,17 @@ func tableForTest(account ledger.Account) cardrules.ClosingTable {
 	return nil
 }
 
-func readCardLedger(t *testing.T, reader *ledger.Reader) ([]ledger.Account, map[string][]ledger.Bill, map[string][]ledger.Transaction) {
+func readCardLedger(t *testing.T, view *ledger.View) ([]ledger.Account, map[string][]ledger.Bill, map[string][]ledger.Transaction) {
 	t.Helper()
-	accounts, err := reader.Accounts(t.Context())
+	accounts, err := view.Accounts(t.Context())
 	if err != nil {
 		t.Fatalf("accounts failed (%T); the message is withheld because it may name a real id", err)
 	}
-	allBills, err := reader.Bills(t.Context())
+	allBills, err := view.Bills(t.Context())
 	if err != nil {
 		t.Fatalf("bills failed (%T); the message is withheld because it may name a real id", err)
 	}
-	all, err := reader.CleanTransactions(t.Context(), brday.Period{First: "1970-01-01", Last: "2999-12-31"})
+	all, err := view.CleanTransactions(t.Context(), brday.Period{First: "1970-01-01", Last: "2999-12-31"})
 	if err != nil {
 		t.Fatalf("transactions failed (%T); the message is withheld because it may name a real id", err)
 	}
