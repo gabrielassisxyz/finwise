@@ -83,7 +83,11 @@ func stamp(ctx context.Context, path string) error {
 	query := url.Values{}
 	query.Add("_pragma", "busy_timeout(5000)")
 	query.Add("_pragma", "synchronous(FULL)")
-	database, err := sql.Open("sqlite", (&url.URL{Scheme: "file", Path: path, RawQuery: query.Encode()}).String())
+	address, err := fileAddress(path, query)
+	if err != nil {
+		return &OpenError{Path: path, Failure: FailureOpen, cause: err}
+	}
+	database, err := sql.Open("sqlite", address)
 	if err != nil {
 		return &OpenError{Path: path, Failure: FailureOpen, cause: err}
 	}
