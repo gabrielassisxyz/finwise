@@ -12,8 +12,8 @@
   "amount": -25.00,
   "effectiveAmount": -25.00,
   "countsInTotals": true,
-  "line": null,
-  "classifiedBy": null,
+  "line": "Tarifas e juros",
+  "classifiedBy": "Regra",
   "confidence": null,
   "belowThreshold": false,
   "pending": null,
@@ -48,7 +48,16 @@
     "fixedTags": []
   },
   "ownTags": [],
-  "suggestedTags": [],
+  "suggestedTags": [
+    "#água",
+    "#casa",
+    "#essencial",
+    "#lanche",
+    "#manhã",
+    "#mensal",
+    "#mercado",
+    "#Trabalho"
+  ],
   "note": "",
   "splitParts": null,
   "splitRemaining": 0.00,

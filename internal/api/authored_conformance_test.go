@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
+	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 )
 
 // authoredReadCase is a call of a read method over the third state: the full
@@ -42,15 +43,39 @@ var authoredReadCases = []authoredReadCase{
 	authoredRead("card.overview", `[]`),
 	authoredRead("home.summary", `["2026-03"]`),
 	authoredRead("review.closing", `["2026-03"]`),
+	authoredRead("transactions.list", `[{"month":"2026-03","period":"month"}]`),
+	authoredRead("transactions.list", `[{"month":"2026-03","period":"last-3-months"}]`),
+	authoredRead("transactions.list", `[{"month":"2026-02","period":"month"}]`),
+	authoredRead("transactions.detail", `["tx-month-end"]`),
+	authoredRead("transactions.detail", `["tx-pending"]`),
+	authoredRead("transactions.detail", `["tx-last-of-february"]`),
+	authoredRead("transactions.detail", `["tx-boleto"]`),
+	authoredRead("transactions.detail", `["tx-salary"]`),
+	authoredRead("transactions.detail", `["tx-instalment"]`),
+	authoredRead("transactions.detail", `["tx-pix-out"]`),
+	authoredRead("transactions.detail", `["tx-foreign"]`),
+	authoredRead("transactions.detail", `["tx-stale"]`),
+	authoredRead("transactions.detail", `["tx-first-of-march"]`),
 }
 
 // newAuthoredReadEnv is the third state: both stores, the database holding the
 // invented authored state.
 func newAuthoredReadEnv(t *testing.T) *readEnv {
 	t.Helper()
+	scratch, full := newAuthoredStores(t)
+	return newReadEnvOver(t, full, scratch.Database)
+}
+
+// newAuthoredStores are the two stores of the third state: the full ledger, and
+// a database holding the invented authored state with what the person said
+// about that ledger's transactions on top.
+func newAuthoredStores(t *testing.T) (*authoredtest.Scratch, *ledgertest.Fixture) {
+	t.Helper()
 	scratch := authoredtest.Open(t, fixtureClock)
 	inventedAuthoredState(t, scratch)
-	return newReadEnvOver(t, newFullLedger(t), scratch.Database)
+	full := newFullLedger(t)
+	inventedTransactionAuthorship(t, scratch, full)
+	return scratch, full
 }
 
 func TestTheInventedAuthoredStateHoldsSomething(t *testing.T) {

@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"slices"
 
+	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/brday"
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
 	"github.com/gabrielassisxyz/finwise/internal/txrules"
@@ -25,8 +27,8 @@ type counterpartyDetail struct {
 }
 
 // The shapes below are the contract's, for the parts of the panel a person
-// fills. They are always empty for now and exist so the types say what null and
-// [] stand for.
+// fills. A reimbursement's link and its candidates are not read yet, so they
+// are always null and empty.
 type splitPart struct {
 	Line   *string `json:"line"`
 	Amount Reais   `json:"amount"`
@@ -95,7 +97,15 @@ func readTransactionDetail(ctx context.Context, args []json.RawMessage, views Vi
 	if err != nil || !found {
 		return nil, err
 	}
-	return detailFrom(row.listed, row.source, row.around), nil
+	rows, err := readAuthoredRows(ctx, views.Authored, []txrules.Transaction{row.listed})
+	if err != nil {
+		return nil, err
+	}
+	extras, err := readPanelExtras(ctx, views.Authored, rows, row.listed)
+	if err != nil {
+		return nil, err
+	}
+	return detailFrom(row, rows, extras), nil
 }
 
 func rowWithID(rows []ledger.Transaction, id string) (ledger.Transaction, bool) {
@@ -119,18 +129,162 @@ func interpretMonthOf(all []ledger.Transaction, source ledger.Transaction, aroun
 	return interpretRows(rowsAround(all, wide), around, month)
 }
 
-func detailFrom(listed txrules.Transaction, source ledger.Transaction, around ledgerContext) transactionDetailWire {
+// panelExtras is what the panel reads beyond the list: the current month's
+// budget, which names an establishment's default line, the tags in use, and
+// the history with what of it can still be taken back.
+type panelExtras struct {
+	current monthLines
+	known   []string
+	history []historyEntry
+}
+
+func readPanelExtras(ctx context.Context, view *authored.View, rows authoredRows, listed txrules.Transaction) (panelExtras, error) {
+	current, err := view.BudgetOf(ctx, brday.MonthOf(nowOf(ctx)))
+	if err != nil {
+		return panelExtras{}, err
+	}
+	known, err := knownTags(ctx, view)
+	if err != nil {
+		return panelExtras{}, err
+	}
+	extras := panelExtras{current: monthLinesOf(current), known: known, history: []historyEntry{}}
+	if kept, key, indexed := rows.keptOf(listed); indexed {
+		if extras.history, err = historyOf(ctx, view, key, kept.History); err != nil {
+			return panelExtras{}, err
+		}
+	}
+	return extras, nil
+}
+
+// historyOf is a transaction's steps newest first. A step can be taken back
+// while nothing changed since in what its change did to this transaction; a
+// note only records that something happened, and never can.
+func historyOf(ctx context.Context, view *authored.View, key authored.TxKey, steps []authored.HistoryStep) ([]historyEntry, error) {
+	ids := make([]authored.StepID, 0, len(steps))
+	for _, step := range steps {
+		ids = append(ids, step.ID)
+	}
+	units := authored.TransactionUnits(key, ids)
+	history := make([]historyEntry, 0, len(steps))
+	for _, step := range slices.Backward(steps) {
+		undoable := false
+		if step.Kind == authored.StepEffect {
+			var err error
+			if undoable, err = view.CanRestorePart(ctx, step.Change, units); err != nil {
+				return nil, err
+			}
+		}
+		history = append(history, historyEntry{
+			ID: step.ID.String(), Text: step.Text, Day: string(step.Day), Reason: textOrNil(step.Reason), Undoable: undoable,
+		})
+	}
+	return history, nil
+}
+
+func detailFrom(row listedRow, rows authoredRows, extras panelExtras) transactionDetailWire {
+	listed := row.listed
+	kept, _, _ := rows.keptOf(listed)
+	state := kept.State
+	month := rows.months[monthOfDay(listed.Day)]
 	sections := sectionsOf(listed)
 	return transactionDetailWire{
-		transactionWire:         transactionFrom(listed, source, around),
-		AccountDescription:      describeAccount(listed.AccountID, source, around),
+		transactionWire:         rows.transactionOf(listed, row.source, row.around),
+		AccountDescription:      describeAccount(listed.AccountID, row.source, row.around),
+		Justification:           justificationOf(state),
+		AskReason:               state.AskReason,
+		Reason:                  latestReason(kept.History),
 		Sections:                sections,
-		Counterparty:            counterpartyOf(listed, sections),
-		OwnTags:                 []string{},
-		SuggestedTags:           []string{},
+		Counterparty:            counterpartyOf(listed, sections, rows.establishments[listed.EstablishmentKey], extras.current),
+		OwnTags:                 tagsOf(kept.Tags, nil),
+		SuggestedTags:           suggestedTags(extras.known, kept.Tags),
+		Note:                    state.Note,
+		SplitParts:              splitPartsOf(kept.Split, month),
+		SplitRemaining:          splitRemainingOf(listed, kept.Split),
+		Reimbursement:           reimbursementOf(state),
 		ReimbursementCandidates: []reimbursementCandidate{},
-		History:                 []historyEntry{},
+		Exclusion:               exclusionDetailOf(state.Exclusion),
+		RefundLine:              month.nameOf(state.RefundLine),
+		History:                 extras.history,
 	}
+}
+
+// justificationOf is the model's reason for a line, which the panel offers to
+// confirm while it is not null. There is no model yet, so a pending review or a
+// line of the model's has an empty one.
+func justificationOf(state authored.TransactionState) *string {
+	if state.PendingReason == "" && state.ClassifiedBy != authored.AuthorModel {
+		return nil
+	}
+	empty := ""
+	return &empty
+}
+
+// latestReason is the reason on the newest step that has one.
+func latestReason(steps []authored.HistoryStep) string {
+	for _, step := range slices.Backward(steps) {
+		if step.Reason != "" {
+			return step.Reason
+		}
+	}
+	return ""
+}
+
+func suggestedTags(known []string, own []authored.Tag) []string {
+	suggested := []string{}
+	for _, tag := range known {
+		if !slices.ContainsFunc(own, func(held authored.Tag) bool { return held.Name == tag }) {
+			suggested = append(suggested, tag)
+		}
+	}
+	return suggested
+}
+
+// splitPartsOf names each part's line in the transaction's own month. One part
+// is not a split, as Dispose counts it.
+func splitPartsOf(parts []authored.SplitPart, month monthLines) []splitPart {
+	if len(parts) < 2 {
+		return nil
+	}
+	wire := make([]splitPart, 0, len(parts))
+	for _, part := range parts {
+		wire = append(wire, splitPart{Line: month.nameOf(part.Line), Amount: Reais(part.Cents)})
+	}
+	return wire
+}
+
+// splitRemainingOf is what the parts still lack of what was paid, negative
+// when they exceed it.
+func splitRemainingOf(listed txrules.Transaction, parts []authored.SplitPart) Reais {
+	if len(parts) < 2 {
+		return 0
+	}
+	remaining := listed.Amount
+	if remaining < 0 {
+		remaining = -remaining
+	}
+	for _, part := range parts {
+		remaining -= part.Cents
+	}
+	return Reais(remaining)
+}
+
+func reimbursementOf(state authored.TransactionState) *reimbursementDetail {
+	if !state.Reimbursable {
+		return nil
+	}
+	detail := &reimbursementDetail{}
+	if state.ExpectedCents != nil {
+		expected := Reais(*state.ExpectedCents)
+		detail.Expected = &expected
+	}
+	return detail
+}
+
+func exclusionDetailOf(exclusion *string) *exclusionDetail {
+	if exclusion == nil {
+		return nil
+	}
+	return &exclusionDetail{Reason: *exclusion}
 }
 
 // sectionsOf says which parts of the panel apply to a kind of transaction.
@@ -146,11 +300,16 @@ func sectionsOf(listed txrules.Transaction) panelSections {
 	}
 }
 
-func counterpartyOf(listed txrules.Transaction, sections panelSections) *counterpartyDetail {
+// counterpartyOf names the default line as the current month's budget does: an
+// establishment's default has no month of its own, and is applied from now on.
+func counterpartyOf(listed txrules.Transaction, sections panelSections, kept authored.Establishment, current monthLines) *counterpartyDetail {
 	if !sections.Establishment && !sections.Person {
 		return nil
 	}
-	return &counterpartyDetail{Key: listed.EstablishmentKey, FixedTags: []string{}}
+	return &counterpartyDetail{
+		Key: listed.EstablishmentKey, Nickname: textOrNil(kept.Nickname),
+		DefaultLine: current.nameOf(kept.DefaultLine), FixedTags: tagsOf(kept.FixedTags, nil),
+	}
 }
 
 // describeAccount names the account in the panel's subtitle; a card carries the

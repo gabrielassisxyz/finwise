@@ -1,0 +1,75 @@
+{
+  "id": "tx-first-of-march",
+  "day": "2026-03-01",
+  "name": "Cafeteria Exemplo",
+  "originalName": "Cafeteria Exemplo",
+  "rawDescription": "PIX ENVIADO CAFETERIA EXEMPLO",
+  "establishmentKey": "doc:22233344000155",
+  "kind": "pix",
+  "subtype": null,
+  "account": "acc-itau",
+  "accountLabel": "Itaú",
+  "amount": -10.00,
+  "effectiveAmount": -10.00,
+  "countsInTotals": true,
+  "line": "Feira",
+  "classifiedBy": "Você",
+  "confidence": null,
+  "belowThreshold": false,
+  "pending": null,
+  "posted": true,
+  "tags": [
+    "#água"
+  ],
+  "movement": false,
+  "person": false,
+  "refund": false,
+  "reimbursementIncome": false,
+  "reimbursed": false,
+  "excluded": false,
+  "split": false,
+  "installment": null,
+  "bill": null,
+  "originalAmount": null,
+  "iof": null,
+  "accountDescription": "Itaú · Conta Corrente",
+  "justification": null,
+  "askReason": true,
+  "reason": "",
+  "sections": {
+    "establishment": true,
+    "person": false,
+    "split": true,
+    "reimbursement": true,
+    "refund": false
+  },
+  "counterparty": {
+    "key": "doc:22233344000155",
+    "nickname": null,
+    "defaultLine": null,
+    "fixedTags": []
+  },
+  "ownTags": [
+    "#água"
+  ],
+  "suggestedTags": [
+    "#casa",
+    "#essencial",
+    "#lanche",
+    "#manhã",
+    "#mensal",
+    "#mercado",
+    "#Trabalho"
+  ],
+  "note": "",
+  "splitParts": null,
+  "splitRemaining": 0.00,
+  "reimbursement": {
+    "expected": 5.00,
+    "link": null
+  },
+  "reimbursementCandidates": [],
+  "exclusion": null,
+  "refundLine": null,
+  "history": []
+}

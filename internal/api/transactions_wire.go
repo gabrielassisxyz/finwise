@@ -11,7 +11,8 @@ import (
 
 // transactionWire is the contract's Transaction. What only the person can author
 // (a budget line, who classified it, tags, a nickname, an exclusion, a split, a
-// reimbursement) is the contract's empty value, never a guess.
+// reimbursement) comes from the app's database, and is the contract's empty
+// value where nothing is kept, never a guess.
 type transactionWire struct {
 	ID                  string         `json:"id"`
 	Day                 string         `json:"day"`
@@ -47,7 +48,7 @@ type transactionWire struct {
 }
 
 // pendingReview is the contract's shape for a classification waiting for a
-// decision. Nothing classifies yet, so it is always null.
+// decision.
 type pendingReview struct {
 	Reason        string `json:"reason"`
 	Suggestion    string `json:"suggestion"`
@@ -55,8 +56,9 @@ type pendingReview struct {
 	Justification string `json:"justification"`
 }
 
-// transactionFrom carries one interpreted row to the wire. source is the
-// ledger row it came from, which holds what the rules do not keep: the
+// transactionFrom carries one interpreted row to the wire as the ledger alone
+// has it; authoredRows.transactionOf merges in what was authored. source is
+// the ledger row it came from, which holds what the rules do not keep: the
 // instalment and the bill.
 func transactionFrom(listed txrules.Transaction, source ledger.Transaction, around ledgerContext) transactionWire {
 	return transactionWire{

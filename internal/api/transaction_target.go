@@ -96,3 +96,26 @@ func indexListed(ctx context.Context, recorder *authored.Recorder, listed txrule
 		EstablishmentKey: listed.EstablishmentKey, BankPending: !listed.Posted,
 	})
 }
+
+// shownName is the name to show for a row of an establishment or a person: the
+// nickname kept for its key when there is one, otherwise the ledger's name.
+func shownName(establishments map[string]authored.Establishment, key, ledgerName string) string {
+	if nickname := establishments[key].Nickname; nickname != "" {
+		return nickname
+	}
+	return ledgerName
+}
+
+// establishmentsOf is what is kept about the establishments and people of
+// listed, read once for all of them.
+func establishmentsOf(ctx context.Context, view *authored.View, listed []txrules.Transaction) (map[string]authored.Establishment, error) {
+	seen := map[string]bool{}
+	keys := make([]string, 0, len(listed))
+	for _, transaction := range listed {
+		if !seen[transaction.EstablishmentKey] {
+			seen[transaction.EstablishmentKey] = true
+			keys = append(keys, transaction.EstablishmentKey)
+		}
+	}
+	return view.Establishments(ctx, keys)
+}
