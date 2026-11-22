@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import type { TransactionDetail } from '@/api/types';
 import { brl } from '@/lib/format';
+import { saveStored, vStored } from '@/lib/storedField';
 import { usePanelActions } from './panelActions';
 import PanelSection from './PanelSection.vue';
 
@@ -10,7 +11,7 @@ const props = defineProps<{ detail: TransactionDetail }>();
 const actions = usePanelActions();
 
 const anchorOf = (event: Event): HTMLElement => event.currentTarget as HTMLElement;
-const numberOf = (event: Event): number => Number((event.target as HTMLInputElement).value) || 0;
+const numberOf = (typed: string): number => Number(typed) || 0;
 
 const closed = computed(() => props.detail.splitRemaining === 0);
 const remainingText = computed(() => {
@@ -29,8 +30,8 @@ const remainingText = computed(() => {
     <template v-if="detail.splitParts">
       <div v-for="(part, index) in detail.splitParts" :key="index" class="part">
         <button class="pick" @click="actions.pickSplitLine(anchorOf($event), detail, index)">{{ part.line ?? 'Escolher linha' }} ▾</button>
-        <input class="value" type="number" aria-label="Valor" :value="part.amount"
-          @change="actions.setSplitAmount(detail, index, numberOf($event))"
+        <input class="value" type="number" aria-label="Valor" v-stored="part.amount"
+          @change="saveStored($event, (typed) => actions.setSplitAmount(detail, index, numberOf(typed)))"
         />
         <button class="remove" aria-label="Remover linha" @click="actions.removeSplitPart(detail, index)">×</button>
       </div>

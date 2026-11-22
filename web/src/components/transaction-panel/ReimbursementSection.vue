@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import type { TransactionDetail } from '@/api/types';
 import SwitchToggle from '@/components/ui/SwitchToggle.vue';
 import { brl, shortDay } from '@/lib/format';
+import { saveStored, vStored } from '@/lib/storedField';
 import { usePanelActions } from './panelActions';
 import PanelSection from './PanelSection.vue';
 
@@ -16,8 +17,7 @@ async function link(creditId: string): Promise<void> {
   linking.value = false;
 }
 
-function expectedFrom(event: Event): number | null {
-  const typed = (event.target as HTMLInputElement).value;
+function expectedFrom(typed: string): number | null {
   return typed === '' ? null : Number(typed);
 }
 
@@ -35,8 +35,8 @@ const linked = computed(() => props.detail.reimbursement?.link ?? null);
         Espero receber R$
         <input
           type="number"
-          :value="detail.reimbursement.expected ?? ''"
-          @change="actions.setExpected(expectedFrom($event))"
+          v-stored="detail.reimbursement.expected"
+          @change="saveStored($event, (typed) => actions.setExpected(expectedFrom(typed)))"
         />
       </label>
       <button class="link-button" @click="linking = !linking">Ligar a um PIX recebido</button>

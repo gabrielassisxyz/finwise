@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TransactionDetail } from '@/api/types';
+import { saveStored, vStored } from '@/lib/storedField';
 import { usePanelActions } from './panelActions';
 import PanelSection from './PanelSection.vue';
 
@@ -10,8 +11,8 @@ const actions = usePanelActions();
 
 <template>
   <PanelSection title="Nota" tight>
-    <textarea class="note" rows="2" placeholder="Escreva algo para lembrar depois" :value="detail.note"
-      @change="actions.setNote(($event.target as HTMLTextAreaElement).value)"
+    <textarea class="note" rows="2" placeholder="Escreva algo para lembrar depois" v-stored="detail.note"
+      @change="saveStored($event, actions.setNote)"
     />
   </PanelSection>
 </template>
