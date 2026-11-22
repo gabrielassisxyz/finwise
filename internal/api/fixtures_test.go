@@ -224,7 +224,10 @@ func inventedAuthoredState(t testing.TB, scratch *authoredtest.Scratch) {
 		if err := recorder.SetMinExamples(ctx, 3); err != nil {
 			return err
 		}
-		return authoredtest.SeedBudget(recorder)
+		if err := authoredtest.SeedBudget(recorder); err != nil {
+			return err
+		}
+		return authoredtest.SeedTransactions(recorder)
 	})
 	if err != nil {
 		t.Fatalf("the invented authored state: %v", err)

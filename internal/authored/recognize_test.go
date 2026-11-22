@@ -221,11 +221,11 @@ func requireFreshSchema(t *testing.T, path string) {
 	if err := database.QueryRow("PRAGMA journal_mode").Scan(&mode); err != nil || mode != "wal" {
 		t.Errorf("PRAGMA journal_mode = %q (%v)", mode, err)
 	}
-	want := []string{"budget_version_lines", "budget_versions", "change_effects", "changes", "closed_months", "lines", "meta", "pin", "scenarios", "schema_migrations", "settings", "sqlite_sequence"}
+	want := []string{"budget_version_lines", "budget_versions", "change_effects", "changes", "closed_months", "establishment_tags", "establishments", "history_step_reasons", "history_steps", "lines", "meta", "pin", "scenarios", "schema_migrations", "settings", "sqlite_sequence", "tx_ids", "tx_index", "tx_split_parts", "tx_state", "tx_tags"}
 	if got := tableNames(t, database); !equalStrings(got, want) {
 		t.Errorf("tables = %v, want %v", got, want)
 	}
-	if got, want := recordedMigrations(t, database), []string{"0001_journal=" + embeddedSum(t, "0001_journal"), "0002_budget=" + embeddedSum(t, "0002_budget"), "0004_settings=" + embeddedSum(t, "0004_settings"), "0008_session=" + embeddedSum(t, "0008_session")}; !equalStrings(got, want) {
+	if got, want := recordedMigrations(t, database), []string{"0001_journal=" + embeddedSum(t, "0001_journal"), "0002_budget=" + embeddedSum(t, "0002_budget"), "0003_transactions=" + embeddedSum(t, "0003_transactions"), "0004_settings=" + embeddedSum(t, "0004_settings"), "0008_session=" + embeddedSum(t, "0008_session")}; !equalStrings(got, want) {
 		t.Errorf("schema_migrations = %v, want %v", got, want)
 	}
 }
