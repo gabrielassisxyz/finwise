@@ -27,6 +27,9 @@ var ErrViewClosed = errors.New("authored: view is closed")
 // every read with nothing authored, so the code that reads has one path.
 type View struct {
 	database *Database
+	// recorder is set for the view of a change: it reads on the change's
+	// transaction, which the view neither begins nor ends.
+	recorder *Recorder
 
 	mu       sync.Mutex
 	tx       *sql.Tx
@@ -86,6 +89,9 @@ func (view *View) transaction(ctx context.Context) (*sql.Tx, error) {
 	if view.closed {
 		return nil, ErrViewClosed
 	}
+	if view.recorder != nil {
+		return view.recorder.viewTransaction()
+	}
 	if view.database == nil {
 		return nil, nil
 	}
@@ -115,4 +121,28 @@ func (view *View) TrackingStartMonth(ctx context.Context) (month brday.Month, fo
 		return "", false, &TransactionError{cause: err}
 	}
 	return month, true, nil
+}
+
+// JournaledRow is the row of a journaled table at key, as the view sees it.
+// found is false when the row is missing and on the empty view.
+func (view *View) JournaledRow(ctx context.Context, tableName string, key []Value) (row Row, found bool, err error) {
+	read, err := view.read(ctx, func(tx *sql.Tx) error {
+		table, err := view.registry().table(tableName)
+		if err != nil {
+			return err
+		}
+		row, found, err = readRow(ctx, tx, table, key)
+		return err
+	})
+	if err != nil || !read {
+		return nil, false, err
+	}
+	return row, found, nil
+}
+
+func (view *View) registry() *Registry {
+	if view.recorder != nil {
+		return view.recorder.registry
+	}
+	return view.database.journal
 }

@@ -244,7 +244,9 @@ func buildWith(register func(*Registry)) error {
 
 func noopWrite(context.Context, []json.RawMessage, Writes) (any, error) { return nil, nil }
 
-func noopJournal(context.Context, []json.RawMessage, Journal) (any, error) { return nil, nil }
+func noopJournal(context.Context, []json.RawMessage, Journal, *ledger.View) (any, error) {
+	return nil, nil
+}
 
 func TestAHandlerIsRefusedForAMethodTheManifestDoesNotHaveOrTheSessionServiceAnswers(t *testing.T) {
 	for _, name := range []string{"no.such", "session.status", "session.unlock", "session.lock"} {

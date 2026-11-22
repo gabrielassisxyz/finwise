@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TransactionDetail } from '@/api/types';
+import { saveStored, vStored } from '@/lib/storedField';
 import { usePanelActions } from './panelActions';
 import PanelSection from './PanelSection.vue';
 
@@ -10,8 +11,8 @@ const actions = usePanelActions();
 
 <template>
   <PanelSection v-if="detail.counterparty" title="Apelido da pessoa" tight>
-    <input class="field" :value="detail.counterparty.nickname ?? ''" placeholder="Aluguel"
-      @change="actions.saveNickname(($event.target as HTMLInputElement).value)"
+    <input class="field" v-stored="detail.counterparty.nickname" placeholder="Aluguel"
+      @change="saveStored($event, actions.saveNickname)"
     />
     <span class="hint">Vale para todo PIX com {{ detail.originalName }}.</span>
   </PanelSection>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TransactionDetail } from '@/api/types';
+import { saveStored, vStored } from '@/lib/storedField';
 import { usePanelActions } from './panelActions';
 import PanelSection from './PanelSection.vue';
 import { lineLabel, originSentence } from './panelText';
@@ -28,9 +29,9 @@ const anchorOf = (event: Event): HTMLElement => event.currentTarget as HTMLEleme
     <input
       v-if="detail.askReason"
       class="reason"
-      :value="detail.reason"
+      v-stored="detail.reason"
       placeholder="Por quê? (opcional)"
-      @change="actions.setReason(($event.target as HTMLInputElement).value)"
+      @change="saveStored($event, actions.setReason)"
     />
   </PanelSection>
 </template>
