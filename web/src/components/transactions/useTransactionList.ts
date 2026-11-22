@@ -1,7 +1,14 @@
 import { computed, reactive, ref, watch, type Ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useApi } from '@/api/context';
-import type { Transaction, TransactionFilterOptions, TransactionKind, TransactionPeriod, YearMonth } from '@/api/types';
+import type {
+  BudgetLineOption,
+  Transaction,
+  TransactionFilterOptions,
+  TransactionKind,
+  TransactionPeriod,
+  YearMonth,
+} from '@/api/types';
 import { brl } from '@/lib/format';
 import { normalize, plural } from '@/lib/text';
 import { useRevisionStore } from '@/stores/revision';
@@ -124,6 +131,17 @@ export function useTransactionList(month: Ref<YearMonth>, onlyAccount?: Ref<stri
     () => void load({ quiet: true }),
   );
 
+  // A period of several months can list rows on a line the month's budget renamed or dropped, and each row shows
+  // its own month's name. Those names come after the menu's, from every fetched row, so a filter on one keeps the
+  // others offered.
+  const lineFilter = computed<BudgetLineOption[]>(() => {
+    const offered = new Set(options.value.lines.map((line) => line.name));
+    const extra = [...new Set(transactions.value.map((transaction) => transaction.line))]
+      .filter((line): line is string => !!line && !offered.has(line))
+      .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    return [...options.value.lines, ...extra.map((name) => ({ name, group: '' }))];
+  });
+
   const filtered = computed(() => transactions.value.filter(matcher(filters, onlyAccount?.value)));
   const rows = computed(() =>
     tab.value === 'todas' ? filtered.value : filtered.value.filter((transaction) => transaction.kind === tab.value),
@@ -157,7 +175,21 @@ export function useTransactionList(month: Ref<YearMonth>, onlyAccount?: Ref<stri
   const total = computed(() => totalLine(rows.value));
   const countLabel = computed(() => plural(rows.value.length, 'transação', 'transações'));
 
-  return { transactions, options, loading, tab, filters, rows, tabs, chips, hasFilter, total, countLabel, reload: load };
+  return {
+    transactions,
+    options,
+    lineFilter,
+    loading,
+    tab,
+    filters,
+    rows,
+    tabs,
+    chips,
+    hasFilter,
+    total,
+    countLabel,
+    reload: load,
+  };
 }
 
 export type TransactionListState = ReturnType<typeof useTransactionList>;

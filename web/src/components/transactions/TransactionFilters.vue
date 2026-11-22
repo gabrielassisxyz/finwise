@@ -40,13 +40,13 @@ function openAccount(event: MouseEvent): void {
 }
 
 function openLine(event: MouseEvent): void {
-  const { filters, options } = props.list;
+  const { filters, lineFilter } = props.list;
   overlay.openMenu(event.currentTarget as HTMLElement, {
     search: true,
     placeholder: 'Buscar linha',
-    items: options.value.lines.map(({ name, group }) => ({
+    items: lineFilter.value.map(({ name, group }) => ({
       label: name,
-      hint: group,
+      ...(group ? { hint: group } : {}),
       current: filters.line === name,
       onPick: () => (filters.line = name),
     })),
