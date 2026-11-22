@@ -1,0 +1,34 @@
+{
+  "answer": {
+    "changeId": "5"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_state",
+      "key": [
+        18
+      ],
+      "column": "exclusion",
+      "before": "",
+      "after": null
+    },
+    {
+      "seq": 2,
+      "table": "history_steps",
+      "key": [
+        8
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "id": 8,
+        "tx_key": 18,
+        "change_id": 5,
+        "kind": "step",
+        "text": "Você voltou a contar esta transação",
+        "day": "2026-03-20"
+      }
+    }
+  ]
+}

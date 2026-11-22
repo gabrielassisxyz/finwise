@@ -30,7 +30,7 @@
   "reimbursementIncome": false,
   "reimbursed": false,
   "excluded": false,
-  "split": false,
+  "split": true,
   "installment": null,
   "bill": null,
   "originalAmount": null,
@@ -64,8 +64,17 @@
     "#Trabalho"
   ],
   "note": "",
-  "splitParts": null,
-  "splitRemaining": 0.00,
+  "splitParts": [
+    {
+      "line": "Contas da casa",
+      "amount": 100.00
+    },
+    {
+      "line": null,
+      "amount": 20.00
+    }
+  ],
+  "splitRemaining": -10.10,
   "reimbursement": null,
   "reimbursementCandidates": [],
   "exclusion": null,

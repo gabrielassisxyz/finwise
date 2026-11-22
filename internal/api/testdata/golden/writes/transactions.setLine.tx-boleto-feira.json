@@ -1,0 +1,88 @@
+{
+  "answer": {
+    "changeId": "5",
+    "establishment": {
+      "key": "doc:55566677000188",
+      "name": "Alvorada Telecom S.A."
+    }
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "ask_reason",
+      "before": 0,
+      "after": 1
+    },
+    {
+      "seq": 2,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "line_id",
+      "before": null,
+      "after": 9
+    },
+    {
+      "seq": 3,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "classified_by",
+      "before": null,
+      "after": "person"
+    },
+    {
+      "seq": 4,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "pending_reason",
+      "before": "Confiança abaixo do limite",
+      "after": null
+    },
+    {
+      "seq": 5,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "pending_line_id",
+      "before": 9,
+      "after": null
+    },
+    {
+      "seq": 6,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "pending_confidence",
+      "before": 64,
+      "after": null
+    },
+    {
+      "seq": 7,
+      "table": "history_steps",
+      "key": [
+        1
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "id": 1,
+        "tx_key": 1,
+        "change_id": 5,
+        "kind": "step",
+        "text": "Você alterou para Feira",
+        "day": "2026-03-20"
+      }
+    }
+  ]
+}

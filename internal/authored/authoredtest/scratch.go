@@ -67,7 +67,8 @@ type Scratch struct {
 // Open creates a database in the test's temporary directory and closes it when
 // the test ends. The file is made by the app's own open first, so it carries
 // the journal tables exactly as a real one does, and then opened again with a
-// registry that names the scratch tables.
+// registry that names the scratch tables beside the app's, and runs the app's
+// checks on every undo.
 func Open(t testing.TB, now func() time.Time) *Scratch {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "finwise.db")
@@ -79,7 +80,7 @@ func Open(t testing.TB, now func() time.Time) *Scratch {
 		t.Fatalf("authoredtest: close %s: %v", path, err)
 	}
 	around(t, path, schema)
-	registry, err := authored.NewRegistry(append(tables(), authored.AppTables()...))
+	registry, err := authored.NewRegistry(append(tables(), authored.AppTables()...), authored.AppChecks()...)
 	if err != nil {
 		t.Fatalf("authoredtest: registry: %v", err)
 	}
