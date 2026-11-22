@@ -9,6 +9,7 @@ import (
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
+	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
 // No table of the app is journaled yet, so the harness is proved over handlers
@@ -75,7 +76,7 @@ func compoundWrite(ctx context.Context, args []json.RawMessage, writes Writes) (
 
 // extendTheOrigin is the handler of an extension: it appends a fact to the
 // change whose id it is given, and answers that change's id.
-func extendTheOrigin(ctx context.Context, args []json.RawMessage, journal Journal) (any, error) {
+func extendTheOrigin(ctx context.Context, args []json.RawMessage, journal Journal, _ *ledger.View) (any, error) {
 	given, err := stringArgument(args)
 	if err != nil {
 		return nil, err
@@ -85,7 +86,7 @@ func extendTheOrigin(ctx context.Context, args []json.RawMessage, journal Journa
 		return nil, refuse(reasonStaleChange)
 	}
 	var handed authored.ChangeID
-	err = journal.(*authored.Database).Extend(ctx, origin, setFactMethod, func(recorder *authored.Recorder) error {
+	err = journal.Extend(ctx, origin, setFactMethod, func(recorder *authored.Recorder) error {
 		if err := recorder.Set(ctx, authoredtest.Facts, key(text("fact-b")), authored.Row{"amount": integer(41)}); err != nil {
 			return err
 		}
@@ -389,7 +390,7 @@ func TestTheRefusalCheckRefusesARefusalThatLeftARowBehind(t *testing.T) {
 	}
 	leaving := refusalCase
 	leaving.handlers = withProofHandlers(func(registry *Registry, _ *authoredtest.Scratch) {
-		registry.RegisterJournal(refusingMethod, func(ctx context.Context, _ []json.RawMessage, journal Journal) (any, error) {
+		registry.RegisterJournal(refusingMethod, func(ctx context.Context, _ []json.RawMessage, journal Journal, _ *ledger.View) (any, error) {
 			facts := authored.ChangeFacts{Author: authored.AuthorPerson, Method: refusingMethod, At: fixtureNow}
 			err := journal.(*authored.Database).Change(ctx, facts, func(recorder *authored.Recorder) error {
 				return recorder.Put(ctx, authoredtest.Tags, authored.Row{"tx": text("tx-left"), "tag": text("tag-left")})
