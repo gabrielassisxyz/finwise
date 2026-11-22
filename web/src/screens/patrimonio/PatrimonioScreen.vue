@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useApi } from '@/api/context';
 import type { Bucket, NetWorthOverview } from '@/api/types';
+import { useRevisionStore } from '@/stores/revision';
 import { useSavingsViewStore } from '@/stores/savings-view';
 import BucketCards from './BucketCards.vue';
 import BucketContents from './BucketContents.vue';
@@ -11,9 +12,20 @@ import YieldCard from './YieldCard.vue';
 
 const api = useApi();
 const view = useSavingsViewStore();
+const revision = useRevisionStore();
 
 const overview = ref<NetWorthOverview | null>(null);
-api.netWorth.overview().then((loaded) => (overview.value = loaded));
+let latestRequest = 0;
+
+watch(
+  () => revision.current,
+  async () => {
+    const request = ++latestRequest;
+    const loaded = await api.netWorth.overview();
+    if (request === latestRequest) overview.value = loaded;
+  },
+  { immediate: true },
+);
 
 const openContents = computed(() => overview.value?.buckets.find(({ bucket }) => bucket === view.openBucket) ?? null);
 
