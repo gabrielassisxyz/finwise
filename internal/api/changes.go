@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
+	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
 func registerChanges(registry *Registry) {
@@ -16,7 +17,7 @@ func registerChanges(registry *Registry) {
 // refuses a change that is unknown, already undone or overwritten since, and
 // every one of those is answered as the refusal `stale_change`. The method
 // answers null, and records no change of its own, so it cannot itself be undone.
-func undoChange(ctx context.Context, args []json.RawMessage, journal Journal) (any, error) {
+func undoChange(ctx context.Context, args []json.RawMessage, journal Journal, _ *ledger.View) (any, error) {
 	text, err := stringArgument(args)
 	if err != nil {
 		return nil, err

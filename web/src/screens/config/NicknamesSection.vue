@@ -28,7 +28,7 @@ function pickLine(anchor: HTMLElement, establishment: SettingsEstablishment): vo
         <NicknameInput
           :value="row.nickname ?? ''"
           label="Apelido"
-          @commit="(text) => write(() => api.settings.setNickname(row.key, text))"
+          :save="(text) => write(() => api.settings.setNickname(row.key, text))"
         />
       </span>
       <span data-label="Linha padrão">
@@ -52,7 +52,7 @@ function pickLine(anchor: HTMLElement, establishment: SettingsEstablishment): vo
         :value="person.nickname ?? ''"
         label="Apelido da pessoa"
         placeholder="Sem apelido"
-        @commit="(text) => write(() => api.settings.setNickname(person.key, text))"
+        :save="(text) => write(() => api.settings.setNickname(person.key, text))"
       />
     </div>
 
@@ -69,7 +69,7 @@ function pickLine(anchor: HTMLElement, establishment: SettingsEstablishment): vo
         :value="settings.cardLabel"
         label="Rótulo do cartão"
         placeholder="Físico ou Virtual"
-        @commit="(text) => write(() => api.settings.setCardLabel(text))"
+        :save="(text) => write(() => api.settings.setCardLabel(text))"
       />
     </div>
   </TitledCard>
