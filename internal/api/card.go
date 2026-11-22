@@ -266,13 +266,16 @@ func (card *cardView) openBillOf() openBill {
 	return openBill{known: true, billID: placement.BillID, closing: closing, due: placement.Due}
 }
 
+// closingOf is the closing of the bill a placement names by the rule that
+// placed it: the ledger's date when the bill carries one, the card's rule
+// otherwise.
 func (card *cardView) closingOf(placement cardrules.Placement) (brday.Day, bool) {
 	for _, bill := range card.bills {
 		if bill.ID == placement.BillID && placement.BillID != "" && bill.ClosingDate != nil {
 			return *bill.ClosingDate, true
 		}
 	}
-	return card.rules.Table.ClosingDate(placement.Due)
+	return card.rules.PredictedClosing(placement.Due)
 }
 
 func (card *cardView) title() string {

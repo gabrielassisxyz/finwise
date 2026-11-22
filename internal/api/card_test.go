@@ -2,7 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -300,6 +304,50 @@ func TestTheTieRulesOfTheCardInUse(t *testing.T) {
 	if title := titleOfTheCard(t, f); title != "Cartão card-a" {
 		t.Errorf("a purchase and a bill on the same days: described %v, want the lower id", title)
 	}
+}
+
+// A closing asked of the bank's table directly would ignore the person's
+// closing day while the bill it belongs to was placed by it, so every closing
+// the card shows comes from the card's rule.
+func TestNoFileOfThePackageAsksTheBanksTableForAClosing(t *testing.T) {
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := 0
+	for _, file := range files {
+		if strings.HasSuffix(file, "_test.go") {
+			continue
+		}
+		parsed, err := parser.ParseFile(token.NewFileSet(), file, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		read++
+		ast.Inspect(parsed, func(node ast.Node) bool {
+			call, ok := node.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			if selector, ok := call.Fun.(*ast.SelectorExpr); ok && selector.Sel.Name == "ClosingDate" {
+				t.Errorf("%s calls %s.ClosingDate", file, expressionText(selector.X))
+			}
+			return true
+		})
+	}
+	if read < 10 {
+		t.Fatalf("only %d source files were read", read)
+	}
+}
+
+func expressionText(expression ast.Expr) string {
+	if selector, ok := expression.(*ast.SelectorExpr); ok {
+		return expressionText(selector.X) + "." + selector.Sel.Name
+	}
+	if identifier, ok := expression.(*ast.Ident); ok {
+		return identifier.Name
+	}
+	return "an expression"
 }
 
 func TestOnlyMoneyOutOfTheCardCountsAsAPurchaseForTheChoice(t *testing.T) {
