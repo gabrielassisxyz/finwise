@@ -12,7 +12,7 @@ import type { FakeState } from '../fake/model';
 import { emptyLedgerState, freshInstallState } from '../fake/first-run-data';
 import { prototypeState } from '../fake/prototype-data';
 import type { FinwiseApi } from '../types';
-import { API_ERROR_KINDS } from './errors';
+import { API_ERROR_KINDS, REFUSAL_REASONS } from './errors';
 import { METHOD_CLASSES } from './classification';
 import type { MethodClass } from './classification';
 
@@ -98,16 +98,45 @@ describe('no schema accepts anything', () => {
 });
 
 describe('the error envelope', () => {
-  it('is in the manifest and lists the kinds a server answers with, not the client-only one', () => {
-    const ajv = new Ajv({ strict: true, strictTuples: false });
-    ajv.addSchema({ definitions: manifest.definitions }, 'contract');
-    const valid = ajv.compile(withContractRefs(manifest.error));
-    for (const kind of API_ERROR_KINDS.filter((candidate) => candidate !== 'network')) {
+  const errorAjv = new Ajv({ strict: true, strictTuples: false });
+  errorAjv.addSchema({ definitions: manifest.definitions }, 'contract');
+  const valid = errorAjv.compile(withContractRefs(manifest.error));
+  const plainKinds = API_ERROR_KINDS.filter((kind) => kind !== 'network' && kind !== 'refused');
+
+  it('lists the kinds a server answers with, not the client-only one', () => {
+    expect(API_ERROR_KINDS).toEqual([...plainKinds, 'refused', 'network']);
+    expect(plainKinds).toEqual(['locked', 'read_only', 'ledger_unavailable', 'bad_request', 'unknown_method', 'internal']);
+    for (const kind of plainKinds) {
       expect(valid({ error: { kind } }), kind).toBe(true);
     }
     expect(valid({ error: { kind: 'network' } })).toBe(false);
     expect(valid({ error: { kind: 'read_only', detail: 'x' } })).toBe(false);
     expect(valid({ kind: 'read_only' })).toBe(false);
+  });
+
+  it('carries exactly one reason of the closed list on refused, and none on any other kind', () => {
+    expect(REFUSAL_REASONS).toEqual([
+      'month_closed',
+      'future_month',
+      'pending_reviews',
+      'stale_change',
+      'not_found',
+      'unknown_line',
+      'invalid_budget',
+      'unstable_pot',
+      'split_with_reimbursement',
+    ]);
+    // The Go server reads the list from this definition, so it must be the contract's, in its order.
+    expect(manifest.definitions.RefusalReason).toEqual({ type: 'string', enum: [...REFUSAL_REASONS] });
+    for (const reason of REFUSAL_REASONS) {
+      expect(valid({ error: { kind: 'refused', reason } }), reason).toBe(true);
+    }
+    expect(valid({ error: { kind: 'refused' } })).toBe(false);
+    expect(valid({ error: { kind: 'refused', reason: 'nope' } })).toBe(false);
+    expect(valid({ error: { kind: 'refused', reason: 'stale_change', detail: 'x' } })).toBe(false);
+    for (const kind of plainKinds) {
+      expect(valid({ error: { kind, reason: 'month_closed' } }), kind).toBe(false);
+    }
   });
 });
 
