@@ -108,6 +108,27 @@ func (recorder *Recorder) ID(ctx context.Context) (ChangeID, error) {
 	return recorder.id, nil
 }
 
+// View is a view of the app's database over this change's own transaction, so
+// a read made through it sees what the change has written and runs under the
+// lock the change holds. Closing it ends no more than the view: the change
+// stays open. Once the change has ended, or a recorded write has failed, a read
+// through it answers that and begins nothing. Each call returns a view of its
+// own.
+func (recorder *Recorder) View() *View {
+	return &View{recorder: recorder}
+}
+
+// viewTransaction is the transaction a view of the recorder reads on.
+func (recorder *Recorder) viewTransaction() (*sql.Tx, error) {
+	if recorder.closed {
+		return nil, ErrViewClosed
+	}
+	if recorder.failed != nil {
+		return nil, recorder.failed
+	}
+	return recorder.tx, nil
+}
+
 func (recorder *Recorder) ensureRow(ctx context.Context) error {
 	if recorder.written {
 		return nil
