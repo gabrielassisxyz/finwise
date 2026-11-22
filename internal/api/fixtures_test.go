@@ -218,7 +218,10 @@ func inventedAuthoredState(t testing.TB, scratch *authoredtest.Scratch) {
 		if err := recorder.Put(ctx, authoredtest.Parents, authored.Row{"id": authored.Integer(1), "name": authored.Text("nota-parent")}); err != nil {
 			return err
 		}
-		return recorder.Put(ctx, authoredtest.Children, authored.Row{"id": authored.Integer(1), "parent_id": authored.Integer(1), "label": authored.Text("nota-child")})
+		if err := recorder.Put(ctx, authoredtest.Children, authored.Row{"id": authored.Integer(1), "parent_id": authored.Integer(1), "label": authored.Text("nota-child")}); err != nil {
+			return err
+		}
+		return authoredtest.SeedBudget(recorder)
 	})
 	if err != nil {
 		t.Fatalf("the invented authored state: %v", err)
