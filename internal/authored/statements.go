@@ -31,4 +31,9 @@ var allStatements = map[string]string{
 	"statementRollbackRestore":       statementRollbackRestore,
 	"statementStoredPIN":             statementStoredPIN,
 	"statementStorePIN":              statementStorePIN,
+	"statementSettingSelect":         statementSettingSelect,
+	"statementSettingSelectAll":      statementSettingSelectAll,
+	"statementSettingInsert":         statementSettingInsert,
+	"statementSettingUpdate":         statementSettingUpdate,
+	"statementSettingDelete":         statementSettingDelete,
 }

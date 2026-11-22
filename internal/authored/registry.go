@@ -101,7 +101,9 @@ type Registry struct {
 
 // productionTables is the package's own registry. Each authored table arrives
 // with its migration and adds its entry here, naming registered constants.
-var productionTables = []Table{}
+var productionTables = []Table{
+	settingsEntry(),
+}
 
 // notJournaledTables are the tables of finwise.db deliberately kept out of the
 // journal. A write to one happens in the transaction of the change it
