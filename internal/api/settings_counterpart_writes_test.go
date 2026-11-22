@@ -1,6 +1,9 @@
 package api
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"net/http"
 	"path/filepath"
 	"slices"
@@ -278,6 +281,82 @@ func TestAKeyOnlyAMovementCarriesIsRefusedAsThePanelRefusesIt(t *testing.T) {
 	if after := env.scratch.Everything(t); after != before {
 		t.Errorf("a refused write changed the file: %v", linesAdded(before, after))
 	}
+}
+
+// The settings list ten establishments, but the ledger has more: a key whose
+// newest transaction is below the list is still a key a listed transaction
+// has, so a write for it is kept and not refused as unknown.
+func TestAKeyBeyondTheCapOfTheListIsStillAKeyTheLedgerHas(t *testing.T) {
+	const oldest = "text:LOJA ALFA"
+	env := newSettingsEnv(t, ledgerOfRows(t, twelveShops()...), fixtureNow)
+	authoredtest.SaveBudget(t, env.scratch.Database, fixtureNow, "2026-02", authoredtest.InventedBudget())
+	if establishments, _ := listsOf(t, env.readEnv); slices.Contains(fieldsOf(establishments, "key"), oldest) {
+		t.Fatalf("%s is listed, so the test does not look at a key beyond the cap", oldest)
+	}
+	env.change("settings.setNickname", argumentsOf(oldest, "Alfa"))
+	env.change("settings.setDefaultLine", argumentsOf(oldest, "Remédios"))
+	want := `key="text:LOJA ALFA" nickname="Alfa" default_line_id=` + strconv.Itoa(int(lineIDsByName(t, env.scratch.Database)["Remédios"]))
+	if rows := tableRows(t, env.scratch, "establishments"); !slices.Equal(rows, []string{want}) {
+		t.Errorf("establishments hold %v, want %s", rows, want)
+	}
+}
+
+// The settings and the panel are two doors to one store. A settings handler that
+// kept a nickname or a default line through a function of its own would hold a
+// second copy of the rules, which no answer tells from the first until the two
+// drift apart, so each reaches the store through exactly what the panel's does.
+func TestTheSettingsAndThePanelReachTheStoreThroughTheSameFunctions(t *testing.T) {
+	for _, pair := range []struct{ settings, panel string }{
+		{"setCounterpartNickname", "setTransactionNickname"},
+		{"setCounterpartDefaultLine", "setTransactionDefaultLine"},
+	} {
+		fromSettings := storeCallsOf(t, "settings_counterpart_writes.go", pair.settings)
+		fromPanel := storeCallsOf(t, "establishment_writes.go", pair.panel)
+		if !slices.Equal(fromSettings, fromPanel) {
+			t.Errorf("%s reaches the store through %v and %s through %v", pair.settings, fromSettings, pair.panel, fromPanel)
+		}
+	}
+}
+
+// storeCallsOf are the ways a handler of a source file reaches the store: the
+// methods it calls on the write's recorder, and the one function that resolves
+// a default line before storing it.
+func storeCallsOf(t *testing.T, file, handler string) []string {
+	t.Helper()
+	parsed, err := parser.ParseFile(token.NewFileSet(), file, nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var calls []string
+	for _, declaration := range parsed.Decls {
+		if function, ok := declaration.(*ast.FuncDecl); ok && function.Name.Name == handler {
+			ast.Inspect(function.Body, func(node ast.Node) bool {
+				if call, ok := node.(*ast.CallExpr); ok {
+					calls = append(calls, storeCallOf(call)...)
+				}
+				return true
+			})
+		}
+	}
+	if len(calls) == 0 {
+		t.Fatalf("%s in %s reaches no function of the store", handler, file)
+	}
+	slices.Sort(calls)
+	return slices.Compact(calls)
+}
+
+func storeCallOf(call *ast.CallExpr) []string {
+	switch callee := call.Fun.(type) {
+	case *ast.Ident:
+		if callee.Name == "storeDefaultLine" {
+			return []string{callee.Name}
+		}
+	case *ast.SelectorExpr:
+		if owner, ok := callee.X.(*ast.SelectorExpr); ok && owner.Sel.Name == "Recorder" {
+			return []string{"Recorder." + callee.Sel.Name}
+		}
+	}
+	return nil
 }
 
 func TestSettingWhatTheKeyAlreadyHasRecordsAnEmptyChangeAndItsUndoDoesNothing(t *testing.T) {
