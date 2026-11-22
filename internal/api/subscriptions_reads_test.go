@@ -298,6 +298,62 @@ func TestASubscriptionWithSeveralChargeDaysIsWorkedOutFromTheCardAlone(t *testin
 	}
 }
 
+// streamingWithCredit is a subscription kept on three card charges, the last
+// one dearer, and, when credited, a later card credit of the same
+// establishment, as a refund of the latest charge would be.
+func streamingWithCredit(t *testing.T, credited bool) (*settingsEnv, string) {
+	t.Helper()
+	fixture := newSubscriptionsLedger(t)
+	cardPurchase(fixture, "tx-s-sep", utc(2026, time.September, 15, 15, 0), "STREAMSVC", 39.9)
+	cardPurchase(fixture, "tx-s-oct", utc(2026, time.October, 15, 15, 0), "STREAMSVC", 39.9)
+	cardPurchase(fixture, "tx-s-nov", november(14, 15), "STREAMSVC", 44.9)
+	if credited {
+		cardRow(fixture, "tx-s-credit", november(18, 15), "STREAMSVC", 44.9, "CREDIT", "ESTORNO", nil)
+	}
+	env := newSubscriptionsEnv(t, fixture)
+	id := keepSubscription(t, env.scratch.Database, "tx-s-nov", keptSubscription("text:STREAMSVC", "STREAMSVC", "2026-11-14", 4_490, authored.StatusKeep))
+	return env, id.String()
+}
+
+// Money the card gives back on a subscription's establishment is no charge of
+// it: the subscription reads exactly as it would with no credit at all.
+func TestACardCreditOfASubscribedEstablishmentIsNotOneOfItsCharges(t *testing.T) {
+	credited, id := streamingWithCredit(t, true)
+	if status, body := credited.answer("transactions.detail", `["tx-s-credit"]`); status != http.StatusOK || string(body) == "null" {
+		t.Fatalf("the credit is not a listed transaction (%d %s), so the test would prove nothing", status, body)
+	}
+	var list listAnswer
+	subscriptionAnswer(t, credited.readEnv, "subscriptions.list", `[{"grouped":false}]`, &list)
+	var detail detailAnswer
+	subscriptionAnswer(t, credited.readEnv, "subscriptions.detail", `["`+id+`"]`, &detail)
+	wantCharges := `[{"day":"2026-11-14","amount":44.90,"foreign":null},{"day":"2026-10-15","amount":39.90,"foreign":null},` +
+		`{"day":"2026-09-15","amount":39.90,"foreign":null}]`
+	wantMarks := `[{"text":"Preço subiu","tone":"warning"}]`
+	if detail.Amount != "44.90" || detail.MonthlyEquivalent != "44.90" || detail.AnnualEquivalent != "538.80" ||
+		detail.NextCharge != "2026-12-14" || string(detail.Marks) != wantMarks || string(detail.Charges) != wantCharges {
+		t.Errorf("detail %+v\ncharges %s\nmarks %s", detail, detail.Charges, detail.Marks)
+	}
+	if list.MonthlyTotal != "44.90" || list.AnnualTotal != "538.80" || len(list.Groups) != 1 || len(list.Groups[0].Subscriptions) != 1 {
+		t.Fatalf("list %+v", list)
+	}
+	if row := list.Groups[0].Subscriptions[0]; row.Amount != "44.90" || row.MonthlyEquivalent != "44.90" || row.NextCharge != "2026-12-14" ||
+		string(row.Marks) != wantMarks {
+		t.Errorf("row %+v, marks %s", row, row.Marks)
+	}
+
+	plain, plainID := streamingWithCredit(t, false)
+	for method, arguments := range map[string][2]string{
+		"subscriptions.list":   {`[{"grouped":false}]`, `[{"grouped":false}]`},
+		"subscriptions.detail": {`["` + id + `"]`, `["` + plainID + `"]`},
+	} {
+		_, with := credited.answer(method, arguments[0])
+		_, without := plain.answer(method, arguments[1])
+		if string(with) != string(without) {
+			t.Errorf("%s with the credit answers\n%s\nwithout it\n%s", method, with, without)
+		}
+	}
+}
+
 // The stand-in's mark was a stored flag; here it is the status Cancelar and a
 // charge after the day it was set, whatever the other statuses' days.
 func TestChargedAfterCancellingIsDerivedFromTheStatusDayAndOnlyForCancelar(t *testing.T) {
