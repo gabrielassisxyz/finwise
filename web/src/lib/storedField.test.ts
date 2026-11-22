@@ -107,6 +107,30 @@ describe('saving a field', () => {
     expect(input.value).toBe('Anita');
   });
 
+  it('puts back the value a save that went through stored, not the one the field was drawn with', async () => {
+    const { input, stored, type } = mountField('Ana');
+    type('Anita');
+    await saveStored(changeOf(input), async () => undefined);
+    stored.value = 'Anita';
+    await nextTick();
+    type('Anitinha');
+
+    await expect(saveStored(changeOf(input), () => Promise.reject(new Error('refused')))).rejects.toThrow('refused');
+
+    expect(input.value).toBe('Anita');
+  });
+
+  it('puts back the value a fetch brought, not the one the field was drawn with', async () => {
+    const { input, stored, type } = mountField('Ana');
+    stored.value = 'Bia';
+    await nextTick();
+    type('Anita');
+
+    await expect(saveStored(changeOf(input), () => Promise.reject(new Error('refused')))).rejects.toThrow('refused');
+
+    expect(input.value).toBe('Bia');
+  });
+
   it('refuses a field that does not carry the directive, before it saves anything', async () => {
     const saved: string[] = [];
     const bare = document.createElement('input');

@@ -8,7 +8,8 @@ import type { FakeState, FakeTransaction } from '@/api/fake/model';
 import { prototypeState } from '@/api/fake/prototype-data';
 import type { FinwiseApi, TransactionDetail } from '@/api/types';
 import { usePanelStore } from '@/stores/panel';
-import { mark, shownOnce, since, storedButUnanswered } from '@/test/failedSave';
+import { useRevisionStore } from '@/stores/revision';
+import { failingAfter, mark, shownOnce, since, storedButUnanswered } from '@/test/failedSave';
 import { failingOne, mountWithFailures, readOnlyApi, type ApiMethodName } from '@/test/readOnly';
 import TransactionPanel from './TransactionPanel.vue';
 
@@ -27,14 +28,14 @@ type Setup = (transaction: FakeTransaction, state: FakeState) => void;
 async function mountPanel(id: string, wrap: (api: FinwiseApi) => FinwiseApi, setup: Setup = () => undefined) {
   const state = prototypeState();
   setup(state.transactions.find((transaction) => transaction.id === id)!, state);
-  const api = wrap(createFakeApi({ startLocked: false, state }));
+  const standIn = createFakeApi({ startLocked: false, state });
   const mounted = await mountWithFailures(PanelOnly, [{ path: '/', component: { template: '<div />' } }], '/', {
-    api,
+    api: wrap(standIn),
     mounting: { attachTo: document.body },
   });
   usePanelStore(mounted.pinia).open(id);
   await mounted.settle();
-  return { ...mounted, state };
+  return { ...mounted, state, standIn };
 }
 
 type Mounted = Awaited<ReturnType<typeof mountPanel>>;
@@ -237,6 +238,33 @@ describe('a field whose own write failed', () => {
     expect(valueOf(note(mounted.wrapper))).toBe('abastecer na sexta');
     expect((await detailOf(mounted, 't2')).note).toBe('abastecer na sexta');
     expect(since(mounted, at)).toEqual(shownOnce(SAVE_UNCONFIRMED_MESSAGE));
+  });
+});
+
+describe('a field whose stored value moved since it was drawn', () => {
+  it('shows the value its last save stored when a later save fails', async () => {
+    const mounted = await mountPanel('t2', (api) => failingAfter(api, 'transactions.setNote', 'internal', 1), noted);
+    await commit(mounted, note(mounted.wrapper), 'abastecer na sexta');
+    expect(valueOf(note(mounted.wrapper))).toBe('abastecer na sexta');
+    const at = mark(mounted);
+
+    await commit(mounted, note(mounted.wrapper), 'abastecer no sábado');
+
+    expect(valueOf(note(mounted.wrapper))).toBe('abastecer na sexta');
+    expect(since(mounted, at)).toEqual(shownOnce(SAVE_FAILED_MESSAGE));
+    expect((await detailOf(mounted, 't2')).note).toBe('abastecer na sexta');
+  });
+
+  it('shows the value a fetch brought when a later save fails', async () => {
+    const mounted = await mountPanel('t2', failing('transactions.setNote', 'internal'), noted);
+    await mounted.standIn.transactions.setNote('t2', 'ligar para o posto');
+    useRevisionStore(mounted.pinia).bump();
+    await mounted.settle();
+    expect(valueOf(note(mounted.wrapper))).toBe('ligar para o posto');
+
+    await commit(mounted, note(mounted.wrapper), 'abastecer no sábado');
+
+    expect(valueOf(note(mounted.wrapper))).toBe('ligar para o posto');
   });
 });
 

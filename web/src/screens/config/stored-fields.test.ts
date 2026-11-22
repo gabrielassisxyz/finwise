@@ -11,8 +11,9 @@ import { createFakeApi } from '@/api/fake';
 import type { FakeState } from '@/api/fake/model';
 import { prototypeState } from '@/api/fake/prototype-data';
 import type { FinwiseApi, SettingsOverview } from '@/api/types';
-import { mark, shownOnce, since, storedButUnanswered } from '@/test/failedSave';
+import { failingAfter, mark, shownOnce, since, storedButUnanswered } from '@/test/failedSave';
 import { failingOne, mountWithFailures, readOnlyApi, type ApiMethodName, type FailureMount } from '@/test/readOnly';
+import { useRevisionStore } from '@/stores/revision';
 import ConfigScreen from './ConfigScreen.vue';
 
 // A field that saves when it is changed shows what the app holds: when its own write is refused or fails, the text
@@ -23,9 +24,9 @@ const routes = [{ path: '/config/:section?', component: ConfigScreen }];
 async function mountConfig(wrap: (api: FinwiseApi) => FinwiseApi, setup: (state: FakeState) => void = () => undefined) {
   const state = prototypeState();
   setup(state);
-  const api = wrap(createFakeApi({ startLocked: false, state }));
-  const mounted = await mountWithFailures(ConfigScreen, routes, '/config', { api });
-  return { ...mounted, state };
+  const standIn = createFakeApi({ startLocked: false, state });
+  const mounted = await mountWithFailures(ConfigScreen, routes, '/config', { api: wrap(standIn) });
+  return { ...mounted, state, standIn };
 }
 
 type Mounted = Awaited<ReturnType<typeof mountConfig>>;
@@ -198,6 +199,35 @@ describe('a field whose own write failed', () => {
     expect(valueOf(slider(mounted.wrapper))).toBe('60');
     expect(mounted.wrapper.find('.slider > span:nth-of-type(2)').text()).toBe('60');
     expect(mounted.state.confidenceThreshold).toBe(60);
+  });
+});
+
+describe('a field whose stored value moved since it was drawn', () => {
+  const personKey = (state: FakeState) => state.transactions.find((transaction) => transaction.person && transaction.name === 'Ana C. Ribeiro')!.establishmentKey;
+
+  it('shows the value its last save stored when a later save fails', async () => {
+    const mounted = await mountConfig((api) => failingAfter(api, 'settings.setNickname', 'internal', 1));
+    await commit(mounted, personNickname(mounted.wrapper), 'Anita');
+    expect(valueOf(personNickname(mounted.wrapper))).toBe('Anita');
+    const at = mark(mounted);
+
+    await commit(mounted, personNickname(mounted.wrapper), 'Anitinha');
+
+    expect(valueOf(personNickname(mounted.wrapper))).toBe('Anita');
+    expect(since(mounted, at)).toEqual(shownOnce(SAVE_FAILED_MESSAGE));
+    expect((await mounted.api.settings.overview()).people[1]!.nickname).toBe('Anita');
+  });
+
+  it('shows the value a fetch brought when a later save fails', async () => {
+    const mounted = await mountConfig(failing('settings.setNickname', 'internal'));
+    await mounted.standIn.settings.setNickname(personKey(mounted.state), 'Bia');
+    useRevisionStore(mounted.pinia).bump();
+    await mounted.settle();
+    expect(valueOf(personNickname(mounted.wrapper))).toBe('Bia');
+
+    await commit(mounted, personNickname(mounted.wrapper), 'Anitinha');
+
+    expect(valueOf(personNickname(mounted.wrapper))).toBe('Bia');
   });
 });
 
