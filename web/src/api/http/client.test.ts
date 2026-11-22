@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { METHOD_CLASSES } from '../contract/classification';
+import { METHOD_CLASSES, type MethodClass } from '../contract/classification';
+import { REFUSAL_REASONS } from '../contract/errors';
 import { createHttpApi } from './client';
 import { ApiFailure } from './failure';
 
@@ -105,6 +106,47 @@ describe('the HTTP client', () => {
       const { api } = clientAnswering(reply);
       expect((await failureOf(api.home.summary('2026-11'))).kind).toBe('internal');
     }
+  });
+
+  describe('the class of the method that failed', () => {
+    const calls: [string, MethodClass, (api: ReturnType<typeof createHttpApi>) => Promise<unknown>][] = [
+      ['transactions.setLine', 'write', (api) => api.transactions.setLine('t1', 'Lazer')],
+      ['home.summary', 'read', (api) => api.home.summary('2026-11')],
+      ['session.status', 'session', (api) => api.session.status()],
+      ['budget.evaluateScenario', 'evaluate', (api) => api.budget.evaluateScenario('2026-11', [])],
+    ];
+    const failures: [string, Reply][] = [
+      ['an error envelope', json({ error: { kind: 'internal' } }, 500)],
+      ['an error answer that is not JSON', () => new Response('<html>bad gateway</html>', { status: 502 })],
+      ['a success answer that is not JSON', () => new Response('not json', { status: 200 })],
+      ['a fetch that throws', () => Promise.reject(new TypeError('Failed to fetch'))],
+    ];
+
+    it.each(calls.flatMap(([method, methodClass, call]) => failures.map(([how, reply]) => [method, how, methodClass, call, reply] as const)))(
+      'is carried by %s on %s: %s',
+      async (_method, _how, methodClass, call, reply) => {
+        const { api } = clientAnswering(reply);
+        expect((await failureOf(call(api))).methodClass).toBe(methodClass);
+      },
+    );
+  });
+
+  describe('a refusal', () => {
+    it.each(REFUSAL_REASONS)('rejects a 409 refused with %s carrying that reason', async (reason) => {
+      const { api } = clientAnswering(json({ error: { kind: 'refused', reason } }, 409));
+      const failure = await failureOf(api.budget.save('2026-11', []));
+      expect([failure.kind, failure.reason, failure.methodClass]).toEqual(['refused', reason, 'write']);
+    });
+
+    it.each([
+      ['a reason it does not know', { kind: 'refused', reason: 'made_up' }],
+      ['no reason', { kind: 'refused' }],
+      ['a reason that is a number', { kind: 'refused', reason: 7 }],
+    ])('stays refused, never internal, with %s', async (_how, error) => {
+      const { api } = clientAnswering(json({ error }, 409));
+      const failure = await failureOf(api.budget.save('2026-11', []));
+      expect([failure.kind, failure.reason]).toEqual(['refused', null]);
+    });
   });
 
   it('reports a success answer that is not JSON as internal', async () => {
