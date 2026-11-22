@@ -38,7 +38,7 @@ func main() {
 
 func run(ctx context.Context, args []string, env environment) int {
 	if len(args) == 0 {
-		fmt.Fprintln(env.stderr, "usage: finwise serve | hash-pin")
+		fmt.Fprintln(env.stderr, "usage: finwise serve | hash-pin | backup")
 		return exitUsage
 	}
 	switch args[0] {
@@ -46,8 +46,10 @@ func run(ctx context.Context, args []string, env environment) int {
 		return runServe(ctx, args[1:], env)
 	case "hash-pin":
 		return runHashPIN(env)
+	case "backup":
+		return runBackup(ctx, args[1:], env)
 	default:
-		fmt.Fprintln(env.stderr, "usage: finwise serve | hash-pin")
+		fmt.Fprintln(env.stderr, "usage: finwise serve | hash-pin | backup")
 		return exitUsage
 	}
 }
