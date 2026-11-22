@@ -38,13 +38,13 @@ var authoredReadCases = []authoredReadCase{
 // invented authored state.
 func newAuthoredReadEnv(t *testing.T) *readEnv {
 	t.Helper()
-	scratch := authoredtest.Open(t, fixtureClock)
+	scratch := appScratch(t)
 	inventedAuthoredState(t, scratch)
 	return newReadEnvOver(t, newFullLedger(t), scratch.Database)
 }
 
 func TestTheInventedAuthoredStateHoldsSomething(t *testing.T) {
-	scratch := authoredtest.Open(t, fixtureClock)
+	scratch := appScratch(t)
 	empty := scratch.Canonical(t)
 	inventedAuthoredState(t, scratch)
 

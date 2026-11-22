@@ -196,31 +196,22 @@ func ledgerNamed(t testing.TB, name string) *ledgertest.Fixture {
 	return nil
 }
 
+// inventedLabel is the card label of the invented authored state.
+const inventedLabel = "Azulão"
+
+// inventedSettings sets every setting to a value other than its default.
+var inventedSettings = authoredtest.Settings{
+	ConfidenceThreshold: authoredtest.Some[int64](70), MinExamples: authoredtest.Some[int64](12),
+	CardLabel: authoredtest.Some(inventedLabel), ClosingMode: authoredtest.Some(authored.ClosingManual),
+	ManualClosingDay: authoredtest.Some[int64](10),
+}
+
 // inventedAuthoredState is what a person who has used the app for a while
-// would have authored, written through the recorder in one change: a fact, a
-// created row, a tag and a parent with a child. Nothing of it is real. A test
-// that builds on it checks that it holds something, so a state that silently
-// holds nothing cannot make a comparison pass.
+// would have authored in the app's own tables, written through the recorder in
+// one change. Nothing of it is real. A test that builds on it checks that it
+// leaves no journaled table empty, so a state that silently holds nothing, or
+// misses a table a later piece of work adds, cannot make a comparison pass.
 func inventedAuthoredState(t testing.TB, scratch *authoredtest.Scratch) {
 	t.Helper()
-	facts := authored.ChangeFacts{Author: authored.AuthorPerson, Method: "scratch.seed", At: fixtureNow}
-	err := scratch.Database.Change(t.Context(), facts, func(recorder *authored.Recorder) error {
-		ctx := t.Context()
-		if err := recorder.Set(ctx, authoredtest.Facts, []authored.Value{authored.Text("fact-seed")}, authored.Row{"amount": authored.Integer(1200)}); err != nil {
-			return err
-		}
-		if err := recorder.Create(ctx, authoredtest.Things, authored.Row{"id": authored.Integer(1), "name": authored.Text("nota-seed"), "amount": authored.Integer(350)}); err != nil {
-			return err
-		}
-		if err := recorder.Put(ctx, authoredtest.Tags, authored.Row{"tx": authored.Text("tx-fee"), "tag": authored.Text("tag-seed")}); err != nil {
-			return err
-		}
-		if err := recorder.Put(ctx, authoredtest.Parents, authored.Row{"id": authored.Integer(1), "name": authored.Text("nota-parent")}); err != nil {
-			return err
-		}
-		return recorder.Put(ctx, authoredtest.Children, authored.Row{"id": authored.Integer(1), "parent_id": authored.Integer(1), "label": authored.Text("nota-child")})
-	})
-	if err != nil {
-		t.Fatalf("the invented authored state: %v", err)
-	}
+	authoredtest.WithSettings(t, scratch.Database, fixtureNow, inventedSettings)
 }

@@ -72,6 +72,7 @@ func writesOutput(call *ast.CallExpr) bool {
 var secrets = []string{
 	"tx-", "acc-", "card-itau", "LIVRARIA", "EXEMPLO", "Exemplo", "2026-02", "no-such", "12345678",
 	"fact-", "nota-", "tag-",
+	inventedLabel,
 }
 
 // capturedLogs is what reached each of the three places a log could go.
