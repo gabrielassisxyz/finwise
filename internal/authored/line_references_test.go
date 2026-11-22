@@ -213,6 +213,9 @@ func TestEverySaveCaseClearsWhatTheMonthsThatLoseALineHoldAndOneUndoGivesItBack(
 				if got := env.names(authoredtest.Changed(before, after)); !slices.Equal(got, append([]string{}, c.Changed...)) {
 					t.Errorf("the save changed %v, want %v", got, c.Changed)
 				}
+				if effects := env.txEffects(change); len(c.Changed) == 0 && len(effects) != 0 {
+					t.Errorf("a save that removes no line in use has effects on the transactions: %v", effects)
+				}
 				env.expectOnlyTheSavesTables(change)
 				env.expectMonthlessLinesKept()
 				if err := env.undo(change); err != nil {
@@ -578,15 +581,26 @@ func TestAnUndoThatWouldPutATransactionBackOnARemovedLineIsRefusedWholeOrByPart(
 			}
 
 			env.mustUndo("the undo of the save", removed)
-			env.change("scratch.restorePart", func(recorder *authored.Recorder) error {
-				return recorder.RestorePart(t.Context(), moved, authored.TransactionUnits(env.examples.Keys[kind.example], nil))
+			facts.At = env.at()
+			err = env.scratch.Database.Change(t.Context(), facts, func(recorder *authored.Recorder) error {
+				if err := recorder.RestorePart(t.Context(), moved, authored.TransactionUnits(env.examples.Keys[kind.example], nil)); err != nil {
+					t.Errorf("the restore of the move's part once the save is undone: %v", err)
+				}
+				return errTakenBack
 			})
+			if !errors.Is(err, errTakenBack) {
+				t.Fatalf("the open change answered %v", err)
+			}
+			env.mustUndo("the undo of the move once the save is undone", moved)
 			if line := env.lineOf(kind.example); line == nil || *line != env.examples.Delivery {
-				t.Errorf("after the restore %s is on %v, want Delivery", kind.example, line)
+				t.Errorf("after the undo %s is on %v, want Delivery", kind.example, line)
 			}
 		})
 	}
 }
+
+// errTakenBack ends a change whose writes a test only needed to see succeed.
+var errTakenBack = errors.New("taken back on purpose")
 
 // lineOf is the line of an example's reference of its kind.
 func (env *lineEnv) lineOf(name string) *authored.LineID {
