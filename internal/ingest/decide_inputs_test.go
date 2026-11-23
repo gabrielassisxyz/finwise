@@ -37,3 +37,59 @@ func TestAPersonWithANicknameKeptIsNotAskedAboutAsUnnamed(t *testing.T) {
 		})
 	}
 }
+
+// fiveExamplesOnMercado indexes five of the person's purchases at the Feira on
+// Mercado, lets change alter the first of them, and takes in a new purchase
+// there. Five is the default minimum, so one example fewer leaves it pending.
+func fiveExamplesOnMercado(t *testing.T, change func(w *world, first authored.TxKey)) *world {
+	t.Helper()
+	w := newWorld(t, createdOn)
+	w.saveBudget("2026-03", marketBudget())
+	w.examples(contestedShop, w.line("2026-03", "Mercado"), 5, "feira-")
+	change(w, w.mustKey("feira-a"))
+	w.night("complete", purchase("tx-new", at(2026, time.March, 20), "FEIRA EXEMPLO", 60))
+	return w
+}
+
+func TestAnExampleExcludedWithAReasonNoLongerCountsAndOneWithoutStillDoes(t *testing.T) {
+	cases := []struct {
+		name      string
+		exclusion *string
+		applied   bool
+	}{
+		{"not excluded", nil, true},
+		{"excluded with a reason", someText("Era um presente"), false},
+		{"switched off without a reason", someText(""), true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			w := fiveExamplesOnMercado(t, func(w *world, first authored.TxKey) {
+				if c.exclusion == nil {
+					return
+				}
+				w.asPerson(func(recorder *authored.Recorder) error {
+					_, err := recorder.SetExclusion(t.Context(), first, c.exclusion)
+					return err
+				})
+			})
+			w.wantFiveOrFourExamples(c.name, c.applied)
+		})
+	}
+}
+
+// wantFiveOrFourExamples wants the new purchase applied on Mercado when all
+// five examples count, and pending with Mercado at 100 when only four do.
+func (w *world) wantFiveOrFourExamples(label string, applied bool) {
+	w.t.Helper()
+	counts := w.run(ingest.TriggerTick)
+	mercado := w.line("2026-03", "Mercado")
+	if applied {
+		wantCounts(w.t, label, counts, ingest.Counts{Indexed: 1, Applied: 1})
+		w.wantApplied("tx-new", mercado, "Mercado")
+		return
+	}
+	wantCounts(w.t, label, counts, ingest.Counts{Indexed: 1, PendingLowConfidence: 1})
+	w.wantPending("tx-new", "Baixa confiança", &mercado, 100)
+}
+
+func someText(text string) *string { return &text }
