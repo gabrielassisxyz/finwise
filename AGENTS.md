@@ -205,6 +205,40 @@
   - `TestEveryWriteAndEvaluationHasExactlyOneImplementation` (`internal/api/write_walk_test.go`) walks the
     manifest: each write and evaluation has a registered handler or, for `session.changePin` alone, the
     session service, or is named in `writesWithoutHandler`, which is empty while every one has a handler.
+- **An agent's door:** an agent reads the app through a token of its own and can change nothing.
+  - `finwise agent-token` prints two lines and nothing else, `FINWISE_AGENT_TOKEN=<token>` and
+    `FINWISE_AGENT_TOKEN_HASH=sha256$<digest>`: the first goes into the agent's environment, the second
+    into the server's. The token is 32 random bytes in unpadded base64url and is never stored; the server
+    keeps the hash, the SHA-256 digest of the token, and compares digests in constant time. Quote the hash
+    in a shell, since its `$` is not a variable. Every run makes a new token.
+  - `finwise serve` reads `FINWISE_AGENT_TOKEN_HASH` when it is set and starts as before when it is not.
+    A value that does not parse stops the start with a message that names the variable and not the
+    value; one that parses logs `an agent token opens the reads` once. Revoking the token is changing or
+    unsetting the variable and restarting: nothing else holds it.
+  - A request that carries an `Authorization` header is judged by it alone and never by the cookie: a
+    `Bearer` token that matches opens the reads, and anything else (another scheme, a wrong token, a
+    second header, a server with no hash) is answered `locked`, whatever cookie comes with it. A request
+    without the header is judged by the cookie as before. What the token opens is the manifest's `read`
+    class and nothing else (`agentMayCall`, `internal/api/agent_token.go`): every `write`, every
+    `evaluate` and every `session` method, `session.status` included, is answered 403 `read_only` before
+    its body is read, and an agent's request is never served by the code that serves a write.
+  - The request log's line for a request the token opened carries `caller=agent`, a refused one included,
+    and no other line carries a caller. It never holds the token.
+  - `finwise agent read <method> [<json-arguments>]` calls one read on the server named by `FINWISE_URL`
+    (default `http://127.0.0.1:8080`) with the token in `FINWISE_AGENT_TOKEN`, and prints the server's JSON
+    answer, `null` included, as the only thing on standard output. It checks the method against the
+    embedded manifest before it sends anything: a name the manifest lacks, a method that is not a `read`
+    and arguments that are not a JSON array (the default is `[]`) exit 2 with the usage line. An `https://`
+    address is accepted for any host, an `http://` one only for `localhost`, `127.0.0.0/8` and `::1`, and
+    one with a user name, a query or a fragment never; the client follows no redirect and gives up after a
+    minute. It exits 0 for a 200 and 1 for a failure, with one fixed line on standard error:
+    `finwise: <method> answered <kind>` (with ` (<reason>)` for `refused`), `could not reach the server at
+    <FINWISE_URL>`, `<method>: the answer is not the API's` or `FINWISE_AGENT_TOKEN is not set`. A kind
+    or a reason is printed only when it is the contract's own, and no message holds the token, an argument
+    or anything else the server sent.
+  - Known limit: the token guards the API, not the database file. A process of the user that owns
+    `finwise.db` and the snapshot can open them directly. Tests make their tokens at run time, so the
+    secret scan has nothing to find.
 
 ## Design
 - The design arrives as an HTML prototype. It is a reference, never code to copy: `design/README.md`
