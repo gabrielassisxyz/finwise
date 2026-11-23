@@ -23,8 +23,7 @@ type homePayAheadWire struct {
 	CardLabel string `json:"cardLabel"`
 }
 
-// homeSummaryWire is the contract's HomeSummary. The pending count comes from
-// reviews, which nobody has done: it is the contract's empty value.
+// homeSummaryWire is the contract's HomeSummary.
 type homeSummaryWire struct {
 	Limit        monthLimitWire      `json:"limit"`
 	Weeks        []weekGuideWire     `json:"weeks"`
@@ -55,12 +54,17 @@ func readHomeSummary(ctx context.Context, args []json.RawMessage, views Views) (
 	if err != nil {
 		return nil, err
 	}
+	pending, err := pendingCount(ctx, views)
+	if err != nil {
+		return nil, err
+	}
 	parts := view.partsOf()
 	return homeSummaryWire{
-		Limit:    limit.capWire(),
-		Weeks:    limit.weeksWire(),
-		NetWorth: netWorthSummaryWire{Available: Reais(parts.available), Reserved: Reais(parts.reserved), Invested: Reais(parts.invested)},
-		PayAhead: payAheadOfHome(card, month),
+		Limit:        limit.capWire(),
+		Weeks:        limit.weeksWire(),
+		NetWorth:     netWorthSummaryWire{Available: Reais(parts.available), Reserved: Reais(parts.reserved), Invested: Reais(parts.invested)},
+		PendingCount: pending,
+		PayAhead:     payAheadOfHome(card, month),
 	}, nil
 }
 

@@ -86,8 +86,10 @@ var authoredReadCases = []authoredReadCase{
 	authoredRead("transactions.detail", `["tx-refund"]`),
 	authoredReadOver("review.weekly", `["2026-03"]`, queueOverTheThirdState),
 	// The home's limit and weekly guides under each version of the invented
-	// budget: 2026-02, a past month, and 2026-03, the current one, above.
+	// budget: 2026-02, a past month, and 2026-03, the current one, above. The
+	// frame counts what waits for review, as both homes do.
 	authoredRead("home.summary", `["2026-02"]`),
+	authoredRead("shell.overview", `[]`),
 }
 
 // newAuthoredReadEnv is the third state: both stores, the database holding the
