@@ -56,7 +56,9 @@
   run it for any change that touches a screen and put its output in the pull request body.
 - **Backend:** Go, one module at the repository root (`github.com/gabrielassisxyz/finwise`, version in
   `go.mod`), driver `modernc.org/sqlite`. `internal/ledger` reads pluggy-sync's `pluggy-snapshot.db`
-  read-only, opening it afresh for each request so that one answer sees one state of the file; `ledgertest`
+  read-only, opening it afresh for each request so that one answer sees one state of the file; a request's
+  view reads the transaction rows from the file once, hands each caller a copy of its own and keeps nothing
+  once it closes (`TestEachRequestReadsTheLedgersRowsOnce`); `ledgertest`
   beside it builds invented snapshots for tests. `internal/authored` owns `finwise.db`, the app's own
   database and the one SQLite file the code writes: it is the only package that executes SQL against it,
   every statement is a constant registered in `internal/authored/statements.go` (a test fails for one that

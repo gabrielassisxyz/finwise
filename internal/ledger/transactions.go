@@ -93,23 +93,56 @@ type transactionRaw struct {
 
 // CleanTransactions returns the clean list for the days of a period, newest
 // first. The period is in Brazil days and converted to UTC bounds here.
+//
+// The view reads the rows from the file once, however many periods it is asked
+// for, and each call gets copies that share no memory with that reading: what a
+// caller does to its rows, sorting them or writing through a pointer, reaches
+// no other caller.
 func (view *View) CleanTransactions(ctx context.Context, period brday.Period) ([]Transaction, error) {
 	start, end, err := period.Bounds()
 	if err != nil {
 		return nil, err
 	}
+	every, err := view.everyCleanRow(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var transactions []Transaction
-	err = view.read(ctx, func(tx *sql.Tx) error {
-		var err error
-		transactions, err = queryCleanTransactionRows(ctx, tx, start, end)
-		return err
-	})
-	return transactions, err
+	for _, transaction := range every {
+		if !transaction.Date.Before(start) && transaction.Date.Before(end) {
+			transactions = append(transactions, transaction.clone())
+		}
+	}
+	return transactions, nil
 }
 
-// The bounds are applied after parsing rather than in SQL: a date that does not
-// parse must fail the call, where a SQL comparison would drop its row unseen.
-func queryCleanTransactionRows(ctx context.Context, tx *sql.Tx, start, end time.Time) ([]Transaction, error) {
+// everyCleanRow is the view's one reading of the clean list. A reading that
+// fails keeps nothing, so the next call reads again.
+func (view *View) everyCleanRow(ctx context.Context) ([]Transaction, error) {
+	view.rowsMu.Lock()
+	defer view.rowsMu.Unlock()
+	if view.rowsRead {
+		return view.cleanRows, nil
+	}
+	var every []Transaction
+	err := view.read(ctx, func(tx *sql.Tx) error {
+		if view.observeRowReading != nil {
+			view.observeRowReading()
+		}
+		var err error
+		every, err = queryCleanTransactionRows(ctx, tx)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	view.cleanRows, view.rowsRead = every, true
+	return every, nil
+}
+
+// Every row is parsed, whatever period is asked for: a date that does not parse
+// must fail the call, where a bound in SQL would drop its row unseen.
+func queryCleanTransactionRows(ctx context.Context, tx *sql.Tx) ([]Transaction, error) {
 	rows, err := tx.QueryContext(ctx, queryCleanTransactions)
 	if err != nil {
 		return nil, fmt.Errorf("ledger: clean transactions: %w", err)
@@ -122,9 +155,7 @@ func queryCleanTransactionRows(ctx context.Context, tx *sql.Tx, start, end time.
 		if err != nil {
 			return nil, err
 		}
-		if !transaction.Date.Before(start) && transaction.Date.Before(end) {
-			transactions = append(transactions, transaction)
-		}
+		transactions = append(transactions, transaction)
 	}
 	return transactions, rows.Err()
 }
@@ -216,4 +247,61 @@ func cardOf(transactionID string, body transactionRaw) (*CardMetadata, error) {
 	purchased, err := optionalInstant(nullable(source.PurchaseDate), "purchaseDate of "+transactionID)
 	card.PurchaseDate = purchased
 	return card, err
+}
+
+// clone is a copy of the row that shares no memory with it.
+func (transaction Transaction) clone() Transaction {
+	copied := transaction
+	copied.Category = clonePointer(transaction.Category)
+	copied.OperationType = clonePointer(transaction.OperationType)
+	copied.AmountInAccountCurrency = clonePointer(transaction.AmountInAccountCurrency)
+	copied.DescriptionRaw = clonePointer(transaction.DescriptionRaw)
+	copied.Payment = transaction.Payment.clone()
+	copied.Card = transaction.Card.clone()
+	return copied
+}
+
+func (payment *PaymentData) clone() *PaymentData {
+	if payment == nil {
+		return nil
+	}
+	copied := *payment
+	copied.Method = clonePointer(payment.Method)
+	copied.Payer = payment.Payer.clone()
+	copied.Receiver = payment.Receiver.clone()
+	return &copied
+}
+
+func (party *Party) clone() *Party {
+	if party == nil {
+		return nil
+	}
+	copied := *party
+	copied.Name = clonePointer(party.Name)
+	copied.DocumentNumber = clonePointer(party.DocumentNumber)
+	return &copied
+}
+
+func (card *CardMetadata) clone() *CardMetadata {
+	if card == nil {
+		return nil
+	}
+	copied := *card
+	copied.CardNumber = clonePointer(card.CardNumber)
+	copied.BillID = clonePointer(card.BillID)
+	copied.InstallmentNumber = clonePointer(card.InstallmentNumber)
+	copied.TotalInstallments = clonePointer(card.TotalInstallments)
+	copied.PurchaseDate = clonePointer(card.PurchaseDate)
+	copied.BillForecastDate = clonePointer(card.BillForecastDate)
+	copied.FeeType = clonePointer(card.FeeType)
+	copied.PayeeMCC = clonePointer(card.PayeeMCC)
+	return &copied
+}
+
+func clonePointer[T any](value *T) *T {
+	if value == nil {
+		return nil
+	}
+	copied := *value
+	return &copied
 }
