@@ -3,6 +3,7 @@ package ledger_test
 import (
 	"maps"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -238,6 +239,29 @@ func TestTheTransferHistoryWalksTheTransactionsOnceForTheDocumentsAndOnceForTheP
 		if materializations[name] != 1 {
 			t.Errorf("%q appears %d times in the plan, want once", name, materializations[name])
 		}
+	}
+}
+
+// readsTheLedgersTransactions says whether a statement reads the ledger's
+// transactions: the current-state table, the documents of that kind with their
+// versions, or one of the collector's views over them.
+var readsTheLedgersTransactions = regexp.MustCompile(
+	`\b(FROM|JOIN) transactions\b|documents \w+ ON [^\n]*kind = 'transactions'|pending_posted_candidates|transaction_versions|document_coverage`)
+
+// Every statement of the package is a registered constant, and the yield
+// history's are the queryYield ones: one of them reads the ledger's
+// transactions, and a second would be a second pass over them that the count
+// of readings does not see.
+func TestOneStatementOfTheYieldHistoryReadsTheLedgersTransactions(t *testing.T) {
+	var reading []string
+	for name, query := range ledger.AllQueries() {
+		if strings.HasPrefix(name, "queryYield") && readsTheLedgersTransactions.MatchString(query) {
+			reading = append(reading, name)
+		}
+	}
+	slices.Sort(reading)
+	if want := []string{"queryYieldTransferHistory"}; !slices.Equal(reading, want) {
+		t.Errorf("the yield history's statements that read the ledger's transactions are %v, want %v", reading, want)
 	}
 }
 
