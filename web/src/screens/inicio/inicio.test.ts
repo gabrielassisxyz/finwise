@@ -4,6 +4,8 @@ import { createFakeApi } from '@/api/fake';
 import type { HomeSummary } from '@/api/types';
 import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
+import { useRevisionStore } from '@/stores/revision';
+import { holdFirstCall } from '@/test/holdCall';
 import { mountAt, prototypeOverview } from '@/test/mount';
 import InicioScreen from './InicioScreen.vue';
 import SummaryStrip from './SummaryStrip.vue';
@@ -88,6 +90,26 @@ describe('InicioScreen after a write', () => {
     expect(wrapper.find('.bar-fill').exists()).toBe(true);
     expect(strip(wrapper)).toContain('Restam R$ 1.420,00');
     release();
+    await flushPromises();
+    expect(strip(wrapper)).toContain('Restam R$ 1.356,00');
+    expect(strip(wrapper)).toContain('6 para revisar ›');
+  });
+
+  it('does not let an earlier summary answer replace a later one for the same month', async () => {
+    const { wrapper, api } = await mountAt(InicioScreen, '/');
+    useMonthStore().configure(prototypeOverview());
+    await flushPromises();
+
+    const first = holdFirstCall(api.home, 'summary');
+    useRevisionStore().bump();
+    await flushPromises();
+
+    await api.transactions.setLine('t5', 'Restaurantes e bares');
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(strip(wrapper)).toContain('Restam R$ 1.356,00');
+
+    first.release();
     await flushPromises();
     expect(strip(wrapper)).toContain('Restam R$ 1.356,00');
     expect(strip(wrapper)).toContain('6 para revisar ›');

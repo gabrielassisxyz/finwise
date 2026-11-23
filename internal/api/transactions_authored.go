@@ -81,7 +81,8 @@ func readAuthoredRows(ctx context.Context, views Views, listed []txrules.Transac
 	if rows.kept, err = view.Transactions(ctx, keysInOrder(ids, rows.keys)); err != nil {
 		return authoredRows{}, err
 	}
-	if rows.credits, err = linkedCreditRows(ctx, views, rows.kept); err != nil {
+	whole := sharedWholeListing(ctx, views)
+	if rows.credits, err = linkedCreditRows(rows.kept, whole); err != nil {
 		return authoredRows{}, err
 	}
 	named := slices.Clone(listed)
@@ -91,7 +92,7 @@ func readAuthoredRows(ctx context.Context, views Views, listed []txrules.Transac
 	if rows.establishments, err = establishmentsOf(ctx, view, named); err != nil {
 		return authoredRows{}, err
 	}
-	if rows.linkedCredits, err = linkedCreditsOf(ctx, view, listed, rows.keys); err != nil {
+	if rows.linkedCredits, err = linkedCreditsOf(ctx, view, listed, rows.keys, whole); err != nil {
 		return authoredRows{}, err
 	}
 	if rows.months, err = budgetsOfMonths(ctx, view, listed); err != nil {
@@ -112,21 +113,39 @@ func keysInOrder(ids []string, keys map[string]authored.TxKey) []authored.TxKey 
 	return ordered
 }
 
-// linkedCreditsOf says which listed credits a purchase names as its
-// reimbursement. The purchase may be in a month the answer does not cover, so
-// each credit the index has met is asked about on its own.
-func linkedCreditsOf(ctx context.Context, view *authored.View, listed []txrules.Transaction, keys map[string]authored.TxKey) (map[authored.TxKey]bool, error) {
-	linked := map[authored.TxKey]bool{}
+// linkedCreditsOf says which listed credits are a purchase's reimbursement:
+// those a stored purchase names, while the ledger lists that purchase. While
+// it does not, the link is kept and the credit counts as an unlinked one, or
+// its amount would count nowhere. The purchase may be in a month the answer
+// does not cover, so it is looked for in the whole ledger, read only when a
+// stored purchase names a credit of the answer.
+func linkedCreditsOf(ctx context.Context, view *authored.View, listed []txrules.Transaction, keys map[string]authored.TxKey,
+	whole func() (wholeListing, error)) (map[authored.TxKey]bool, error) {
+	purchases := map[authored.TxKey]authored.TxKey{}
 	for _, transaction := range listed {
 		key, indexed := keys[transaction.ID]
 		if !indexed || transaction.Amount <= 0 {
 			continue
 		}
-		_, found, err := view.PurchaseLinkedTo(ctx, key)
+		purchase, found, err := view.PurchaseLinkedTo(ctx, key)
 		if err != nil {
 			return nil, err
 		}
-		linked[key] = found
+		if found {
+			purchases[key] = purchase
+		}
+	}
+	linked := map[authored.TxKey]bool{}
+	if len(purchases) == 0 {
+		return linked, nil
+	}
+	listing, err := whole()
+	if err != nil {
+		return nil, err
+	}
+	listedKeys := listing.listedKeys()
+	for credit, purchase := range purchases {
+		linked[credit] = listedKeys[purchase]
 	}
 	return linked, nil
 }

@@ -15,13 +15,15 @@ const missing = ref(false);
 
 const id = computed(() => String(route.params.id));
 
+let latest = 0;
 watch(
   id,
   async (requested) => {
+    const request = ++latest;
     account.value = null;
     missing.value = false;
     const loaded = await api.accounts.detail(requested);
-    if (requested !== id.value) return;
+    if (request !== latest || requested !== id.value) return;
     account.value = loaded;
     missing.value = loaded === null;
   },
