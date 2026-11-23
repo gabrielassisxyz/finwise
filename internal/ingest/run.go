@@ -29,12 +29,16 @@ const (
 	TriggerBudgetChange
 	// TriggerCommand is the person asking for a run.
 	TriggerCommand
+	// TriggerWrite is a write of the person that found the snapshot it reads
+	// not taken in yet. Another run may have taken it in while the write
+	// waited, which leaves nothing to do.
+	TriggerWrite
 )
 
 // stopsAtTheRunTakenIn says whether a call for this reason does nothing when
 // the snapshot's run is the one taken in last.
 func (trigger Trigger) stopsAtTheRunTakenIn() bool {
-	return trigger == TriggerTick || trigger == TriggerStart
+	return trigger == TriggerTick || trigger == TriggerStart || trigger == TriggerWrite
 }
 
 // Method is the method recorded on the change a run writes. It is no method of

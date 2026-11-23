@@ -119,7 +119,7 @@ func linkReimbursement(ctx context.Context, args []json.RawMessage, writes Write
 	if !found {
 		return nil, refuse(reasonNotFound)
 	}
-	creditKey, err := indexListed(ctx, writes.Recorder, credit)
+	creditKey, err := indexListed(ctx, writes.Ledger, writes.Recorder, credit)
 	if err != nil {
 		return nil, err
 	}

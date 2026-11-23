@@ -130,6 +130,7 @@ func classify(err error) (errorKind, refusalReason) {
 		return kindReadOnly, ""
 	case ledger.IsUnsupportedVersion(err),
 		ledger.IsUnreadableSnapshot(err),
+		ledger.IsNotProjected(err),
 		errors.Is(err, fs.ErrNotExist),
 		errors.Is(err, fs.ErrPermission):
 		return kindLedgerUnavailable, ""

@@ -195,7 +195,8 @@ func storedPINHash(ctx context.Context, database *authored.Database, settings se
 
 // apiConfig hands the API the one clock of the process and the app's database,
 // nil when serve was given none. With a database, a budget save takes the
-// ledger in before it answers.
+// ledger in before it answers, and a write that finds the snapshot not taken in
+// takes it in before it goes on.
 func apiConfig(settings serveSettings, database *authored.Database, env environment, logger *slog.Logger) api.Config {
 	config := api.Config{
 		Ledger:         ledger.New(settings.ledgerPath),
@@ -207,7 +208,8 @@ func apiConfig(settings serveSettings, database *authored.Database, env environm
 		Logger:         logger,
 	}
 	if database != nil {
-		config.AfterBudgetSaved = serverIngestsOf(settings, database, env, logger).afterBudgetSaved
+		ingests := serverIngestsOf(settings, database, env, logger)
+		config.AfterBudgetSaved, config.TakeSnapshotIn = ingests.afterBudgetSaved, ingests.beforeWrite
 	}
 	return config
 }

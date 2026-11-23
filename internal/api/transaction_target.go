@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
@@ -62,7 +63,7 @@ func lookupTarget(ctx context.Context, writes Writes, id string) (transactionTar
 	if err != nil || !found {
 		return transactionTarget{}, found, err
 	}
-	key, err := indexListed(ctx, writes.Recorder, row.listed)
+	key, err := indexListed(ctx, writes.Ledger, writes.Recorder, row.listed)
 	if err != nil {
 		return transactionTarget{}, false, err
 	}
@@ -85,16 +86,58 @@ func listedLedger(ctx context.Context, snapshot *ledger.View) (interpreted, ledg
 	return view, around, err
 }
 
+// errSnapshotNotTakenIn is a lookup that found the snapshot it reads is not the
+// one the ingest took in last. Nothing of the write is kept; the router has the
+// snapshot taken in and tries the write once more.
+var errSnapshotNotTakenIn = errors.New("api: the ledger snapshot is not the one taken in")
+
 // indexListed answers the key of a listed transaction inside the recorder's
-// change. The amount it keeps is the row's own, signed as the list signs it
-// and without the tax rows folded under it, which a bank adds after the
-// purchase: a pending row and the posted one that replaces it compare equal
-// only on what both of them carry.
-func indexListed(ctx context.Context, recorder *authored.Recorder, listed txrules.Transaction) (authored.TxKey, error) {
+// change, reading the ledger through snapshot. It is the one door of the API to
+// the index, and it opens only for the snapshot the ingest took in last: only
+// the ingest pairs a posted row with the pending one it replaces and clears what
+// a moved month lacks, and an index moved by a write first would have it do
+// neither. The comparison is made here, under the change's write lock and over
+// a view that stays on its file, so no run can be taken in between it and the
+// write. A key already given keeps its row as the ingest left it.
+//
+// The amount a new key keeps is the row's own, signed as the list signs it and
+// without the tax rows folded under it, which a bank adds after the purchase: a
+// pending row and the posted one that replaces it compare equal only on what
+// both of them carry.
+func indexListed(ctx context.Context, snapshot *ledger.View, recorder *authored.Recorder, listed txrules.Transaction) (authored.TxKey, error) {
+	view := recorder.View()
+	defer view.Close()
+	if err := requireTakenIn(ctx, snapshot, view); err != nil {
+		return 0, err
+	}
+	known, err := view.TransactionKeys(ctx, []string{listed.ID})
+	if err != nil {
+		return 0, err
+	}
+	if key, found := known[listed.ID]; found {
+		return key, nil
+	}
 	return recorder.IndexTransaction(ctx, authored.SeenTransaction{
 		ProviderID: listed.ID, AccountID: listed.AccountID, Day: listed.Day, Cents: listed.Amount - listed.Tax,
 		EstablishmentKey: listed.EstablishmentKey, BankPending: !listed.Posted,
 	})
+}
+
+// requireTakenIn refuses a snapshot whose projected run is not the run taken in
+// last: a newer one, an older one, or any while no run has been taken in.
+func requireTakenIn(ctx context.Context, snapshot *ledger.View, view *authored.View) error {
+	projected, err := snapshot.ProjectedRun(ctx)
+	if err != nil {
+		return err
+	}
+	taken, found, err := view.LastIngestedRun(ctx)
+	if err != nil {
+		return err
+	}
+	if !found || taken != projected {
+		return errSnapshotNotTakenIn
+	}
+	return nil
 }
 
 // shownName is the name to show for a row of an establishment or a person: the

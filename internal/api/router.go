@@ -47,6 +47,12 @@ type Config struct {
 	// refetches right after a save already holds the month that just got its
 	// first line. Whatever it does, the save answers as it would have.
 	AfterBudgetSaved func(ctx context.Context, at time.Time)
+	// TakeSnapshotIn, when set, runs the ingest over the ledger's snapshot as
+	// it is now and returns once that run has committed or failed. A write
+	// calls it, with the request's instant and outside its own change, when its
+	// lookup found the snapshot not taken in, and is then tried once more.
+	// Without it, or when it fails, such a write answers `internal`.
+	TakeSnapshotIn func(ctx context.Context, at time.Time) error
 }
 
 // router carries what the per-route functions share.
@@ -58,6 +64,7 @@ type router struct {
 	sessions         *sessionService
 	now              func() time.Time
 	afterBudgetSaved func(ctx context.Context, at time.Time)
+	takeSnapshotIn   func(ctx context.Context, at time.Time) error
 }
 
 // NewHandler builds the router from the manifest. A write or an evaluation is
@@ -83,6 +90,7 @@ func NewHandler(config Config) (http.Handler, error) {
 		sessions:         newSessionService(config),
 		now:              config.Now,
 		afterBudgetSaved: config.AfterBudgetSaved,
+		takeSnapshotIn:   config.TakeSnapshotIn,
 	}
 	mux := http.NewServeMux()
 	known := map[string]bool{"/healthz": true}
