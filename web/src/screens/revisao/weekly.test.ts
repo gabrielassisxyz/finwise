@@ -179,20 +179,82 @@ describe('Semanal, waiting for approval', () => {
     expect(titles(wrapper)).toHaveLength(3);
   });
 
-  it('refuses without changing anything', async () => {
-    const { wrapper, overlay } = await mountWeekly();
+  it('shows proposer when present and hides it when null', async () => {
+    const state = prototypeState();
+    state.review.proposals[0]!.proposer = 'revisor-semanal';
+    const { wrapper } = await mountWeekly(state);
+    const texts = wrapper.findAll('.request .text').map((text) => plain(text.text()));
+    expect(texts[0]).toBe('Subir o teto de Delivery de R$ 200 para R$ 250 · estourou três meses seguidos · proposto por revisor-semanal');
+    expect(texts[1]).not.toContain('proposto por');
+  });
+
+  it('refuses with an optional reason field, records no undo action, and lets the person cancel', async () => {
+    const { wrapper, overlay, api } = await mountWeekly();
     await click(wrapper.findAll('.request .refuse')[0]!);
+    const input = wrapper.find('.request .refuse-input');
+    expect(input.attributes('placeholder')).toBe('Por quê? (opcional)');
+    expect(input.attributes('maxlength')).toBe('500');
+
+    // Cancelling closes the field without touching anything.
+    await click(wrapper.find('.request .cancel'));
+    expect(wrapper.find('.request .refuse-input').exists()).toBe(false);
+    expect(titles(wrapper)).toHaveLength(3);
+    expect(overlay.toast).toBeNull();
+
+    // Typing a reason and confirming sends it and shows a toast with no Desfazer action.
+    await click(wrapper.findAll('.request .refuse')[0]!);
+    await wrapper.find('.request .refuse-input').setValue('Quero manter o teto atual');
+    await click(wrapper.find('.request .confirm-refuse'));
     expect(overlay.toast?.message).toBe('Recusado. Nada foi alterado.');
+    expect(overlay.toast?.actions).toEqual([]);
     expect(plain(wrapper.find('.limit .detail').text())).toContain('de R$ 2.880,00');
     expect(titles(wrapper)).toHaveLength(2);
+
+    const refused = (await api.review.proposals()).find((item) => item.id === 'teto');
+    expect(refused?.outcome).toBe('refused');
+    expect(refused?.refusal).toBe('Quero manter o teto atual');
   });
 
   it('says nothing is waiting once the list is empty', async () => {
     const { wrapper } = await mountWeekly();
-    for (let answered = 0; answered < 3; answered += 1) await click(wrapper.find('.request .refuse'));
+    for (let answered = 0; answered < 3; answered += 1) {
+      await click(wrapper.find('.request .refuse'));
+      await click(wrapper.find('.request .confirm-refuse'));
+    }
     expect(plain(wrapper.find('.side .empty').text())).toBe(
       'Nada aguardando. Mudanças que precisam do seu ok aparecem aqui depois de cada sincronização ou do relatório do mês.',
     );
+  });
+
+  it('refetches silently when approve or refuse answers null because another tab answered first', async () => {
+    const { wrapper, overlay, api } = await mountWeekly();
+    // Answer the first approval directly on the API before clicking in the UI.
+    await api.review.refuse('teto');
+    const before = useRevisionStore().current;
+    await click(wrapper.findAll('.request .approve')[0]!);
+    expect(useRevisionStore().current).toBeGreaterThan(before);
+    expect(overlay.toast).toBeNull();
+    expect(titles(wrapper)).toHaveLength(2);
+  });
+
+  it('toasts proposal_stale with no action and removes the stale proposal when the underlying value already changed', async () => {
+    const state = prototypeState();
+    // Apply the exclusion already so approving the second proposal ("estorno") becomes stale.
+    const effect = state.review.proposals[1]!.effect;
+    if (effect.kind === 'exclude') {
+      state.transactions.find((transaction) => transaction.id === effect.transactionId)!.excludedReason = effect.reason;
+    }
+    const api = createFakeApi({ startLocked: false, state });
+    const mounted = await mountWithFailures(WeeklyTab, routes, '/revisao', { api });
+    const before = mounted.revisionNow();
+
+    await click(mounted.wrapper.findAll('.request .approve')[1]!);
+    await mounted.settle();
+
+    expect(mounted.toasts).toEqual(['Isso mudou depois da proposta. Nada foi alterado.']);
+    expect(useOverlayStore(mounted.pinia).toast?.actions).toEqual([]);
+    expect(mounted.revisionNow()).toBe(before + 1);
+    expect(mounted.wrapper.findAll('.request .title')).toHaveLength(2);
   });
 });
 

@@ -9,6 +9,7 @@ import TransactionList from '@/components/transactions/TransactionList.vue';
 import BudgetScreen from '@/screens/budget/BudgetScreen.vue';
 import ConfigScreen from '@/screens/config/ConfigScreen.vue';
 import ClosingTab from '@/screens/revisao/ClosingTab.vue';
+import WeeklyTab from '@/screens/revisao/WeeklyTab.vue';
 import { useOverlayStore } from '@/stores/overlay';
 import { usePanelStore } from '@/stores/panel';
 import { failingOne, mountWithFailures, type ApiMethodName, type FailureMount } from '@/test/readOnly';
@@ -247,6 +248,20 @@ describe('a write refused for a reason the person can act on', () => {
     expect(since(mounted, at)).toEqual(shownOnce(reasonSentence.split_with_reimbursement));
     expect(mounted.wrapper.find('.panel .part').exists()).toBe(false);
     expect(mounted.wrapper.find('.panel .toggle').text()).toBe('Dividir em linhas');
+  });
+
+  it('proposal_stale: approving a proposal whose target changed meanwhile shows the sentence and refetches', async () => {
+    const routes = [
+      { path: '/revisao', component: Blank },
+      { path: '/assinaturas', component: Blank },
+      { path: '/assinaturas/:id', component: Blank },
+    ];
+    const mounted = await mountWithFailures(WeeklyTab, routes, '/revisao', { api: failing('review.approve', 'refused', 'proposal_stale') });
+    const at = mark(mounted);
+
+    await click(mounted, mounted.wrapper.findAll('.request .approve')[0]!);
+
+    expect(since(mounted, at)).toEqual(shownOnce(reasonSentence.proposal_stale));
   });
 });
 
