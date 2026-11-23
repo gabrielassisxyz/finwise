@@ -1,6 +1,7 @@
 import { ref, watch, type Ref } from 'vue';
 import { useApi } from '@/api/context';
 import type { TransactionDetail } from '@/api/types';
+import { createLatestLoad } from '@/lib/latestLoad';
 import { useRevisionStore } from '@/stores/revision';
 
 /**
@@ -13,19 +14,22 @@ export function useTransactionDetail(id: Ref<string | null>) {
   const revision = useRevisionStore();
   const detail = ref<TransactionDetail | null>(null);
 
-  let latest = 0;
+  const loads = createLatestLoad();
 
   async function load(): Promise<void> {
-    const request = ++latest;
     const wanted = id.value;
-    if (wanted === null) return;
+    if (wanted === null) {
+      loads.cancel();
+      return;
+    }
+    const isLatest = loads.start();
     const loaded = await api.transactions.detail(wanted);
     // A slower answer for a transaction or a revision the panel already left must not land.
-    if (request === latest && wanted === id.value) detail.value = loaded;
+    if (isLatest() && wanted === id.value) detail.value = loaded;
   }
 
   watch(id, (next) => {
-    latest += 1;
+    loads.cancel();
     detail.value = null;
     if (next !== null) void load();
   }, { immediate: true });

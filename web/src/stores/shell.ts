@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
 import { useApi } from '@/api/context';
 import type { ShellOverview } from '@/api/types';
+import { createLatestLoad } from '@/lib/latestLoad';
 import { useMonthStore } from './month';
 import { useRevisionStore } from './revision';
 
@@ -13,12 +14,12 @@ export const useShellStore = defineStore('shell', () => {
 
   const overview = ref<ShellOverview | null>(null);
 
-  let latest = 0;
+  const loads = createLatestLoad();
 
   async function load(): Promise<void> {
-    const request = ++latest;
+    const isLatest = loads.start();
     const loaded = await api.shell.overview();
-    if (request !== latest) return;
+    if (!isLatest()) return;
     month.configure(loaded);
     overview.value = loaded;
   }

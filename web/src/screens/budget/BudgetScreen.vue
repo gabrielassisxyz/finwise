@@ -6,6 +6,7 @@ import { isApiFailure } from '@/api/http/failure';
 import type { BudgetEstablishment, BudgetView, EditableGroupKey } from '@/api/types';
 import ActionButton from '@/components/ui/ActionButton.vue';
 import { brl, monthInSentence, percentText } from '@/lib/format';
+import { createLatestLoad } from '@/lib/latestLoad';
 import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
 import { useRevisionStore } from '@/stores/revision';
@@ -24,15 +25,15 @@ const budget = useBudgetDraft();
 const openLine = useOpenLine(computed(() => month.selected));
 const editing = computed(() => budget.draft.value !== null);
 
-// Every answer is checked against the request that is still the latest, so a slow one never lands over a newer one.
-let latest = 0;
+// Every answer is checked against the load that is still the latest, so a slow one never lands over a newer one.
+const loads = createLatestLoad();
 watch(
   () => [month.selected, revision.current, budget.draft.value] as const,
   async ([selected, , draft]) => {
-    const request = ++latest;
+    const isLatest = loads.start();
     try {
       const loaded = await api.budget.view(selected, draft ?? undefined);
-      if (request === latest) view.value = loaded;
+      if (isLatest()) view.value = loaded;
     } catch (error) {
       // A draft the backend refuses to evaluate would be asked again after every refusal, so the edit ends here.
       if (draft && isApiFailure(error) && error.kind === 'read_only') budget.discard();

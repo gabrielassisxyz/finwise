@@ -1,6 +1,7 @@
 import { flushPromises } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import { useRevisionStore } from '@/stores/revision';
+import { holdFirstCall } from '@/test/holdCall';
 import { mountRouted } from '@/test/mountRouted';
 import CofrinhosScreen from './CofrinhosScreen.vue';
 
@@ -110,18 +111,6 @@ describe('Cofrinhos list', () => {
   });
 });
 
-/** Lets a read run now but hands its answer over only when released, so an answer can arrive late. */
-function holdNext<T>(read: () => Promise<T>) {
-  let release = () => {};
-  const held = read().then(
-    (answer) =>
-      new Promise<T>((resolve) => {
-        release = () => resolve(answer);
-      }),
-  );
-  return { held, release: () => release() };
-}
-
 describe('Cofrinhos list after a change', () => {
   const heads = (wrapper: Awaited<ReturnType<typeof mountList>>['wrapper']) =>
     wrapper.findAll('.group-name').map((head) => plain(head.text()));
@@ -156,10 +145,7 @@ describe('Cofrinhos list after a change', () => {
 
   it('does not show an answer for the option that is no longer selected', async () => {
     const { wrapper, api } = await mountList();
-    const original = api.savingsPots.list.bind(api.savingsPots);
-    const late = holdNext(() => original({ includeClosed: false }));
-    let calls = 0;
-    vi.spyOn(api.savingsPots, 'list').mockImplementation((...args: Parameters<typeof original>) => (++calls === 1 ? late.held : (original as (...a: typeof args) => ReturnType<typeof original>)(...args)));
+    const late = holdFirstCall(api.savingsPots, 'list');
     useRevisionStore().bump();
     await flushPromises();
     await wrapper.find('button.toggle').trigger('click');
@@ -172,11 +158,9 @@ describe('Cofrinhos list after a change', () => {
 
   it('does not let an earlier answer replace a later one for the same option', async () => {
     const { wrapper, api } = await mountList();
-    const original = api.savingsPots.list.bind(api.savingsPots);
-    const early = holdNext(() => original({ includeClosed: false }));
-    let calls = 0;
-    vi.spyOn(api.savingsPots, 'list').mockImplementation((...args: Parameters<typeof original>) => (++calls === 1 ? early.held : (original as (...a: typeof args) => ReturnType<typeof original>)(...args)));
+    const early = holdFirstCall(api.savingsPots, 'list');
     useRevisionStore().bump();
+    await flushPromises();
     await api.settings.setPotBucket('sn', 'Disponível');
     useRevisionStore().bump();
     await flushPromises();

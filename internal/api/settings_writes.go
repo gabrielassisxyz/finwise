@@ -7,6 +7,7 @@ import (
 	"unicode"
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
+	"github.com/gabrielassisxyz/finwise/internal/classrules"
 )
 
 // The settings' writes. Each is one change of the settings alone, written
@@ -25,12 +26,13 @@ func registerSettingsWrites(registry *Registry) {
 // wholeRange is the range a number the person sets is held to.
 type wholeRange struct{ least, most int }
 
-// The contract's THRESHOLD_RANGE, MIN_EXAMPLES_RANGE and CLOSING_DAY_RANGE. The
-// store's table refuses a value outside them, so a value is held to its range
-// before it is written, as the interface holds it.
+// The classifier settings' ranges come from classrules, which refuses a value
+// outside them; the closing day's range stays here. The store's table refuses a
+// value outside each range, so a value is held to its range before it is
+// written, as the interface holds it.
 var (
-	thresholdRange   = wholeRange{least: 50, most: 99}
-	minExamplesRange = wholeRange{least: 1, most: 50}
+	thresholdRange   = wholeRange{least: classrules.ThresholdLowest, most: classrules.ThresholdHighest}
+	minExamplesRange = wholeRange{least: classrules.MinExamplesLowest, most: classrules.MinExamplesHighest}
 	closingDayRange  = wholeRange{least: 1, most: 28}
 )
 

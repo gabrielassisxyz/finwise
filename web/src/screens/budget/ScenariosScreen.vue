@@ -5,6 +5,7 @@ import { useApi } from '@/api/context';
 import { isApiFailure } from '@/api/http/failure';
 import type { BudgetDoc, SavedScenario, ScenarioImpact } from '@/api/types';
 import { monthInSentence } from '@/lib/format';
+import { createLatestLoad } from '@/lib/latestLoad';
 import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
 import { useRevisionStore } from '@/stores/revision';
@@ -31,26 +32,26 @@ const ready = computed(() => current.value && draft.value && impact.value);
 // A month that is closed has no scenarios, and changing month leaves them.
 const leave = () => router.replace('/budget');
 
-let latestOpen = 0;
+const openLoads = createLatestLoad();
 async function open(): Promise<void> {
-  const request = ++latestOpen;
+  const isLatest = openLoads.start();
   const selected = month.selected;
   const [budget, kept] = await Promise.all([api.budget.document(selected), api.budget.scenarios()]);
-  if (request !== latestOpen || selected !== month.selected) return;
+  if (!isLatest() || selected !== month.selected) return;
   current.value = budget;
   draft.value = copyBudget(budget);
   saved.value = kept;
 }
 
-let latest = 0;
+const evaluationLoads = createLatestLoad();
 watch(
   draft,
   async (value) => {
     if (!value) return;
-    const request = ++latest;
+    const isLatest = evaluationLoads.start();
     try {
       const loaded = await api.budget.evaluateScenario(month.selected, value);
-      if (request === latest) impact.value = loaded;
+      if (isLatest()) impact.value = loaded;
     } catch (error) {
       // Without an evaluation the screen has no impact to show, so it returns to the budget it came from. The
       // return completes first: the frame clears what floats on a leave, which would take the toast with it.

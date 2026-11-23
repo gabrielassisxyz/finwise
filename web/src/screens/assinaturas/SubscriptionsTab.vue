@@ -6,6 +6,7 @@ import type { SubscriptionList } from '@/api/types';
 import EmptyBlock from '@/components/ui/EmptyBlock.vue';
 import ToggleButton from '@/components/ui/ToggleButton.vue';
 import { brl } from '@/lib/format';
+import { createLatestLoad } from '@/lib/latestLoad';
 import { useRevisionStore } from '@/stores/revision';
 import { useSubscriptionsViewStore } from '@/stores/subscriptions-view';
 import SubscriptionRow from './SubscriptionRow.vue';
@@ -20,13 +21,13 @@ const actions = useSubscriptionActions();
 
 const list = ref<SubscriptionList | null>(null);
 
-let latest = 0;
+const loads = createLatestLoad();
 watch(
   [() => view.grouped, () => revision.current],
   async ([grouped]) => {
-    const request = ++latest;
+    const isLatest = loads.start();
     const loaded = await api.subscriptions.list({ grouped });
-    if (request === latest && grouped === view.grouped) list.value = loaded;
+    if (isLatest() && grouped === view.grouped) list.value = loaded;
   },
   { immediate: true },
 );

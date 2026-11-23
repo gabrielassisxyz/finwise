@@ -82,10 +82,6 @@ func (view *potsView) attachLinkedLines(ctx context.Context, chosen *authored.Vi
 	return nil
 }
 
-// feesLineID is the built-in fees line: the budget's migration gives it this id
-// in every database, and it is in no version of the budget.
-const feesLineID authored.LineID = 1
-
 type monthLine struct {
 	id   authored.LineID
 	name string
@@ -106,7 +102,7 @@ func linesOfMonth(ctx context.Context, view *authored.View, month brday.Month) (
 		lines = append(lines, monthLine{id: line.ID, name: line.Name})
 	}
 	if budget.HasLines() {
-		lines = append(lines, monthLine{id: feesLineID, name: authored.FeesLineName})
+		lines = append(lines, monthLine{id: authored.FeesLineID, name: authored.FeesLineName})
 	}
 	return lines, nil
 }

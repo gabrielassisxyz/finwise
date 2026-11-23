@@ -145,7 +145,7 @@ func readBudgetEstablishments(ctx context.Context, args []json.RawMessage, views
 // every month, as the view shows it in every month, with a budget or without.
 func lineOfMonth(budget authored.Budget, name string) (authored.LineID, bool) {
 	if name == authored.FeesLineName {
-		return feesLineID, true
+		return authored.FeesLineID, true
 	}
 	for _, line := range budget.Lines {
 		if line.Name == name {

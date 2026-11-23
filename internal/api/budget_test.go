@@ -134,7 +134,7 @@ func TestTheFeesFigureIsWhatWasChargedNetOfDiscounts(t *testing.T) {
 		inputs = append(inputs, authoredRows{}.disposable(row))
 	}
 	outcomes := budgetrules.Dispose(transactionLinesOf(authored.Budget{}).budget, inputs)
-	facts := budgetrules.MonthFacts{Figures: budgetrules.LineFigures(outcomes), FeesLine: budgetrules.LineID(feesLineID)}
+	facts := budgetrules.MonthFacts{Figures: budgetrules.LineFigures(outcomes), FeesLine: budgetrules.LineID(authored.FeesLineID)}
 	fees := budgetrules.View(budgetrules.Plan{}, facts).Groups[6]
 	if fees.Key != budgetrules.GroupFees || fees.Subtotal != 3200 || fees.Lines[0].Cells[0].Amount != 3200 {
 		t.Errorf("the fees group is %+v, want 3200 cents", fees)

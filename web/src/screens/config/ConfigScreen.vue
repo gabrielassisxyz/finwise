@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useApi } from '@/api/context';
 import type { SettingsOverview } from '@/api/types';
+import { createLatestLoad } from '@/lib/latestLoad';
 import { useRevisionStore } from '@/stores/revision';
 import CardSection from './CardSection.vue';
 import CategorizationSection from './CategorizationSection.vue';
@@ -21,13 +22,13 @@ const revision = useRevisionStore();
 const settings = ref<SettingsOverview | null>(null);
 
 // Every write refetches, so a bound the backend applied shows as it was kept.
-let latest = 0;
+const loads = createLatestLoad();
 watch(
   () => revision.current,
   async () => {
-    const request = ++latest;
+    const isLatest = loads.start();
     const loaded = await api.settings.overview();
-    if (request === latest) settings.value = loaded;
+    if (isLatest()) settings.value = loaded;
   },
   { immediate: true },
 );

@@ -225,5 +225,5 @@ func (view *View) LinesOfMonth(ctx context.Context, month brday.Month) ([]MonthL
 	for _, line := range budget.Lines {
 		lines = append(lines, MonthLine{ID: line.ID, Name: line.Name})
 	}
-	return append(lines, MonthLine{ID: feesLine, Name: FeesLineName}), nil
+	return append(lines, MonthLine{ID: FeesLineID, Name: FeesLineName}), nil
 }

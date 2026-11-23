@@ -43,6 +43,17 @@ func TestTheFeesLineHasTheSameIDInEveryDatabase(t *testing.T) {
 	}
 }
 
+func TestTheFeesLineConstantMatchesTheIDTheMigrationSeeds(t *testing.T) {
+	database := migratedPool(t)
+	var seeded int64
+	if err := database.QueryRow("SELECT id FROM lines WHERE builtin = 1").Scan(&seeded); err != nil {
+		t.Fatal(err)
+	}
+	if authored.LineID(seeded) != authored.FeesLineID {
+		t.Errorf("the migration seeded the built-in fees line with id %d, want FeesLineID %d", seeded, authored.FeesLineID)
+	}
+}
+
 const (
 	seedVersion = `INSERT INTO budget_versions (from_month) VALUES ('2026-02')`
 	seedLines   = `INSERT INTO lines (builtin) VALUES (0), (0)`

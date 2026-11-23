@@ -167,7 +167,7 @@ func (a authoring) step(id string, kind authored.StepKind, text, reason string) 
 }
 
 func (a authoring) linesAndReviews() error {
-	fees := feesLineID
+	fees := authored.FeesLineID
 	return each(
 		func() error {
 			return a.state(txSalary, authored.TransactionState{Line: a.line("Salário"), ClassifiedBy: authored.AuthorPerson})
