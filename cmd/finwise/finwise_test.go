@@ -158,11 +158,17 @@ type runningServer struct {
 
 func startServer(t *testing.T, args []string, vars map[string]string) *runningServer {
 	t.Helper()
+	return startServerWith(t, args, vars, ingest.Run)
+}
+
+// startServerWith is startServer with the ingest the server runs.
+func startServerWith(t *testing.T, args []string, vars map[string]string, runIngest ingestFunc) *runningServer {
+	t.Helper()
 	ctx, stop := context.WithCancel(context.Background())
 	server := &runningServer{done: make(chan outcome, 1), stop: stop}
 	ready := make(chan string, 1)
 	go func() {
-		server.done <- runCommand(ctx, args, "", vars, func(address string) { ready <- address })
+		server.done <- runCommandWith(ctx, args, "", vars, func(address string) { ready <- address }, runIngest)
 	}()
 	select {
 	case server.address = <-ready:

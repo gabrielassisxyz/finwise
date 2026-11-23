@@ -45,6 +45,62 @@ func (in ingester) take(ctx context.Context, trigger ingest.Trigger, at time.Tim
 	return in.run(context.WithoutCancel(ctx), in.sources, trigger, at)
 }
 
+// serverIngests are the runs of a server, each reported on its log: one line
+// for a run that went past its first step or failed, none for a start or a
+// tick that found the snapshot's run already taken in.
+type serverIngests struct {
+	in     ingester
+	logger *slog.Logger
+	now    func() time.Time
+}
+
+func (runs serverIngests) once(ctx context.Context, trigger ingest.Trigger, at time.Time) {
+	counts, err := runs.in.take(ctx, trigger, at)
+	switch {
+	case err != nil:
+		runs.logger.Warn("ingest failed", "trigger", triggerName(trigger), "kind", failureKind(err))
+	case !counts.Stopped:
+		logCounts(runs.logger, trigger, counts)
+	}
+}
+
+// afterBudgetSaved is the API's call once a budget save has committed. It
+// goes past a run already taken in: the save may have given a month its first
+// line, and so transactions to evaluate.
+func (runs serverIngests) afterBudgetSaved(ctx context.Context, at time.Time) {
+	runs.once(ctx, ingest.TriggerBudgetChange, at)
+}
+
+// every runs the ingest at once, as the start, and then on each tick of
+// interval, one run at a time, until ctx ends. A failed run is only logged:
+// the next tick tries again. stop ends the timer and returns once no run is in
+// progress, so the database can be closed after it.
+func (runs serverIngests) every(ctx context.Context, interval time.Duration) (stop func()) {
+	ctx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		runs.once(ctx, ingest.TriggerStart, runs.now())
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if ctx.Err() != nil {
+					return
+				}
+				runs.once(ctx, ingest.TriggerTick, runs.now())
+			}
+		}
+	}()
+	return func() {
+		cancel()
+		<-done
+	}
+}
+
 // logCounts writes a run's line: why it ran and how many, never which.
 func logCounts(logger *slog.Logger, trigger ingest.Trigger, counts ingest.Counts) {
 	logger.Info("ingest", "trigger", triggerName(trigger), "stopped", counts.Stopped,
