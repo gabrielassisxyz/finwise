@@ -335,13 +335,22 @@ func TestAClosedMonthIsRefusedBeforeAnythingElseAndAMissingSnapshotIsUnavailable
 	env.leaveWaiting(txCloseTwentySeven)
 	env.expectCloseRefused("a closed month with a review of its own waiting", "2026-02", reasonMonthClosed)
 
-	missing := newCloseEnvOver(t, filepath.Join(t.TempDir(), "pluggy-snapshot.db"), env.scratch)
+	gone := filepath.Join(t.TempDir(), "pluggy-snapshot.db")
+	missing := newCloseEnvOver(t, gone, env.scratch)
 	missing.expectCloseRefused("a closed month with the snapshot gone", "2026-02", reasonMonthClosed)
 	before, counts := env.scratch.Canonical(t), journalCounts(t, env.scratch)
 	expectError(t, "an open month with the snapshot gone", missing.closeMonth("2026-03"), http.StatusServiceUnavailable, "ledger_unavailable")
 	expectError(t, "2026-13", env.closeMonth("2026-13"), http.StatusBadRequest, "bad_request")
 	if env.scratch.Canonical(t) != before || journalCounts(t, env.scratch) != counts {
 		t.Error("an unavailable snapshot or a bad month changed the database or the journal")
+	}
+	// With no review kept, the queue itself would ask the ledger nothing.
+	quiet := newCloseExamples(t, true)
+	quietBefore, quietCounts := quiet.scratch.Canonical(t), journalCounts(t, quiet.scratch)
+	unread := newCloseEnvOver(t, gone, quiet.scratch)
+	expectError(t, "an open month with no review kept and the snapshot gone", unread.closeMonth("2026-02"), http.StatusServiceUnavailable, "ledger_unavailable")
+	if quiet.scratch.Canonical(t) != quietBefore || journalCounts(t, quiet.scratch) != quietCounts {
+		t.Error("the close over a missing snapshot changed the database or the journal")
 	}
 
 	without := newTestEnv(t, withLedger(newCloseLedger(t).Path, fixtureNow))
