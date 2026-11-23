@@ -91,6 +91,7 @@ type closingViewWire struct {
 	Month                 brday.Month                `json:"month"`
 	Closed                bool                       `json:"closed"`
 	ClosedOn              *string                    `json:"closedOn"`
+	CloseChangeID         *string                    `json:"closeChangeId"`
 	Steps                 []closingStepWire          `json:"steps"`
 	PendingCount          int                        `json:"pendingCount"`
 	PlannedActual         []plannedActualGroupWire   `json:"plannedActual"`
@@ -127,6 +128,10 @@ func readClosing(ctx context.Context, args []json.RawMessage, views Views) (any,
 		return nil, err
 	}
 	closedOn, closed := closedOnOf(closedMonths, month)
+	closeChangeID, err := closeChangeIDOf(ctx, views.Authored, month, closed)
+	if err != nil {
+		return nil, err
+	}
 	pending, err := pendingTransactions(ctx, views, period.Last)
 	if err != nil {
 		return nil, err
@@ -144,7 +149,7 @@ func readClosing(ctx context.Context, args []json.RawMessage, views Views) (any,
 		return nil, err
 	}
 	view := closingViewWire{
-		Month: month, Closed: closed, Steps: closingSteps(closed, len(pending), ticked), PendingCount: len(pending),
+		Month: month, Closed: closed, CloseChangeID: closeChangeID, Steps: closingSteps(closed, len(pending), ticked), PendingCount: len(pending),
 		PlannedActual: figures.plannedActual, Leftover: figures.leftover, Contributions: figures.contributions,
 		CardBill: closingCardBillOf(card, month), SubscriptionsToReview: toReview, Report: []any{},
 		ClosedMonths: closedMonthsWire(closedMonths),
@@ -163,6 +168,23 @@ func closedOnOf(closedMonths []authored.ClosedMonth, month brday.Month) (brday.D
 		}
 	}
 	return "", false
+}
+
+// closeChangeIDOf is the id the screen hands to changes.undo to reopen the
+// month, and changes.undo takes back whatever change it is given. So it is
+// answered only while the month is closed, and only for a close of this month
+// still in force: a closed row written by a change that did more than close
+// would reopen the month by undoing all of that change.
+func closeChangeIDOf(ctx context.Context, view *authored.View, month brday.Month, closed bool) (*string, error) {
+	if !closed {
+		return nil, nil
+	}
+	id, found, err := view.CloseChangeOf(ctx, closeMonthMethod, month)
+	if err != nil || !found {
+		return nil, err
+	}
+	text := id.String()
+	return &text, nil
 }
 
 func closedMonthsWire(closedMonths []authored.ClosedMonth) []closedMonth {

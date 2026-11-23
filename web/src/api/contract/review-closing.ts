@@ -86,6 +86,11 @@ export interface ClosingView {
   month: YearMonth;
   closed: boolean;
   closedOn: IsoDay | null;
+  /**
+   * The change that closed the month, which `changes.undo` takes back to reopen it. Null for an open month, and for a
+   * month closed by a change that did more than close it.
+   */
+  closeChangeId: string | null;
   steps: ClosingStep[];
   pendingCount: number;
   plannedActual: PlannedActualGroup[];

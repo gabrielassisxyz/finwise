@@ -172,4 +172,6 @@ var allStatements = map[string]string{
 	"statementClosedMonthsNewest":  statementClosedMonthsNewest,
 
 	"statementBudgetEffectsInForce": statementBudgetEffectsInForce,
+
+	"statementCloseChangeOfMonth": statementCloseChangeOfMonth,
 }
