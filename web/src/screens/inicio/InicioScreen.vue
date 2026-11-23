@@ -14,11 +14,13 @@ const revision = useRevisionStore();
 const summary = ref<HomeSummary | null>(null);
 
 // A write refetches the summary in place: the strip keeps showing the old figures until the new ones land.
+let latest = 0;
 watch(
   () => [month.selected, revision.current] as const,
   async ([selected]) => {
+    const request = ++latest;
     const loaded = await api.home.summary(selected);
-    if (selected === month.selected) summary.value = loaded;
+    if (request === latest && selected === month.selected) summary.value = loaded;
   },
   { immediate: true },
 );

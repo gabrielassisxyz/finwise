@@ -3,9 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeApi } from '@/api/fake';
 import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
+import { useRevisionStore } from '@/stores/revision';
 import { useShellStore } from '@/stores/shell';
 import { prototypeState } from '@/api/fake/prototype-data';
 import type { PendingReview } from '@/api/types';
+import { holdFirstCall } from '@/test/holdCall';
 import { recordLineMenu } from '@/test/lineMenu';
 import { mountAt, prototypeOverview } from '@/test/mount';
 import { FIRST_PENDING_ID, NO_SUGGESTION, stateWithPending } from '@/test/pendingStates';
@@ -476,5 +478,44 @@ describe('the filter by line', () => {
   it('lists the menu and nothing more when every row is on a line of the menu', async () => {
     const m = await mountWith();
     expect((await m.openFilter()).map((item) => item.label)).toEqual(await m.menuLines());
+  });
+});
+
+describe('TransactionList out-of-order loads', () => {
+  it('keeps the later rows and filter options together and clears loading when an earlier load answers late', async () => {
+    const { wrapper, overlay, api } = await mountList();
+    const first = holdFirstCall(api.transactions, 'list');
+
+    await wrapper.findAll('.filter')[0]!.trigger('click');
+    overlay.menu!.items.find((item) => item.label === 'Últimos 3 meses')!.onPick!();
+    await flushPromises();
+    expect(wrapper.find('.skeleton').exists()).toBe(true);
+
+    await api.transactions.setLine('t2', 'Lazer');
+    const doc = await api.budget.document('2026-11');
+    doc.find((group) => group.key === 'var')!.lines.push({ name: 'Linha nova', amount: 100 });
+    await api.budget.save('2026-11', doc);
+    useRevisionStore().bump();
+    await flushPromises();
+
+    expect(wrapper.find('.skeleton').exists()).toBe(false);
+    const postoPill = () =>
+      wrapper
+        .findAll('.row')
+        .find((row) => row.find('.name').text() === 'Posto Shell')!
+        .find('.pill .label')
+        .text();
+    const lineLabels = async () => {
+      await wrapper.findAll('.filter')[2]!.trigger('click');
+      return overlay.menu!.items.map((item) => item.label);
+    };
+    expect(postoPill()).toBe('Lazer');
+    expect(await lineLabels()).toContain('Linha nova');
+
+    first.release();
+    await flushPromises();
+    expect(wrapper.find('.skeleton').exists()).toBe(false);
+    expect(postoPill()).toBe('Lazer');
+    expect(await lineLabels()).toContain('Linha nova');
   });
 });

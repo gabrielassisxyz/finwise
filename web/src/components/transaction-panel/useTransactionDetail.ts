@@ -13,15 +13,19 @@ export function useTransactionDetail(id: Ref<string | null>) {
   const revision = useRevisionStore();
   const detail = ref<TransactionDetail | null>(null);
 
+  let latest = 0;
+
   async function load(): Promise<void> {
+    const request = ++latest;
     const wanted = id.value;
     if (wanted === null) return;
     const loaded = await api.transactions.detail(wanted);
-    // A slower answer for a transaction the user already left must not land.
-    if (wanted === id.value) detail.value = loaded;
+    // A slower answer for a transaction or a revision the panel already left must not land.
+    if (request === latest && wanted === id.value) detail.value = loaded;
   }
 
   watch(id, (next) => {
+    latest += 1;
     detail.value = null;
     if (next !== null) void load();
   }, { immediate: true });
