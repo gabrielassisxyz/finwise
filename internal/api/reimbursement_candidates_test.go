@@ -3,7 +3,9 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -11,6 +13,7 @@ import (
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
+	"github.com/gabrielassisxyz/finwise/internal/brday"
 	"github.com/gabrielassisxyz/finwise/internal/budgetrules"
 	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 	"github.com/gabrielassisxyz/finwise/internal/money"
@@ -90,6 +93,7 @@ type reimbursementView struct {
 	EffectiveAmount     json.RawMessage `json:"effectiveAmount"`
 	Reimbursed          bool            `json:"reimbursed"`
 	ReimbursementIncome bool            `json:"reimbursementIncome"`
+	Line                *string         `json:"line"`
 	Pending             json.RawMessage `json:"pending"`
 	Reimbursement       json.RawMessage `json:"reimbursement"`
 	Candidates          []struct {
@@ -369,4 +373,247 @@ func TestALinkAppliesOnlyWhileTheLedgerListsItsCredit(t *testing.T) {
 		}
 	}
 
+}
+
+// receivedOn is what budget.view answers that a line of the income group
+// received in month.
+func receivedOn(t *testing.T, env *readEnv, month, line string) money.Cents {
+	t.Helper()
+	status, body := env.answer("budget.view", `["`+month+`"]`)
+	if status != http.StatusOK {
+		t.Fatalf("budget.view %s answered %d %s", month, status, body)
+	}
+	var view viewAnswer
+	decodeKeepingNumbers(t, body, &view)
+	var cell struct {
+		Amount json.Number `json:"amount"`
+	}
+	decodeKeepingNumbers(t, view.line(t, "rec", line).Cells[1], &cell)
+	cents, err := ParseReais([]byte(cell.Amount))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cents
+}
+
+// linkedSnapshot is what the list, the detail and the month function answer
+// about a credit linked to the dinner over one snapshot, and the dinner's
+// effective amount when the snapshot lists it.
+type linkedSnapshot struct {
+	row, detail reimbursementView
+	outcome     budgetrules.Outcome
+	dinner      string
+}
+
+func (env *countEnv) linkedOver(t *testing.T, fixture *ledgertest.Fixture, dinnerListed bool, month brday.Month, credit string) (linkedSnapshot, *readEnv) {
+	t.Helper()
+	reader := env.snapshotOver(t, fixture)
+	views := Views{Ledger: viewOf(t, fixture.Path), Authored: env.scratch.Database.View()}
+	defer views.Authored.Close()
+	seen := linkedSnapshot{
+		row: reimbursementRowOf(t, reader, string(month), credit), detail: reimbursementDetailOf(t, reader, credit),
+		outcome: outcomeOf(t, views, month, credit),
+	}
+	if dinnerListed {
+		seen.dinner = string(reimbursementDetailOf(t, reader, txDinner).EffectiveAmount)
+	}
+	return seen, reader
+}
+
+// countedSomewhere is what the invariants of a month cannot see, since a
+// reimbursement passes both: the credit's amount is received by a line of the
+// income group, or shown without a line for the person to place.
+func (seen linkedSnapshot) countedSomewhere() bool {
+	lines := seen.outcome.Lines
+	switch seen.outcome.Disposition {
+	case budgetrules.Income:
+		return len(lines) == 1 && lines[0].Effect == budgetrules.Received && lines[0].Amount == seen.outcome.Magnitude && seen.row.Line != nil
+	case budgetrules.OtherCredit:
+		return len(lines) == 0 && seen.row.Line == nil
+	}
+	return false
+}
+
+func linkText(state authored.TransactionState) string {
+	if state.Credit == nil || state.CreditCents == nil {
+		return "no link"
+	}
+	return fmt.Sprintf("credit %d of %d cents", *state.Credit, *state.CreditCents)
+}
+
+// expectLinkKept fails unless the dinner's stored link is the one it had and
+// the journal has not moved: a read never writes the link.
+func (env *countEnv) expectLinkKept(t *testing.T, label string, stored authored.TransactionState, journal string) {
+	t.Helper()
+	if now, before := linkText(env.stateOf(txDinner)), linkText(stored); now != before {
+		t.Errorf("%s: the stored link is %s, was %s", label, now, before)
+	}
+	if env.scratch.Journal(t) != journal {
+		t.Errorf("%s: reading the snapshot recorded a change", label)
+	}
+}
+
+// A credit is a purchase's reimbursement only while the ledger lists the
+// purchase: over a snapshot that stopped listing the dinner its PIX is an
+// ordinary credit, shown without a line, though the link stays kept, and over
+// one that lists the dinner again the PIX pays it back with no write.
+func TestALinkedCreditIsAReimbursementOnlyWhileTheLedgerListsItsPurchase(t *testing.T) {
+	listed, unlisted, listedAgain := reimbursementLedger(t), reimbursementLedger(t, txDinner), reimbursementLedger(t)
+	env := newReimbursementEnv(t, listed)
+	env.putOnLine(txDinner, "Mercado")
+	env.linkThroughTheStore(txDinner, txPixAna, 9_000)
+	stored, journal := env.stateOf(txDinner), env.scratch.Journal(t)
+	reimbursement := budgetrules.Outcome{Disposition: budgetrules.Reimbursement, Magnitude: 15_000}
+	snapshots := []struct {
+		label        string
+		fixture      *ledgertest.Fixture
+		dinnerListed bool
+		outcome      budgetrules.Outcome
+		dinner       string
+	}{
+		{"listed", listed, true, reimbursement, "-30.00"},
+		{"no longer listed", unlisted, false, budgetrules.Outcome{Disposition: budgetrules.OtherCredit, Magnitude: 15_000}, ""},
+		{"listed again", listedAgain, true, reimbursement, "-30.00"},
+	}
+	for _, snapshot := range snapshots {
+		seen, reader := env.linkedOver(t, snapshot.fixture, snapshot.dinnerListed, "2026-03", txPixAna)
+		if seen.row.ReimbursementIncome != snapshot.dinnerListed || seen.detail.ReimbursementIncome != snapshot.dinnerListed {
+			t.Errorf("%s: the PIX answers reimbursementIncome %v in the list and %v in its detail, want %v",
+				snapshot.label, seen.row.ReimbursementIncome, seen.detail.ReimbursementIncome, snapshot.dinnerListed)
+		}
+		if !reflect.DeepEqual(seen.outcome, snapshot.outcome) {
+			t.Errorf("%s: the PIX is %+v, want %+v", snapshot.label, seen.outcome, snapshot.outcome)
+		}
+		if seen.dinner != snapshot.dinner {
+			t.Errorf("%s: the dinner's effective amount is %q, want %q", snapshot.label, seen.dinner, snapshot.dinner)
+		}
+		if !snapshot.dinnerListed && !seen.countedSomewhere() {
+			t.Errorf("%s: the PIX of 150.00 counts nowhere: %+v, shown on a line %v", snapshot.label, seen.outcome, seen.row.Line != nil)
+		}
+		for _, problem := range monthInvariants(t, reader, env.scratch, snapshot.fixture.Path) {
+			t.Errorf("%s: %s", snapshot.label, problem)
+		}
+		env.expectLinkKept(t, snapshot.label, stored, journal)
+	}
+}
+
+// A linked PIX the person had put on an income line counts as that line's
+// income, to the cent, while the ledger does not list its purchase.
+func TestALinkedCreditOnAnIncomeLineIsItsIncomeWhileItsPurchaseIsNotListed(t *testing.T) {
+	listed, unlisted, listedAgain := reimbursementLedger(t), reimbursementLedger(t, txDinner), reimbursementLedger(t)
+	env := newReimbursementEnv(t, listed)
+	env.putOnLine(txPixAna, "Salário")
+	env.linkThroughTheStore(txDinner, txPixAna, 9_000)
+	stored, journal := env.stateOf(txDinner), env.scratch.Journal(t)
+	salary := env.lineID("2026-03", "Salário")
+	income := budgetrules.Outcome{Disposition: budgetrules.Income, Magnitude: 15_000,
+		Lines: []budgetrules.LineAmount{{Line: salary, Effect: budgetrules.Received, Amount: 15_000}}}
+	reimbursement := budgetrules.Outcome{Disposition: budgetrules.Reimbursement, Magnitude: 15_000}
+	snapshots := []struct {
+		label        string
+		fixture      *ledgertest.Fixture
+		dinnerListed bool
+		outcome      budgetrules.Outcome
+	}{
+		{"listed", listed, true, reimbursement},
+		{"no longer listed", unlisted, false, income},
+		{"listed again", listedAgain, true, reimbursement},
+	}
+	received := map[string]money.Cents{}
+	for _, snapshot := range snapshots {
+		seen, reader := env.linkedOver(t, snapshot.fixture, snapshot.dinnerListed, "2026-03", txPixAna)
+		if !reflect.DeepEqual(seen.outcome, snapshot.outcome) {
+			t.Errorf("%s: the PIX is %+v, want %+v", snapshot.label, seen.outcome, snapshot.outcome)
+		}
+		if !snapshot.dinnerListed && (seen.row.ReimbursementIncome || !seen.countedSomewhere()) {
+			t.Errorf("%s: the PIX counts nowhere: %+v, shown on a line %v, reimbursementIncome %v", snapshot.label, seen.outcome, seen.row.Line != nil, seen.row.ReimbursementIncome)
+		}
+		received[snapshot.label] = receivedOn(t, reader, "2026-03", "Salário")
+		for _, problem := range monthInvariants(t, reader, env.scratch, snapshot.fixture.Path) {
+			t.Errorf("%s: %s", snapshot.label, problem)
+		}
+		env.expectLinkKept(t, snapshot.label, stored, journal)
+	}
+	if received["no longer listed"] != received["listed"]+15_000 || received["listed again"] != received["listed"] {
+		t.Errorf("Salário received %v, want 150.00 more while the dinner is not listed", received)
+	}
+}
+
+// A credit is judged by the whole ledger, not by the rows of the answer: the
+// PIX of February paying the dinner of March is its reimbursement in
+// February's figures, and an ordinary credit there once the dinner is gone.
+func TestALinkedCreditIsJudgedByTheWholeLedgerNotByTheMonthAsked(t *testing.T) {
+	listed, unlisted := reimbursementLedger(t), reimbursementLedger(t, txDinner)
+	env := newReimbursementEnv(t, listed)
+	env.linkThroughTheStore(txDinner, txPixOff, 2_000)
+	seen, _ := env.linkedOver(t, listed, true, "2026-02", txPixOff)
+	reimbursement := budgetrules.Outcome{Disposition: budgetrules.Reimbursement, Magnitude: 4_000}
+	if !reflect.DeepEqual(seen.outcome, reimbursement) || !seen.row.ReimbursementIncome || !seen.detail.ReimbursementIncome {
+		t.Errorf("with the dinner listed in March, February's PIX is %+v, reimbursementIncome %v and %v",
+			seen.outcome, seen.row.ReimbursementIncome, seen.detail.ReimbursementIncome)
+	}
+	if seen.dinner != "-140.00" {
+		t.Errorf("the dinner's effective amount is %s, want -140.00", seen.dinner)
+	}
+	gone, _ := env.linkedOver(t, unlisted, false, "2026-02", txPixOff)
+	if gone.outcome.Disposition != budgetrules.OtherCredit || gone.row.ReimbursementIncome {
+		t.Errorf("with the dinner gone, February's PIX is %+v, reimbursementIncome %v", gone.outcome, gone.row.ReimbursementIncome)
+	}
+}
+
+// Which listed credits of an answer are reimbursements, and how many times the
+// whole ledger is read to decide it: once when a stored purchase names a
+// credit of the answer, wherever that purchase is, and never otherwise.
+func TestACreditIsAReimbursementWhileTheWholeLedgerListsThePurchaseThatNamesIt(t *testing.T) {
+	listed, unlisted := reimbursementLedger(t), reimbursementLedger(t, txDinner)
+	linked := newReimbursementEnv(t, listed)
+	linked.linkThroughTheStore(txDinner, txPixAna, 9_000)
+	linked.linkThroughTheStore(txLunch, txPixOff, 2_000)
+	unnamed := newReimbursementEnv(t, listed)
+	unnamed.putOnLine(txPixAna, "Salário")
+	cases := []struct {
+		label    string
+		env      *countEnv
+		fixture  *ledgertest.Fixture
+		month    brday.Month
+		credit   string
+		want     bool
+		readings int
+	}{
+		{"the purchase listed in the answer", linked, listed, "2026-03", txPixAna, true, 1},
+		{"the purchase listed in a month the answer does not cover", linked, listed, "2026-02", txPixOff, true, 1},
+		{"the purchase not listed", linked, unlisted, "2026-03", txPixAna, false, 1},
+		{"no stored purchase names a credit of the answer", unnamed, listed, "2026-03", txPixAna, false, 0},
+	}
+	for _, c := range cases {
+		ctx := t.Context()
+		views := Views{Ledger: viewOf(t, c.fixture.Path), Authored: c.env.scratch.Database.View()}
+		disposed, err := disposeMonth(ctx, views, c.month)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids := make([]string, 0, len(disposed.listed))
+		for _, row := range disposed.listed {
+			ids = append(ids, row.ID)
+		}
+		keys, err := views.Authored.TransactionKeys(ctx, ids)
+		if err != nil {
+			t.Fatal(err)
+		}
+		readings := 0
+		counted := func() (wholeListing, error) {
+			readings++
+			return readWholeListing(ctx, views)
+		}
+		reimbursing, err := linkedCreditsOf(ctx, views.Authored, disposed.listed, keys, counted)
+		views.Authored.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		key, indexed := keys[c.credit]
+		if !indexed || reimbursing[key] != c.want || readings != c.readings {
+			t.Errorf("%s: the credit is a reimbursement %v (indexed %v) after %d readings of the whole ledger, want %v after %d",
+				c.label, reimbursing[key], indexed, readings, c.want, c.readings)
+		}
+	}
 }
