@@ -6,8 +6,8 @@ import (
 )
 
 // The weekly review is built on the budget's variable lines and on what the
-// person has been asked to confirm. The cap is not worked out yet: it is zero,
-// so nothing is spent against it.
+// person has been asked to confirm. The limit and the week are those of the
+// month asked, as the home shows them; the queue is the account's now.
 
 type weeklyLimit struct {
 	Cap       Reais `json:"cap"`
@@ -36,7 +36,8 @@ func registerReview(registry *Registry) {
 }
 
 func readWeeklyReview(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
-	if _, err := onlyMonthArgument(args); err != nil {
+	month, err := onlyMonthArgument(args)
+	if err != nil {
 		return nil, err
 	}
 	if err := requireReadableLedger(ctx, views.Ledger); err != nil {
@@ -46,7 +47,13 @@ func readWeeklyReview(ctx context.Context, args []json.RawMessage, views Views) 
 	if err != nil {
 		return nil, err
 	}
+	limit, err := monthLimitOf(ctx, views, month)
+	if err != nil {
+		return nil, err
+	}
 	return weeklyReview{
+		Limit:     limit.weeklyLimitWire(),
+		Week:      limit.currentWeekWire(),
 		Queue:     queue,
 		Approvals: []any{},
 		Warnings:  []any{},

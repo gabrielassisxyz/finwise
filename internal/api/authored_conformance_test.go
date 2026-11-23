@@ -85,6 +85,9 @@ var authoredReadCases = []authoredReadCase{
 	authoredRead("budget.establishments", `["2026-03","Academia"]`),
 	authoredRead("transactions.detail", `["tx-refund"]`),
 	authoredReadOver("review.weekly", `["2026-03"]`, queueOverTheThirdState),
+	// The home's limit and weekly guides under each version of the invented
+	// budget: 2026-02, a past month, and 2026-03, the current one, above.
+	authoredRead("home.summary", `["2026-02"]`),
 }
 
 // newAuthoredReadEnv is the third state: both stores, the database holding the
