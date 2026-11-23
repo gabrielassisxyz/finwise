@@ -440,6 +440,57 @@ func TestSavingTheDocumentJustReadAnswersAnEmptyChangeThatUndoesToNothing(t *tes
 	}
 }
 
+// withLineAddedTo appends a new line to a group of a document read back, so the
+// lines it had keep their ids and places.
+func withLineAddedTo(key, name, amount string) func([]map[string]any) {
+	return func(groups []map[string]any) {
+		for _, group := range groups {
+			if group["key"] == key {
+				group["lines"] = append(group["lines"].([]any), map[string]any{"name": name, "amount": json.Number(amount)})
+			}
+		}
+	}
+}
+
+// The second change sends the first save's lines back as they were read and
+// one more, so its one effect is a row that is no unit of the first save, which
+// created the month's version.
+func TestTheUndoOfASaveIsRefusedWhileALineALaterSaveOrScenarioAddedToItsVersionStands(t *testing.T) {
+	for _, method := range []string{"budget.save", "budget.applyScenario"} {
+		t.Run(method, func(t *testing.T) {
+			env := newBudgetHTTP(t)
+			before := env.state().canonical
+			first := changeIDOfAnswer(t, env.post("budget.save", `["2026-03",`+b0+`]`))
+			second := changeIDOfAnswer(t, env.post(method, `["2026-03",`+env.edited("2026-03", withLineAddedTo("var", "Farmácia", "50"))+`]`))
+			if effects := env.scratch.EffectsOf(t, changeNumber(t, second)); len(effects) != 1 || effects[0].Table != "budget_version_lines" {
+				t.Fatalf("the second change recorded %+v, want the added line's row alone", effects)
+			}
+			document := env.ok("budget.document", `["2026-03"]`)
+			if lines := len(linesOf(env.document("2026-03"), "var")); lines != 3 {
+				t.Fatalf("the variable group has %d lines after both changes, want 3", lines)
+			}
+			held := env.state()
+			expectRefused(t, "the undo of the first save", env.undo(first), "stale_change")
+			if after := env.state(); after != held {
+				t.Errorf("the refused undo changed the file or the journal:\n%s", differences(held.everything+held.journal, after.everything+after.journal))
+			}
+			if got := env.ok("budget.document", `["2026-03"]`); !bytes.Equal(got, document) {
+				t.Errorf("after the refusal the month reads\n%s\nwant\n%s", got, document)
+			}
+			for _, change := range env.scratch.Changes(t) {
+				if change.UndoneAt != "" {
+					t.Errorf("change %d (%s) is marked undone", change.ID, change.Method)
+				}
+			}
+			expectUndone(t, "the undo of the second change", env.undo(second))
+			expectUndone(t, "the undo of the first save once the second is undone", env.undo(first))
+			if after := env.state().canonical; after != before {
+				t.Errorf("the two undos left another state than the one before both changes:\n%s", differences(before, after))
+			}
+		})
+	}
+}
+
 func TestScenariosAreListedInTheOrderTheyWereSavedAndReplacedAtTheEnd(t *testing.T) {
 	env := newBudgetHTTP(t)
 	if got := string(env.ok("budget.scenarios", `[]`)); got != `[]` {

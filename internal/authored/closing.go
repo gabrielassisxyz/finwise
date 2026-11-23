@@ -3,6 +3,7 @@ package authored
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/gabrielassisxyz/finwise/internal/brday"
 )
@@ -13,6 +14,17 @@ import (
 const (
 	statementClosingStepsOfMonth = `SELECT step FROM closing_steps WHERE month = ? ORDER BY step`
 	statementClosedMonthsNewest  = `SELECT month, closed_on FROM closed_months ORDER BY month DESC`
+
+	// The key of an effect on closed_months is the row's key as a JSON array,
+	// ["<month>"]. While the row stands at most one such change is in force;
+	// the newest is taken all the same.
+	statementCloseChangeOfMonth = `
+SELECT changes.id
+FROM changes JOIN change_effects AS effects ON effects.change_id = changes.id
+WHERE changes.method = ? AND changes.undone_at IS NULL
+  AND effects.tbl = 'closed_months' AND json_extract(effects.key, '$[0]') = ?
+ORDER BY changes.id DESC
+LIMIT 1`
 )
 
 // ClosedMonth is a month that was closed and the day it was.
@@ -69,4 +81,23 @@ func (view *View) ClosedMonths(ctx context.Context) ([]ClosedMonth, error) {
 		return rows.Err()
 	})
 	return closed, err
+}
+
+// CloseChangeOf is the change of method, not undone, whose effects wrote the
+// closed_months row of month; found is false when there is none, and on the
+// empty view. It does not look at whether the row stands now.
+func (view *View) CloseChangeOf(ctx context.Context, method string, month brday.Month) (id ChangeID, found bool, err error) {
+	_, err = view.read(ctx, func(tx *sql.Tx) error {
+		var stored int64
+		err := tx.QueryRowContext(ctx, statementCloseChangeOfMonth, method, string(month)).Scan(&stored)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		id, found = ChangeID(stored), err == nil
+		return err
+	})
+	if err != nil {
+		return 0, false, err
+	}
+	return id, found, nil
 }

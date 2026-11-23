@@ -262,3 +262,34 @@ describe('closing the month', () => {
     expect((await api.review.closing(MONTH)).closed).toBe(false);
   });
 });
+
+describe('the change that closed the month', () => {
+  it('is the id the close answered, until that change is undone, and the id of the next close after it', async () => {
+    const api = createFakeApi();
+    await clearQueue(api);
+    expect((await api.review.closing(MONTH)).closeChangeId).toBeNull();
+    const first = await api.review.closeMonth(MONTH);
+    expect(await api.review.closing(MONTH)).toMatchObject({ closed: true, closeChangeId: first.changeId });
+    await api.changes.undo(first.changeId);
+    expect(await api.review.closing(MONTH)).toMatchObject({ closed: false, closeChangeId: null });
+    const second = await api.review.closeMonth(MONTH);
+    expect(second.changeId).not.toBe(first.changeId);
+    expect((await api.review.closing(MONTH)).closeChangeId).toBe(second.changeId);
+  });
+
+  it('is its own for each month closed, and undoing one reopens that month alone', async () => {
+    const api = createFakeApi();
+    await clearQueue(api);
+    const september = await api.review.closeMonth('2026-09');
+    const november = await api.review.closeMonth(MONTH);
+    expect((await api.review.closing('2026-09')).closeChangeId).toBe(september.changeId);
+    expect((await api.review.closing(MONTH)).closeChangeId).toBe(november.changeId);
+    await api.changes.undo(november.changeId);
+    expect(await api.review.closing(MONTH)).toMatchObject({ closed: false, closeChangeId: null });
+    expect(await api.review.closing('2026-09')).toMatchObject({ closed: true, closeChangeId: september.changeId });
+  });
+
+  it('is null for the month closed from the start, which no change of the log closed', async () => {
+    expect(await createFakeApi().review.closing('2026-10')).toMatchObject({ closed: true, closeChangeId: null });
+  });
+});

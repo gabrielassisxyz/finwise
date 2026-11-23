@@ -4,7 +4,10 @@ import { longDay } from '@/lib/format';
 import { useRevisionStore } from '@/stores/revision';
 import { useReviewActions } from './useReviewActions';
 
-/** The writes of the month closing. Marking a step and closing the month carry no toast: the screen itself shows the result. */
+/**
+ * The writes of the month closing. Marking a step, closing the month and reopening it carry no toast: the screen itself
+ * shows the result. A refused reopen is left to the failure handling, which says why and refetches.
+ */
 export function useClosingActions() {
   const api = useApi();
   const revision = useRevisionStore();
@@ -17,6 +20,12 @@ export function useClosingActions() {
 
   async function closeMonth(month: YearMonth): Promise<void> {
     await api.review.closeMonth(month);
+    revision.bump();
+  }
+
+  /** Reopens a month by undoing the change that closed it, the id the closing read answered. */
+  async function reopenMonth(closeChangeId: string): Promise<void> {
+    await api.changes.undo(closeChangeId);
     revision.bump();
   }
 
@@ -35,5 +44,5 @@ export function useClosingActions() {
     if (result) actions.announce('Sugestão enviada para Aguardando seu ok.', result.changeId);
   }
 
-  return { markStepDone, closeMonth, keepSubscription, cancelSubscription, sendSuggestion };
+  return { markStepDone, closeMonth, reopenMonth, keepSubscription, cancelSubscription, sendSuggestion };
 }

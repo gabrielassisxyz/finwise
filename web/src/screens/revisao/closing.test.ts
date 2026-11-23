@@ -1,6 +1,10 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { flushPromises } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
+import { createFakeApi } from '@/api/fake';
 import { prototypeState } from '@/api/fake/prototype-data';
+import type { FinwiseApi } from '@/api/types';
 import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
 import { useReviewViewStore } from '@/stores/review-view';
@@ -8,6 +12,7 @@ import { useRevisionStore } from '@/stores/revision';
 import { holdFirstCall } from '@/test/holdCall';
 import { prototypeOverview } from '@/test/mount';
 import { mountRouted } from '@/test/mountRouted';
+import { failingOne, mountWithFailures, readOnlyApi, type FailureMount } from '@/test/readOnly';
 import ClosingTab from './ClosingTab.vue';
 
 const Blank = { template: '<div />' };
@@ -312,6 +317,164 @@ describe('Fechamento, closing the month', () => {
     const step = stepOf(wrapper, 'Fechar o mês');
     expect(step.find('.text').text()).toBe('Novembro de 2026 foi fechado em 28/11/2026. O budget deste mês está guardado e não muda mais.');
     expect(step.find('.close').exists()).toBe(false);
+  });
+});
+
+describe('Fechamento, reopening a month', () => {
+  const PATH = '/revisao/fechamento';
+  const NOVEMBER = '2026-11';
+
+  interface Call {
+    method: string;
+    args: unknown[];
+  }
+
+  /** The API with every call made through it kept in order, to tell which methods a click reached. */
+  function recordingCalls(api: FinwiseApi): { api: FinwiseApi; calls: Call[] } {
+    const calls: Call[] = [];
+    const domains = api as unknown as Record<string, Record<string, (...args: unknown[]) => Promise<unknown>>>;
+    const recorded = Object.fromEntries(
+      Object.entries(domains).map(([domain, methods]) => [
+        domain,
+        Object.fromEntries(
+          Object.entries(methods).map(([name, method]) => [
+            name,
+            (...args: unknown[]) => {
+              calls.push({ method: `${domain}.${name}`, args });
+              return method(...args);
+            },
+          ]),
+        ),
+      ]),
+    );
+    return { api: recorded as unknown as FinwiseApi, calls };
+  }
+
+  /** The stand-in with November closed by a close of its own, so its closing answers that change's id. */
+  async function closedByAClose() {
+    const api = createFakeApi({ startLocked: false, state: stateWithoutPending() });
+    const { changeId } = await api.review.closeMonth(NOVEMBER);
+    return { api, changeId };
+  }
+
+  async function mountAtStepEight(api: FinwiseApi): Promise<FailureMount> {
+    const mounted = await mountWithFailures(ClosingTab, routes, PATH, { api });
+    await open(mounted.wrapper, 'Fechar o mês');
+    return mounted;
+  }
+
+  const closeStep = (mounted: FailureMount) => stepOf(mounted.wrapper, 'Fechar o mês');
+
+  async function confirmReopen(mounted: FailureMount): Promise<void> {
+    await click(closeStep(mounted).find('.reopen'));
+    useOverlayStore(mounted.pinia).confirmation!.onConfirm();
+    await mounted.settle();
+  }
+
+  function expectNovemberStillClosed(mounted: FailureMount): void {
+    expect(closeStep(mounted).find('.text').text()).toBe(
+      'Novembro de 2026 foi fechado em 28/11/2026. O budget deste mês está guardado e não muda mais.',
+    );
+    expect(closeStep(mounted).find('.reopen').exists()).toBe(true);
+    expect(mounted.wrapper.findAll('.entry .label').map((label) => label.text())).toEqual(['Novembro de 2026', 'Outubro de 2026']);
+  }
+
+  it('offers "Reabrir mês" on step eight of a month a close holds closed, and none on the month closed from the start', async () => {
+    const mounted = await mountAtStepEight((await closedByAClose()).api);
+    expect(plain(closeStep(mounted).find('.reopen').text())).toBe('Reabrir mês');
+    expect(closeStep(mounted).find('.close').exists()).toBe(false);
+
+    useMonthStore(mounted.pinia).selected = '2026-10';
+    await mounted.settle();
+    expect(closeStep(mounted).find('.text').text()).toBe(
+      'Outubro de 2026 foi fechado em 02/11/2026. O budget deste mês está guardado e não muda mais.',
+    );
+    expect(closeStep(mounted).find('.reopen').exists()).toBe(false);
+    expect(closeStep(mounted).findAll('.body button')).toHaveLength(0);
+  });
+
+  it('asks before reopening, and declining calls no method', async () => {
+    const closed = await closedByAClose();
+    const { api, calls } = recordingCalls(closed.api);
+    const mounted = await mountAtStepEight(api);
+    calls.length = 0;
+
+    await click(closeStep(mounted).find('.reopen'));
+    const overlay = useOverlayStore(mounted.pinia);
+    expect(overlay.confirmation).toMatchObject({
+      message: 'Reabrir novembro de 2026? O budget deste mês volta a poder ser editado.',
+      confirmLabel: 'Reabrir mês',
+    });
+    expect(calls).toEqual([]);
+    overlay.closeConfirmation();
+    await mounted.settle();
+
+    expect(calls).toEqual([]);
+    expect((await closed.api.review.closing(NOVEMBER)).closed).toBe(true);
+    expectNovemberStillClosed(mounted);
+  });
+
+  it('reopens once confirmed with one undo of the id the read gave: step eight offers "Fechar o mês" and the list loses the month', async () => {
+    const closed = await closedByAClose();
+    const { api, calls } = recordingCalls(closed.api);
+    const mounted = await mountAtStepEight(api);
+    expect((await closed.api.review.closing(NOVEMBER)).closeChangeId).toBe(closed.changeId);
+    calls.length = 0;
+
+    await confirmReopen(mounted);
+
+    expect(calls.filter((call) => call.method === 'changes.undo')).toEqual([{ method: 'changes.undo', args: [closed.changeId] }]);
+    const close = closeStep(mounted).find('.close');
+    expect(plain(close.text())).toBe('Fechar o mês');
+    expect(close.attributes('disabled')).toBeUndefined();
+    expect(closeStep(mounted).find('.reopen').exists()).toBe(false);
+    expect(mounted.wrapper.findAll('.entry .label').map((label) => label.text())).toEqual(['Outubro de 2026']);
+    expect(mounted.toasts).toEqual([]);
+    expect(mounted.unclaimed).toEqual([]);
+  });
+
+  it('closes and reopens the month from step eight with no toast for either', async () => {
+    const mounted = await mountAtStepEight(createFakeApi({ startLocked: false, state: stateWithoutPending() }));
+    await click(closeStep(mounted).find('.close'));
+    useOverlayStore(mounted.pinia).confirmation!.onConfirm();
+    await mounted.settle();
+    expect(mounted.toasts).toEqual([]);
+
+    await open(mounted.wrapper, 'Fechar o mês');
+    await confirmReopen(mounted);
+    expect(mounted.toasts).toEqual([]);
+    expect(useOverlayStore(mounted.pinia).toast).toBeNull();
+    expect(closeStep(mounted).find('.close').exists()).toBe(true);
+  });
+
+  it('refused as stale, says so with no action and the month stays closed', async () => {
+    const closed = await closedByAClose();
+    const mounted = await mountAtStepEight(failingOne(closed.api, 'changes.undo', 'refused', 'stale_change'));
+    const before = mounted.revisionNow();
+
+    await confirmReopen(mounted);
+
+    expect(mounted.toasts).toEqual(['Isso já foi alterado depois e não pode mais ser desfeito.']);
+    expect(useOverlayStore(mounted.pinia).toast?.actions).toEqual([]);
+    expect(mounted.revisionNow() - before).toBe(1);
+    expect(mounted.unclaimed).toEqual([]);
+    expectNovemberStillClosed(mounted);
+  });
+
+  it('refused as read-only, says nothing was changed and the month stays closed', async () => {
+    const mounted = await mountAtStepEight(readOnlyApi((await closedByAClose()).api));
+
+    await confirmReopen(mounted);
+
+    expect(mounted.toasts).toEqual(['Somente leitura por enquanto. Nada foi alterado.']);
+    expect(mounted.unclaimed).toEqual([]);
+    expectNovemberStillClosed(mounted);
+  });
+
+  it('leaves a failed reopen to the failure handling: the composable catches nothing', () => {
+    const source = readFileSync(resolve(import.meta.dirname, 'useClosingActions.ts'), 'utf8');
+    expect(source).toContain('api.changes.undo(');
+    expect(source).not.toMatch(/\bcatch\b/);
   });
 });
 

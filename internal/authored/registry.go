@@ -52,7 +52,25 @@ type Ownership struct {
 	// Columns are this table's columns that hold the owner's key, in the
 	// owner's key order.
 	Columns []string
+	// OnUndo is what an undo that removes the owner's row may do with an owned
+	// row it does not itself restore. Every owned table declares one.
+	OnUndo OwnedRows
 }
+
+// OwnedRows says whether an owned table's rows mean anything without their
+// owner, which decides whether an undo may take along one that another change
+// wrote.
+type OwnedRows int
+
+const (
+	// RowsFollowTheirOwner: a row has no meaning without its owner, so an undo
+	// that removes the owner takes it along, whichever change wrote it.
+	RowsFollowTheirOwner OwnedRows = iota + 1
+	// RowsHoldTheirOwner: a row is the person's data in its own right, so an
+	// undo that would remove the owner from under one it does not restore is
+	// refused as stale.
+	RowsHoldTheirOwner
+)
 
 // TableStatements are the registered constants that read and write a table;
 // no SQL is assembled from names at run time. Every SELECT returns the
@@ -258,6 +276,9 @@ func validateOwnership(registry *Registry, table *Table) error {
 		if table.column(name) == nil {
 			return fmt.Errorf("authored: %s names an owner column it does not have", table.Name)
 		}
+	}
+	if onUndo := table.OwnedBy.OnUndo; onUndo != RowsFollowTheirOwner && onUndo != RowsHoldTheirOwner {
+		return fmt.Errorf("authored: %s declares neither that its rows follow %s nor that they hold it", table.Name, owner.Name)
 	}
 	return nil
 }

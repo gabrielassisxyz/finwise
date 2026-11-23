@@ -133,11 +133,12 @@ var historyStepsEntry = Table{
 
 // A reason is owned by its step: writing one is an effect on the reason alone,
 // so the step's change can still be undone or extended, and removing the step
-// removes its reason as an effect of the same change.
+// removes its reason as an effect of the same change. A reason means nothing
+// without its step, so it follows the step out even when a later change wrote it.
 var historyReasonsEntry = Table{
 	Name: historyReasonsTable, Shape: ShapeSet, Key: []string{"step_id"},
 	Columns: []Column{{Name: "step_id"}, {Name: "reason"}},
-	OwnedBy: &Ownership{Owner: historyStepsTable, Columns: []string{"step_id"}},
+	OwnedBy: &Ownership{Owner: historyStepsTable, Columns: []string{"step_id"}, OnUndo: RowsFollowTheirOwner},
 	Statements: TableStatements{
 		// A step owns at most one reason, which is the row at the step's id.
 		SelectRow: statementStepReasonRow, SelectAll: statementStepReasonAll, SelectOwned: statementStepReasonRow,

@@ -113,3 +113,75 @@ func TestTheClosedMonthsReadBackNewestFirstWithTheirDays(t *testing.T) {
 		t.Errorf("the empty view answered %v, %v", got, err)
 	}
 }
+
+const closeMonthMethod = "review.closeMonth"
+
+// closedBy closes month on day through the store, in a change of method.
+func closedBy(t *testing.T, database *authored.Database, method string, day brday.Day, month brday.Month) authored.ChangeID {
+	t.Helper()
+	return changeOn(t, database, method, day, func(recorder *authored.Recorder) error {
+		return recorder.CloseMonth(t.Context(), month, day)
+	})
+}
+
+// closeChangeOf is the close of month the lookup finds, as the wire writes an
+// id, or "none".
+func closeChangeOf(t *testing.T, database *authored.Database, month brday.Month) string {
+	t.Helper()
+	view := database.View()
+	defer view.Close()
+	id, found, err := view.CloseChangeOf(t.Context(), closeMonthMethod, month)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !found {
+		return "none"
+	}
+	return id.String()
+}
+
+func TestEachClosedMonthAnswersTheCloseThatWroteItsRowAndAnOpenMonthNone(t *testing.T) {
+	database := openDatabase(t, databasePath(t), creationInstant, nil)
+	february := closedBy(t, database, closeMonthMethod, "2026-03-02", "2026-02")
+	march := closedBy(t, database, closeMonthMethod, "2026-04-02", "2026-03")
+
+	for month, want := range map[brday.Month]string{"2026-02": february.String(), "2026-03": march.String(), "2026-04": "none"} {
+		if got := closeChangeOf(t, database, month); got != want {
+			t.Errorf("the close of %s is %s, want %s", month, got, want)
+		}
+	}
+	if _, found, err := authored.EmptyView().CloseChangeOf(t.Context(), closeMonthMethod, "2026-02"); found || err != nil {
+		t.Errorf("the empty view answered found %t, %v", found, err)
+	}
+}
+
+func TestAnUndoneCloseIsNoLongerTheChangeThatClosedTheMonth(t *testing.T) {
+	database := openDatabase(t, databasePath(t), creationInstant, nil)
+	first := closedBy(t, database, closeMonthMethod, "2026-03-02", "2026-02")
+	if err := database.Undo(t.Context(), first, time.Date(2026, 3, 3, 15, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+	if got := closeChangeOf(t, database, "2026-02"); got != "none" {
+		t.Errorf("after its undo the close of 2026-02 is %s, want none", got)
+	}
+	second := closedBy(t, database, closeMonthMethod, "2026-03-04", "2026-02")
+	if got := closeChangeOf(t, database, "2026-02"); got != second.String() || second == first {
+		t.Errorf("closed again the close of 2026-02 is %s, want the new change %s, not %s", got, second, first)
+	}
+}
+
+// The invented state of the API's tests closes a month inside a change that
+// does far more, and undoing that change would undo all of it.
+func TestAMonthClosedByAChangeOfAnotherMethodHasNoClose(t *testing.T) {
+	database := openDatabase(t, databasePath(t), creationInstant, nil)
+	closedBy(t, database, "scratch.seed", "2026-02-03", "2026-01")
+	if got := closeChangeOf(t, database, "2026-01"); got != "none" {
+		t.Errorf("a month closed by scratch.seed answers the close %s, want none", got)
+	}
+	changeOn(t, database, closeMonthMethod, "2026-02-04", func(recorder *authored.Recorder) error {
+		return recorder.MarkClosingStepDone(t.Context(), "2026-01", "leftover")
+	})
+	if got := closeChangeOf(t, database, "2026-01"); got != "none" {
+		t.Errorf("a change of the close's method that wrote no closed row answers the close %s, want none", got)
+	}
+}

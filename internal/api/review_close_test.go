@@ -614,3 +614,102 @@ func TestTheCloseRunsNoIngest(t *testing.T) {
 		t.Errorf("the close ran the ingest %d more times and the rules' changes went from %d to %d", runs-1, before, byTheRules())
 	}
 }
+
+// closing is what review.closing answers for month over the env's router.
+func (env *closeEnv) closing(month string) closingSeen {
+	env.t.Helper()
+	return closingIn(env.t, &readEnv{testEnv: env.testEnv, cookie: env.cookie}, month)
+}
+
+// closeChange is the closing's closeChangeId, or "null".
+func (seen closingSeen) closeChange() string {
+	if seen.CloseChangeID == nil {
+		return "null"
+	}
+	return *seen.CloseChangeID
+}
+
+func TestTheClosingAnswersTheIdOfTheCloseAndTheUndoOfThatIdReopensTheMonth(t *testing.T) {
+	env := newCloseExamples(t, true)
+	first := env.closed("2026-02")
+	seen := env.closing("2026-02")
+	if !seen.Closed || seen.closeChange() != first {
+		t.Fatalf("after the close answered %s the closing reads closed %t with the close %s", first, seen.Closed, seen.closeChange())
+	}
+	env.mustUndo("the undo of the id the closing answered", seen.closeChange())
+	if reopened := env.closing("2026-02"); reopened.Closed || reopened.closeChange() != "null" {
+		t.Errorf("after the undo the closing reads closed %t with the close %s, want open and null", reopened.Closed, reopened.closeChange())
+	}
+	second := env.closed("2026-02")
+	if again := env.closing("2026-02"); !again.Closed || again.closeChange() != second || second == first {
+		t.Errorf("closed again under %s the closing reads closed %t with the close %s; the first was %s", second, again.Closed, again.closeChange(), first)
+	}
+}
+
+func TestTwoClosedMonthsAnswerTheirOwnCloseAndUndoingOneReopensThatMonthAlone(t *testing.T) {
+	env := newCloseExamples(t, true)
+	february, march := env.closed("2026-02"), env.closed("2026-03")
+	if got := env.closing("2026-02").closeChange(); got != february {
+		t.Errorf("2026-02 answers the close %s, want %s", got, february)
+	}
+	if got := env.closing("2026-03").closeChange(); got != march {
+		t.Errorf("2026-03 answers the close %s, want %s", got, march)
+	}
+	env.mustUndo("the undo of February's close", env.closing("2026-02").closeChange())
+	if got := env.closing("2026-02"); got.Closed || got.closeChange() != "null" {
+		t.Errorf("February reads closed %t with the close %s, want open and null", got.Closed, got.closeChange())
+	}
+	if got := env.closing("2026-03"); !got.Closed || got.closeChange() != march {
+		t.Errorf("March reads closed %t with the close %s, want closed by %s", got.Closed, got.closeChange(), march)
+	}
+	if got := env.closedMonths(); !slices.Equal(got, []string{"2026-03 2026-03-20"}) {
+		t.Errorf("closed_months = %v", got)
+	}
+}
+
+// The close and a line put on a transaction of the month share no row.
+func TestUndoingACloseAfterATransactionOfTheMonthWasPutOnALineKeepsTheLine(t *testing.T) {
+	env := newCloseExamples(t, false)
+	closing := env.closed("2026-02")
+	changeIDOfAnswer(t, env.post("transactions.setLine", `["`+txCloseTf+`","Mercado"]`))
+	if got := env.lineOf(txCloseTf); got != "Mercado" {
+		t.Fatalf("Tf of the closed February is on %s, want Mercado", got)
+	}
+	env.mustUndo("the undo of the close after the line", env.closing("2026-02").closeChange())
+	if !env.undone(closing) || env.closing("2026-02").Closed {
+		t.Errorf("the close %s was not undone or February still reads closed", closing)
+	}
+	if got := env.lineOf(txCloseTf); got != "Mercado" {
+		t.Errorf("after the close's undo Tf is on %s, want Mercado", got)
+	}
+}
+
+func TestAMonthClosedByAChangeOfAnotherMethodOrUndoneAndClosedSoAnswersNoClose(t *testing.T) {
+	env := newCloseExamples(t, true)
+	authoredtest.CloseMonth(t, env.scratch.Database, fixtureNow, "2026-01", "2026-02-03")
+	if got := env.closing("2026-01"); !got.Closed || got.closeChange() != "null" {
+		t.Errorf("January closed by scratch.closeMonth reads closed %t with the close %s, want closed and null", got.Closed, got.closeChange())
+	}
+	env.mustUndo("the undo of February's close", env.closed("2026-02"))
+	authoredtest.CloseMonth(t, env.scratch.Database, fixtureNow, "2026-02", "2026-03-20")
+	if got := env.closing("2026-02"); !got.Closed || got.closeChange() != "null" {
+		t.Errorf("February closed by scratch.closeMonth after its close was undone reads closed %t with the close %s, want closed and null", got.Closed, got.closeChange())
+	}
+}
+
+// No write of the app takes a closed row away; a change of the tests does, so
+// that a close in force is seen not to be answered for a month that is open.
+func TestAnOpenMonthAnswersNoCloseEvenWithACloseOfItInForce(t *testing.T) {
+	env := newCloseExamples(t, true)
+	closing := env.closed("2026-02")
+	facts := authored.ChangeFacts{Author: authored.AuthorPerson, Method: "scratch.reopen", At: fixtureNow}
+	err := env.scratch.Database.Change(t.Context(), facts, func(recorder *authored.Recorder) error {
+		return recorder.Delete(t.Context(), "closed_months", []authored.Value{authored.Text("2026-02")})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := env.closing("2026-02"); got.Closed || got.closeChange() != "null" || env.undone(closing) {
+		t.Errorf("with the row taken away February reads closed %t with the close %s", got.Closed, got.closeChange())
+	}
+}
