@@ -102,11 +102,15 @@ func confirmLine(ctx context.Context, args []json.RawMessage, writes Writes) (an
 	if err != nil {
 		return nil, err
 	}
-	lines, err := linesOfMonth(ctx, writes.Authored, monthOfDay(target.listed.Day))
+	model, err := storedModelSuggestion(ctx, writes.Authored, target.key)
 	if err != nil {
 		return nil, err
 	}
-	line, name, found := confirmableLine(kept.State, lines)
+	budget, err := writes.Authored.BudgetOf(ctx, monthOfDay(target.listed.Day))
+	if err != nil {
+		return nil, err
+	}
+	line, name, found := confirmableLine(kept.State, model, budget)
 	if !found {
 		return nil, nil
 	}
@@ -116,14 +120,16 @@ func confirmLine(ctx context.Context, args []json.RawMessage, writes Writes) (an
 	return changeResultOf(ctx, writes.Recorder)
 }
 
-func confirmableLine(state authored.TransactionState, lines monthLines) (authored.LineID, string, bool) {
-	for _, candidate := range []*authored.LineID{state.Line, state.PendingLine} {
-		if candidate == nil {
-			continue
-		}
-		if name, found := lines.nameOf(*candidate); found {
-			return *candidate, name, true
-		}
+func confirmableLine(state authored.TransactionState, model *authored.ModelSuggestion, budget authored.Budget) (authored.LineID, string, bool) {
+	if !budget.HasLines() {
+		return 0, "", false
+	}
+	lines := transactionLinesOf(budget)
+	if name := lines.nameOf(state.Line); name != nil {
+		return *state.Line, *name, true
+	}
+	if shown := lines.pendingSuggestion(state, model); shown.source != suggestionNone {
+		return shown.line, shown.name, true
 	}
 	return 0, "", false
 }

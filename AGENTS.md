@@ -205,6 +205,46 @@
   - `TestEveryWriteAndEvaluationHasExactlyOneImplementation` (`internal/api/write_walk_test.go`) walks the
     manifest: each write and evaluation has a registered handler or, for `session.changePin` alone, the
     session service, or is named in `writesWithoutHandler`, which is empty while every one has a handler.
+- **Model suggestions:** `internal/suggest` asks an OpenAI-compatible chat completions endpoint
+  (`POST <FINWISE_MODEL_URL>/chat/completions`) about every pending purchase at an establishment that
+  has never been asked, each once, and stores the result in `model_suggestions` without ever counting in
+  any figure until the person accepts in the queue.
+  - Configuration: `FINWISE_MODEL_URL`, `FINWISE_MODEL_NAME`, and optional `FINWISE_MODEL_KEY`. With
+    neither of the first two set, the step is off and `finwise serve` logs once
+    `no model configured: pending purchases get no suggestion`. Setting one without the other, or a URL
+    that is neither `https://` nor `http://` to a loopback host, stops start with a message naming only
+    the variables and never their values.
+  - What leaves the machine: one request per month (at most 40 purchases per request) carrying the
+    month's budget line names, up to 100 of the person's newest establishment decisions (shown name and
+    line name, one per establishment, only `classified_by = 'person'`), and for each unasked pending
+    establishment purchase a request-local `n`, the scrubbed bank description, positive reais amount and
+    day. Every text from the ledger passes `suggest.ScrubText`, replacing CPFs, CNPJs and any run of 8
+    or more digits (with separators allowed between them) by `[número]`; an example whose name is
+    nothing but such a run is dropped. Never sent: transfers to a person, CPFs, CNPJs, 8+ digit runs,
+    account or card numbers, balances, notes, tags or ledger ids.
+  - When it runs: in `finwise serve --db`, in a single background goroutine right after every
+    `serverIngests.once` run that succeeded and was not `Stopped` (start, timer, budget save or write),
+    never holding a request; triggers arriving while a step runs coalesce into one follow-up run, and
+    shutdown cancels any in-flight call and waits for the goroutine to end before closing the database.
+    `finwise suggest --db <file> --ledger <snapshot>` takes its paths as `finwise ingest` does, never
+    creates a missing or empty database, prints one line of counts, and exits 0 (also with nothing to
+    ask), 1 on failure or no model configured, and 2 with its usage line on missing flags.
+  - Storage and precedence: `model_suggestions` (`0009_model_suggestions.sql`) is kept out of the
+    journal (`notJournaledTables`) because a model's suggestion is not authored by the person, must not
+    be undoable as a person's change, and must survive `SettleLine` so calibration can compare what the
+    model suggested against what the person answered. `pendingSuggestion` in
+    `internal/api/transactions_authored.go` is the single function deciding what a pending review shows
+    (the model's line when its row has one and the transaction's month names it, otherwise the rule's),
+    used by the queue, list, panel, `transactions.confirmLine` and `review.acceptPending`.
+    `review.acceptPending` writes `answer` (`accepted` or `corrected`) and `answer_change_id` inside the
+    person's change only when the queue showed the model's suggestion. Each run that attempts at least
+    one request records `last_model_run` (`{"at":"<UTC ms>","ok":<bool>}`) in `meta`.
+  - Logs and guards: one line per step that made a request (`suggest` with `trigger=ingest|command`,
+    `requests`, `asked`, `suggested`, `unusable`), or `suggest failed` with `trigger` and `kind` one of
+    `unreachable`, `timeout` (120s per request), `status`, `malformed`, `database` or `panic`; nothing
+    of a request or reply is logged. `internal/suggest` is in `floatFreePackages` and `hostClockFree`;
+    its opt-in `internal/suggest/realsnapshot_test.go` builds requests over `FINWISE_LEDGER_SNAPSHOT`
+    without sending them and logs counts only.
 - **An agent's door:** an agent reads the app through a token of its own and can change nothing.
   - `finwise agent-token` prints two lines and nothing else, `FINWISE_AGENT_TOKEN=<token>` and
     `FINWISE_AGENT_TOKEN_HASH=sha256$<digest>`: the first goes into the agent's environment, the second

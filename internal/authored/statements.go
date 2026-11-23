@@ -174,4 +174,11 @@ var allStatements = map[string]string{
 	"statementBudgetEffectsInForce": statementBudgetEffectsInForce,
 
 	"statementCloseChangeOfMonth": statementCloseChangeOfMonth,
+
+	"statementInsertModelSuggestion": statementInsertModelSuggestion,
+	"statementModelSuggestionsOf":    statementModelSuggestionsOf,
+	"statementRecordModelAnswer":     statementRecordModelAnswer,
+	"statementPersonExamples":        statementPersonExamples,
+	"statementLastModelRun":          statementLastModelRun,
+	"statementRecordModelRun":        statementRecordModelRun,
 }

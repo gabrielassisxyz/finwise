@@ -198,11 +198,12 @@ func detailFrom(row listedRow, rows authoredRows, extras panelExtras) transactio
 	kept, _, _ := rows.keptOf(listed)
 	state := kept.State
 	month := rows.months[monthOfDay(listed.Day)]
+	shown := month.pendingSuggestion(state, rows.modelSuggestionOf(listed))
 	sections := sectionsOf(listed)
 	return transactionDetailWire{
 		transactionWire:         rows.transactionOf(listed, row.source, row.around),
 		AccountDescription:      describeAccount(listed.AccountID, row.source, row.around),
-		Justification:           justificationOf(state),
+		Justification:           justificationOf(state, shown),
 		AskReason:               state.AskReason,
 		Reason:                  latestReason(kept.History),
 		Sections:                sections,
@@ -221,9 +222,14 @@ func detailFrom(row listedRow, rows authoredRows, extras panelExtras) transactio
 }
 
 // justificationOf is the model's reason for a line, which the panel offers to
-// confirm while it is not null. There is no model yet, so a pending review or a
-// line of the model's has an empty one.
-func justificationOf(state authored.TransactionState) *string {
+// confirm while it is not null. A pending review whose shown suggestion carries
+// a justification answers it; otherwise a pending review or a line of the
+// model's answers an empty one.
+func justificationOf(state authored.TransactionState, shown shownSuggestion) *string {
+	if shown.justification != nil {
+		text := *shown.justification
+		return &text
+	}
 	if state.PendingReason == "" && state.ClassifiedBy != authored.AuthorModel {
 		return nil
 	}

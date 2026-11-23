@@ -96,6 +96,7 @@ var authoredReadCases = []authoredReadCase{
 	authoredRead("review.payday", `["2026-04"]`),
 	authoredRead("savingsPots.detail", `["investment:inv-it-1"]`),
 	authoredRead("savingsPots.detail", `["investment:inv-nu-1"]`),
+	authoredReadOver("review.weekly", `["2026-02"]`, queueWithModelSuggestions),
 }
 
 // newAuthoredReadEnv is the third state: both stores, the database holding the
