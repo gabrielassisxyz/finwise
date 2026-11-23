@@ -176,7 +176,7 @@ func TestACreditPaysOnePurchaseOnly(t *testing.T) {
 		env.linkDinnerTo(txPixAna)
 		env.change("transactions.setReimbursable", `["`+txLunch+`",true]`)
 		env.expectRefused(reasonNotFound, "transactions.linkReimbursement", `["`+txLunch+`","`+txPixAna+`"]`)
-		if slices.Contains(candidateIDs(reimbursementDetailOf(t, env.readEnv, txLunch)), txPixAna) {
+		if slices.Contains(reimbursementCandidateIDs(reimbursementDetailOf(t, env.readEnv, txLunch)), txPixAna) {
 			t.Errorf("Ana's PIX, linked to the dinner, is a candidate of the lunch")
 		}
 		if free == "unlinking" {
@@ -199,7 +199,7 @@ func TestMarkingALinkedPurchaseAgainStartsOverAndFreesItsCredit(t *testing.T) {
 	if got := env.reimbursementOf(txDinner); got != `{"expected":90.00,"link":null}` {
 		t.Errorf("marking the linked dinner again answers %s", got)
 	}
-	if !slices.Contains(candidateIDs(reimbursementDetailOf(t, env.readEnv, txLunch)), txPixAna) {
+	if !slices.Contains(reimbursementCandidateIDs(reimbursementDetailOf(t, env.readEnv, txLunch)), txPixAna) {
 		t.Error("the credit of the dinner marked again is not a candidate of the lunch")
 	}
 }
@@ -326,7 +326,7 @@ func TestLinkingAnotherCreditReplacesTheLinkAndFreesTheFirst(t *testing.T) {
 	if row := reimbursementRowOf(t, env.readEnv, "2026-03", txPixAna); row.ReimbursementIncome {
 		t.Error("the replaced PIX still answers reimbursementIncome")
 	}
-	if !slices.Contains(candidateIDs(reimbursementDetailOf(t, env.readEnv, txLunch)), txPixAna) {
+	if !slices.Contains(reimbursementCandidateIDs(reimbursementDetailOf(t, env.readEnv, txLunch)), txPixAna) {
 		t.Error("the replaced PIX is not a candidate of the lunch")
 	}
 	env.expectEmptyChange("transactions.linkReimbursement", `["`+txDinner+`","`+txPixWhole+`"]`)
@@ -414,7 +414,7 @@ func TestACreditTheLedgerStoppedListingIsNoOnesToLinkAndListedAgainIsStillTaken(
 		string(body) != refusedWith(reasonNotFound) {
 		t.Errorf("linking the PIX the ledger no longer lists answered %d %s", status, body)
 	}
-	if got := candidateIDs(reimbursementDetailOf(t, env.snapshotOver(t, listedAgain), txLunch)); slices.Contains(got, txPixAna) {
+	if got := reimbursementCandidateIDs(reimbursementDetailOf(t, env.snapshotOver(t, listedAgain), txLunch)); slices.Contains(got, txPixAna) {
 		t.Errorf("listed again, the dinner's PIX is a candidate of the lunch: %v", got)
 	}
 }
@@ -471,7 +471,7 @@ func TestLinkingToAMarkedCreditChangesNothingAndThePIXStaysIncome(t *testing.T) 
 			t.Errorf("%s: the PIX counts %+v, want 15000 received on Salário", credit, outcome)
 		}
 		env.change("transactions.setReimbursable", `["`+txDinner+`",true]`)
-		if !slices.Contains(candidateIDs(reimbursementDetailOf(t, env.readEnv, txDinner)), txPixAna) {
+		if !slices.Contains(reimbursementCandidateIDs(reimbursementDetailOf(t, env.readEnv, txDinner)), txPixAna) {
 			t.Errorf("%s: the PIX is not among the candidates of the marked dinner", credit)
 		}
 	}

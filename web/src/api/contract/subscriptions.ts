@@ -22,7 +22,8 @@ export interface SubscriptionRow {
   nextCharge: IsoDay;
   /** The amount spread over the months of its cycle, to the cent. */
   monthlyEquivalent: number;
-  line: string;
+  /** The line's name in the current month's budget; null when it has none or that budget lacks it. */
+  line: string | null;
   status: SubscriptionStatus;
   reviewOn: IsoDay;
   /** The review date has arrived or passed. */
@@ -72,7 +73,8 @@ export interface SubscriptionDetail {
   nextCharge: IsoDay;
   monthlyEquivalent: number;
   annualEquivalent: number;
-  line: string;
+  /** The line's name in the current month's budget; null when it has none or that budget lacks it. */
+  line: string | null;
   status: SubscriptionStatus;
   reviewOn: IsoDay;
   note: string;
@@ -105,7 +107,7 @@ export interface SubscriptionsApi {
   detail(id: string): Promise<SubscriptionDetail | null>;
   candidates(): Promise<SubscriptionCandidate[]>;
   recurring(): Promise<RecurringPurchase[]>;
-  /** Null when the purchase is unknown or its name already is a subscription. */
+  /** Null when the purchase cannot become a subscription or its establishment already has one. */
   create(transactionId: string): Promise<CreatedSubscription | null>;
   /** Null when there is no open suggestion. */
   acceptSuggestion(): Promise<CreatedSubscription | null>;

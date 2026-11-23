@@ -52,7 +52,7 @@ func TestUndoHistoryStepOfTheLinkRemovesTheLinkAndLeavesTheCreditsReviewSettled(
 	if string(credit.Pending) != "null" || credit.ReimbursementIncome {
 		t.Errorf("the PIX answers pending %s and reimbursementIncome %v, want its review still settled and no purchase paid", credit.Pending, credit.ReimbursementIncome)
 	}
-	if !slices.Contains(candidateIDs(reimbursementDetailOf(t, env.readEnv, txLunch)), txPixAna) {
+	if !slices.Contains(reimbursementCandidateIDs(reimbursementDetailOf(t, env.readEnv, txLunch)), txPixAna) {
 		t.Error("the PIX is not a candidate of the lunch once the link's step was taken back")
 	}
 }

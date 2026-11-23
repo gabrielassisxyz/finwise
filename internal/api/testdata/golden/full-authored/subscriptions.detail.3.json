@@ -1,0 +1,22 @@
+{
+  "id": "3",
+  "name": "LIVRARIA EXEMPLO",
+  "cycle": "Mensal",
+  "amount": 129.00,
+  "marks": [],
+  "nextCharge": "2026-04-06",
+  "monthlyEquivalent": 129.00,
+  "annualEquivalent": 1548.00,
+  "line": "Viagens",
+  "status": "Manter",
+  "reviewOn": "2026-06-06",
+  "note": "",
+  "charges": [
+    {
+      "day": "2026-03-06",
+      "amount": 129.00,
+      "foreign": null
+    }
+  ],
+  "alternatives": []
+}

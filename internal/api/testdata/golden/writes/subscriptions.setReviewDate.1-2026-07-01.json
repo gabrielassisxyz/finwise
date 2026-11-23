@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "changeId": "2"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "subscriptions",
+      "key": [
+        1
+      ],
+      "column": "review_on",
+      "before": "2026-05-10",
+      "after": "2026-07-01"
+    }
+  ]
+}

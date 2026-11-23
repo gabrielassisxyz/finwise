@@ -139,7 +139,7 @@ func reimbursementRowOf(t *testing.T, env *readEnv, month, id string) reimbursem
 	return reimbursementView{}
 }
 
-func candidateIDs(view reimbursementView) []string {
+func reimbursementCandidateIDs(view reimbursementView) []string {
 	ids := []string{}
 	for _, candidate := range view.Candidates {
 		ids = append(ids, candidate.TransactionID)
@@ -202,15 +202,15 @@ func TestTheCandidatesAreEveryReceivedPIXOfTheLedgerThatMayPayThePurchaseBackNew
 	want := []string{
 		txPixMore, txPixWhole, txPixLate, txPixEarly, txPixAna, txSalary, txPixIncome, txPixOff, txStale,
 	}
-	if got := candidateIDs(reimbursementDetailOf(t, env.readEnv, txDinner)); !slices.Equal(got, want) {
+	if got := reimbursementCandidateIDs(reimbursementDetailOf(t, env.readEnv, txDinner)); !slices.Equal(got, want) {
 		t.Errorf("the dinner's candidates are %v, want %v", got, want)
 	}
 	for _, id := range []string{txPayroll, txPixOwn, txPixRefund, txPixExcluded, txRefund, txPixLinked} {
-		if slices.Contains(candidateIDs(reimbursementDetailOf(t, env.readEnv, txDinner)), id) {
+		if slices.Contains(reimbursementCandidateIDs(reimbursementDetailOf(t, env.readEnv, txDinner)), id) {
 			t.Errorf("%s is a candidate", id)
 		}
 	}
-	if got := candidateIDs(reimbursementDetailOf(t, env.readEnv, txLunch)); !slices.Contains(got, txPixLinked) {
+	if got := reimbursementCandidateIDs(reimbursementDetailOf(t, env.readEnv, txLunch)); !slices.Contains(got, txPixLinked) {
 		t.Errorf("the lunch's own credit is not among its candidates %v", got)
 	}
 	keys := env.keysOf(txStale)
@@ -249,7 +249,7 @@ func (env *countEnv) stateOf(id string) authored.TransactionState {
 
 func TestTwoCandidatesOfOneDayAreInTheListsOrderTheLaterInstantFirst(t *testing.T) {
 	env := newReimbursementEnv(t, reimbursementLedger(t))
-	got := candidateIDs(reimbursementDetailOf(t, env.readEnv, txDinner))
+	got := reimbursementCandidateIDs(reimbursementDetailOf(t, env.readEnv, txDinner))
 	late, early := slices.Index(got, txPixLate), slices.Index(got, txPixEarly)
 	if late < 0 || early < 0 || early != late+1 {
 		t.Errorf("the PIX of 18:00 is at %d and the one of 09:00 at %d of %v, want them side by side, the later first", late, early, got)

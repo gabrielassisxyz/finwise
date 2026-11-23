@@ -94,6 +94,41 @@ func (env *lineExamplesHTTP) names(keys []authored.TxKey) []string {
 	return names
 }
 
+// expectMonthlessLinesKept checks the three references to Delivery that belong
+// to no month: the establishment's default line, the pot's link and the
+// subscription's line.
+func (env *lineExamplesHTTP) expectMonthlessLinesKept() {
+	env.t.Helper()
+	view := env.scratch.Database.View()
+	defer view.Close()
+	delivery := env.examples.Delivery
+	establishments, err := view.Establishments(env.t.Context(), []string{authoredtest.LineExampleEstablishment})
+	if err != nil {
+		env.t.Fatal(err)
+	}
+	if line := establishments[authoredtest.LineExampleEstablishment].DefaultLine; line == nil || *line != delivery {
+		env.t.Errorf("the establishment's default line is %v, want Delivery's %d", line, delivery)
+	}
+	linked, err := view.LinesOfPot(env.t.Context(), authoredtest.LineExamplePot)
+	if err != nil {
+		env.t.Fatal(err)
+	}
+	if !slices.Equal(linked, []authored.LineID{delivery}) {
+		env.t.Errorf("the pot's lines are %v, want Delivery's %d", linked, delivery)
+	}
+	subscription, found, err := view.Subscription(env.t.Context(), env.examples.Subscription)
+	if err != nil {
+		env.t.Fatal(err)
+	}
+	if !found || subscription.Line == nil || *subscription.Line != delivery {
+		lines := []authored.LineID{}
+		if subscription.Line != nil {
+			lines = append(lines, *subscription.Line)
+		}
+		env.t.Errorf("the subscription (found %t) is on the lines %v, want Delivery's %d", found, lines, delivery)
+	}
+}
+
 // ledgerIsMissing checks that the router really has no snapshot to read.
 func (env *lineExamplesHTTP) ledgerIsMissing() {
 	env.t.Helper()
@@ -124,6 +159,7 @@ func TestBothSavesOfABudgetClearWhatTheMonthsThatLoseALineHold(t *testing.T) {
 						t.Errorf("the save has an effect on %s", effect.Table)
 					}
 				}
+				env.expectMonthlessLinesKept()
 				expectUndone(t, "the undo of the save", env.undo(id))
 				if got := env.scratch.Canonical(t); got != canonical {
 					t.Errorf("the undo left another state:\n%s", differences(canonical, got))

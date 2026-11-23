@@ -120,6 +120,31 @@ func lineAppliedByRuleStep(line, establishment string) string {
 	return "Regra aplicou " + line + " (você pediu para todas em " + establishment + ")"
 }
 
+// The cycles of a subscription, the contract's SubscriptionCycle.
+const (
+	cycleMonthly    = "Mensal"
+	cycleQuarterly  = "Trimestral"
+	cycleSemiannual = "Semestral"
+	cycleYearly     = "Anual"
+	cycleBiennial   = "Bienal"
+)
+
+// The marks of a subscription.
+const (
+	markPriceRose          = "Preço subiu"
+	markChargedAfterCancel = "Cobrou após cancelar"
+)
+
+func renewalMark(days int) string {
+	switch days {
+	case 0:
+		return "Renova hoje"
+	case 1:
+		return "Renova em 1 dia"
+	}
+	return fmt.Sprintf("Renova em %d dias", days)
+}
+
 // The steps of a purchase's history when a received PIX is linked to it as its
 // reimbursement and when the link is undone. The amount is written as the
 // interface writes reais: a no-break space after R$.

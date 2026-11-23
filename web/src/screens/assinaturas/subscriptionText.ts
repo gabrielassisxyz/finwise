@@ -15,9 +15,11 @@ export function cadenceText({ every, unit }: RecurringPurchase['cadence']): stri
   return `A cada ${plural(every, one, many)}`;
 }
 
-/** What sits under the name when the cycle, equivalent and line columns are not shown. */
+/** What sits under the name when the cycle, equivalent and line columns are not shown; a missing line is left out. */
 export function rowSubtitle(row: SubscriptionRow): string {
-  return `${row.cycle} · ${brl(row.monthlyEquivalent)} por mês · ${row.line}`;
+  const parts = [row.cycle, `${brl(row.monthlyEquivalent)} por mês`];
+  if (row.line !== null) parts.push(row.line);
+  return parts.join(' · ');
 }
 
 export function statusTone(status: SubscriptionStatus): MarkTone {

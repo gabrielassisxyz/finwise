@@ -25,19 +25,21 @@ import (
 const FeesLine authored.LineID = 1
 
 // LineExampleEstablishment is the establishment of t4, whose default line is
-// Delivery; LineExamplePot is the pot Delivery is linked to. Both name a line
-// without belonging to a month, so no save may clear them.
+// Delivery and which is kept as a subscription on Delivery; LineExamplePot is
+// the pot Delivery is linked to. All three name a line without belonging to a
+// month, so no save may clear them.
 const (
 	LineExampleEstablishment = "name:delivery-exemplo"
 	LineExamplePot           = "reserve:acc-invented/pot-delivery"
 )
 
-// LineExamples are the invented transactions of WriteLineExamples, by name, and
-// the two lines they are on.
+// LineExamples are the invented transactions of WriteLineExamples, by name, the
+// two lines they are on, and the subscription on Delivery.
 type LineExamples struct {
-	Keys     map[string]authored.TxKey
-	Delivery authored.LineID
-	Mercado  authored.LineID
+	Keys         map[string]authored.TxKey
+	Delivery     authored.LineID
+	Mercado      authored.LineID
+	Subscription authored.SubscriptionID
 }
 
 // Name is the example's name of key, or the key itself for a transaction that
@@ -61,8 +63,8 @@ func (examples LineExamples) Name(key authored.TxKey) string {
 // marked as a refund of Delivery; t7 (2026-03-11) on Mercado by the person; t8
 // (2026-04-02) on Delivery by the person; t9 (2026-03-12) on the fees line by
 // the person; t10 (2026-03-13) waiting for review with no suggestion. t4's
-// establishment has Delivery as its default line and Delivery is linked to a
-// pot. Nothing of it is real.
+// establishment has Delivery as its default line and is a subscription, made
+// from t4, on Delivery; Delivery is linked to a pot. Nothing of it is real.
 func WriteLineExamples(ctx context.Context, recorder *authored.Recorder) (LineExamples, error) {
 	view := recorder.View()
 	defer view.Close()
@@ -92,7 +94,15 @@ func WriteLineExamples(ctx context.Context, recorder *authored.Recorder) (LineEx
 	if err := WriteEstablishment(ctx, recorder, LineExampleEstablishment, "", Some(examples.Delivery)); err != nil {
 		return LineExamples{}, err
 	}
-	return examples, recorder.ToggleLink(ctx, examples.Delivery, LineExamplePot)
+	if err := recorder.ToggleLink(ctx, examples.Delivery, LineExamplePot); err != nil {
+		return LineExamples{}, err
+	}
+	examples.Subscription, err = recorder.CreateSubscription(ctx, authored.Subscription{
+		EstablishmentKey: LineExampleEstablishment, CreatedFrom: examples.Keys["t4"], CreatedDay: "2026-03-05", CreatedCents: 6_200,
+		Name: "Delivery Exemplo", Line: Some(examples.Delivery), Status: authored.StatusKeep, StatusDay: "2026-03-05",
+		ReviewOn: "2026-06-05",
+	})
+	return examples, err
 }
 
 type lineExample struct {

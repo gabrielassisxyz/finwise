@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SubscriptionRow } from '@/api/types';
 import MarkBadge from '@/components/transactions/MarkBadge.vue';
-import { brl, longDay } from '@/lib/format';
+import { brl, longDay, UNKNOWN } from '@/lib/format';
 import StatusPill from './StatusPill.vue';
 import { rowSubtitle } from './subscriptionText';
 
@@ -20,7 +20,7 @@ defineEmits<{ open: []; pickStatus: [anchor: HTMLElement] }>();
     <span class="secondary wide-only" data-label="Ciclo">{{ row.cycle }}</span>
     <span class="secondary" data-label="Próxima cobrança">{{ longDay(row.nextCharge) }}</span>
     <span class="right wide-only" data-label="Equivalente mensal">{{ brl(row.monthlyEquivalent) }}</span>
-    <span class="secondary line wide-only" data-label="Linha do budget">{{ row.line }}</span>
+    <span class="secondary line wide-only" data-label="Linha do budget">{{ row.line ?? UNKNOWN }}</span>
     <span data-label="Status">
       <StatusPill :status="row.status" @click.stop="$emit('pickStatus', $event.currentTarget as HTMLElement)" />
     </span>

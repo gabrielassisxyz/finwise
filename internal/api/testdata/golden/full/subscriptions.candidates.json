@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "transactionId": "tx-pending",
+    "name": "PADARIA EXEMPLO",
+    "amount": 18.50
+  },
+  {
+    "transactionId": "tx-foreign",
+    "name": "CLOUDSVC SUBSCRIPTION",
+    "amount": 113.85
+  },
+  {
+    "transactionId": "tx-instalment",
+    "name": "LIVRARIA EXEMPLO",
+    "amount": 129.00
+  }
+]
