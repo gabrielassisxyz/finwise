@@ -78,7 +78,13 @@ func runWriteCase(t *testing.T, c writeCase, undo undoer) writeObservation {
 	var o writeObservation
 	o.canonicalBeforeOrigin = env.state().canonical
 	for _, call := range c.before {
-		o.originID = changeIDOfAnswer(t, env.post(call.method, call.arguments))
+		resp := env.post(call.method, call.arguments)
+		if resp.Code != http.StatusOK {
+			t.Fatalf("before %s %s answered %d %s, want 200", call.method, call.arguments, resp.Code, resp.Body.String())
+		}
+		if id, ok := changeIDIn(resp.Body.Bytes()); ok {
+			o.originID = id
+		}
 	}
 	if o.originID != "" {
 		o.originEffects[0] = len(env.scratch.EffectsOf(t, changeNumber(t, o.originID)))
@@ -88,8 +94,18 @@ func runWriteCase(t *testing.T, c writeCase, undo undoer) writeObservation {
 	after := env.state()
 
 	o.status, o.body, o.requestLog = response.Code, response.Body.Bytes(), env.logs.Bytes()
-	o.canonicalBefore, o.journalBefore, o.everythingBefore, o.changesBefore = before.canonical, before.journal, before.everything, before.changes
+	o.canonicalBefore, o.canonicalAfter = before.canonical, after.canonical
+	o.journalBefore, o.everythingBefore, o.changesBefore = before.journal, before.everything, before.changes
 	o.journalAfter, o.everythingAfter, o.changesAfter = after.journal, after.everything, after.changes
+	if c.expects == expectsProposal {
+		view := env.scratch.Database.View()
+		proposals, err := view.Proposals(t.Context())
+		view.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		o.proposals = proposals
+	}
 	if o.originID != "" {
 		o.originEffects[1] = len(env.scratch.EffectsOf(t, changeNumber(t, o.originID)))
 	}
@@ -116,6 +132,18 @@ func checkWriteCase(t *testing.T, c writeCase, undo undoer) writeObservation {
 	o := runWriteCase(t, c, undo)
 	for _, problem := range problemsOf(c, o) {
 		t.Errorf("%s: %s", label, problem)
+	}
+	if c.expects == expectsProposal && o.status == http.StatusOK {
+		document, err := proposalDocument(o.body, o.proposals)
+		if err != nil {
+			t.Fatalf("%s: %v", label, err)
+		}
+		path, err := writeGoldenFileName(c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		compareWithGolden(t, path, document)
+		return o
 	}
 	if c.expects != expectsRecorded || o.changeID == "" {
 		return o

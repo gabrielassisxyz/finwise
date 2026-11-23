@@ -555,7 +555,7 @@ func TestWithoutTheAppsDatabaseTheFiveMethodsAreReadOnlyBeforeTheirBodyIsRead(t 
 	env.cookie = env.unlock()
 	cookie := env.cookie
 	for _, path := range []string{
-		"/api/review/dismissWarning", "/api/review/runWarningAction", "/api/review/approve", "/api/review/refuse", "/api/review/propose",
+		"/api/review/dismissWarning", "/api/review/runWarningAction", "/api/review/approve", "/api/review/refuse", "/api/review/propose", "/api/review/submitProposal",
 	} {
 		for _, body := range postBodies {
 			expectError(t, path+" body "+body, env.call(path, body, cookie), http.StatusForbidden, "read_only")

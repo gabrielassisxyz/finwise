@@ -95,6 +95,8 @@ export const METHOD_CLASSES: ApiClassification = {
     approve: 'write',
     refuse: 'write',
     propose: 'write',
+    submitProposal: 'write',
+    proposals: 'read',
     dismissWarning: 'write',
     runWarningAction: 'write',
     closing: 'read',

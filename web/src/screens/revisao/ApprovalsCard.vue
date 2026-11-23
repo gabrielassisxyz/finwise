@@ -16,7 +16,7 @@ async function approve(approval: ApprovalRequest): Promise<void> {
 
 async function refuse(approval: ApprovalRequest): Promise<void> {
   const result = await api.review.refuse(approval.id);
-  if (result) actions.announce('Recusado. Nada foi alterado.', result.changeId);
+  if (result) actions.notify('Recusado. Nada foi alterado.');
 }
 </script>
 

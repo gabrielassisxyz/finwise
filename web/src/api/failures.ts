@@ -23,6 +23,7 @@ export const REFUSAL_SENTENCES: Record<RefusalReason, string> = {
   invalid_budget: 'O budget tem linha sem nome ou repetida.',
   unstable_pot: 'O banco não identifica esse cofrinho de forma estável.',
   split_with_reimbursement: 'Uma compra dividida não pode ter reembolso ligado.',
+  proposal_stale: 'Isso mudou depois da proposta. Nada foi alterado.',
 };
 /** A refusal whose reason is newer than this interface, or missing. */
 export const UNKNOWN_REFUSAL_MESSAGE = 'Não foi possível concluir.';

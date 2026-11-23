@@ -1,0 +1,102 @@
+[
+  {
+    "id": "5",
+    "title": "Anotar em Mercado Exemplo R$ 90,00: \"Fim do mês\"",
+    "change": {
+      "method": "transactions.setNote",
+      "arguments": [
+        "tx-month-end",
+        "Fim do mês"
+      ]
+    },
+    "reason": "Marcar fechamento",
+    "proposer": "agente-notas",
+    "submittedAt": "2026-03-20T14:40:00.000Z",
+    "outcome": "stale",
+    "answeredAt": "2026-03-20T14:50:00.000Z",
+    "refusal": null,
+    "staleReason": "proposal_stale",
+    "changeId": null,
+    "undone": false
+  },
+  {
+    "id": "4",
+    "title": "Anotar em Empresa Exemplo R$ 12.000,00: \"Salário do mês\"",
+    "change": {
+      "method": "transactions.setNote",
+      "arguments": [
+        "tx-salary",
+        "Salário do mês"
+      ]
+    },
+    "reason": "Identificar entrada recorrente",
+    "proposer": "revisor-semanal",
+    "submittedAt": "2026-03-20T14:00:00.000Z",
+    "outcome": "refused",
+    "answeredAt": "2026-03-20T14:30:00.000Z",
+    "refusal": "Não precisa dessa nota",
+    "staleReason": null,
+    "changeId": null,
+    "undone": false
+  },
+  {
+    "id": "3",
+    "title": "Adicionar #viagem em Loja Exemplo R$ 110,00",
+    "change": {
+      "method": "transactions.addTag",
+      "arguments": [
+        "tx-foreign",
+        "#viagem"
+      ]
+    },
+    "reason": "Gasto fora do país",
+    "proposer": "agente-notas",
+    "submittedAt": "2026-03-20T13:00:00.000Z",
+    "outcome": "approved",
+    "answeredAt": "2026-03-20T13:30:00.000Z",
+    "refusal": null,
+    "staleReason": null,
+    "changeId": "7",
+    "undone": true
+  },
+  {
+    "id": "2",
+    "title": "Anotar em Livraria Exemplo R$ 207,00: \"Presente de aniversário\"",
+    "change": {
+      "method": "transactions.setNote",
+      "arguments": [
+        "tx-instalment",
+        "Presente de aniversário"
+      ]
+    },
+    "reason": "Recibo salvo no e-mail",
+    "proposer": "revisor-semanal",
+    "submittedAt": "2026-03-20T12:00:00.000Z",
+    "outcome": "approved",
+    "answeredAt": "2026-03-20T13:00:00.000Z",
+    "refusal": null,
+    "staleReason": null,
+    "changeId": "6",
+    "undone": false
+  },
+  {
+    "id": "1",
+    "title": "Adicionar #viagem em Livraria Exemplo R$ 207,00",
+    "change": {
+      "method": "transactions.addTag",
+      "arguments": [
+        "tx-instalment",
+        "#viagem"
+      ]
+    },
+    "reason": "Compra feita na semana da viagem",
+    "proposer": "revisor-semanal",
+    "submittedAt": "2026-03-20T11:00:00.000Z",
+    "outcome": "waiting",
+    "answeredAt": null,
+    "refusal": null,
+    "staleReason": null,
+    "changeId": null,
+    "undone": false
+  }
+]

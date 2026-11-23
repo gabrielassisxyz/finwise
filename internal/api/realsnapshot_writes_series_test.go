@@ -45,6 +45,11 @@ const (
 	seriesBatchReason      = "Lote fora da conta pela série"
 	seriesApprovalID       = "aprovacao-da-serie"
 	seriesWarningID        = "aviso-da-serie"
+	seriesProposalTag      = "#proposta-da-serie"
+	seriesProposalNote     = "Nota proposta da série"
+	seriesProposer         = "agente-da-serie"
+	seriesProposalReason   = "Motivo da proposta da série"
+	seriesProposalRefusal  = "Motivo da recusa da série"
 )
 
 var seriesArguments = []string{
@@ -52,6 +57,7 @@ var seriesArguments = []string{
 	seriesNewLine, seriesTag, seriesBatchTag, seriesFixedTag, seriesSecondFixedTag, seriesNote, seriesNickname,
 	seriesReason, seriesScenario, seriesSubscriptionNote, seriesAcceptNickname, seriesAcceptReason,
 	seriesSettingsNickname, seriesCardLabel, seriesExclusionReason, seriesBatchReason, seriesApprovalID, seriesWarningID,
+	seriesProposalTag, seriesProposalNote, seriesProposer, seriesProposalReason, seriesProposalRefusal,
 }
 
 // seriesBudget is the first budget: a line in each of the five groups, two in
@@ -81,6 +87,8 @@ const (
 	stepNull
 	// stepEvaluation: an answer that conforms, and no table of the file changed.
 	stepEvaluation
+	// stepProposal: 200 non-null conforming answer, no journal or journaled-table change.
+	stepProposal
 )
 
 // seriesStep is one write of the series. target picks what it acts on and
@@ -117,6 +125,7 @@ const (
 	missingFree        = "no purchase left to exclude"
 	missingPot         = "no pot with a stable identity"
 	missingPlace       = "no establishment in the settings"
+	missingProposal    = "no proposal to answer"
 )
 
 var seriesSteps = []seriesStep{
@@ -206,8 +215,10 @@ var seriesSteps = []seriesStep{
 	{"settings.setClosing", stepRecorded, "", constantArguments("manual", 9)},
 	{"subscriptions.acceptSuggestion", stepNull, "", constantArguments()},
 	{"subscriptions.rejectSuggestion", stepNull, "", constantArguments()},
-	{"review.approve", stepNull, "", constantArguments(seriesApprovalID)},
-	{"review.refuse", stepNull, "", constantArguments(seriesApprovalID)},
+	{"review.submitProposal", stepProposal, missingAny, proposeTagOnTheFirstRow},
+	{"review.approve", stepRecorded, missingProposal, answerTheLastProposal()},
+	{"review.submitProposal", stepProposal, missingAny, proposeNoteOnTheFirstRow},
+	{"review.refuse", stepProposal, missingProposal, answerTheLastProposal(seriesProposalRefusal)},
 	{"review.propose", stepNull, "", constantArguments(seriesApprovalID)},
 	{"review.runWarningAction", stepNull, "", constantArguments(seriesWarningID, "silence-pair")},
 }
@@ -294,6 +305,39 @@ func onTheRow(position func([]seenRow) seenRow, shape func(seenRow) bool, rest .
 
 func onTheFirstAtAPlace(rest ...any) func(*seriesRun) (string, bool) {
 	return onTheRow(first, atAPlace, rest...)
+}
+
+func proposeTagOnTheFirstRow(run *seriesRun) (string, bool) {
+	row := first(run.rows())
+	if row.ID == "" {
+		return "", false
+	}
+	return run.args(map[string]any{
+		"change":   map[string]any{"method": "transactions.addTag", "arguments": []any{row.ID, seriesProposalTag}},
+		"reason":   seriesProposalReason,
+		"proposer": seriesProposer,
+	}), true
+}
+
+func proposeNoteOnTheFirstRow(run *seriesRun) (string, bool) {
+	row := first(run.rows())
+	if row.ID == "" {
+		return "", false
+	}
+	return run.args(map[string]any{
+		"change":   map[string]any{"method": "transactions.setNote", "arguments": []any{row.ID, seriesProposalNote}},
+		"reason":   seriesProposalReason,
+		"proposer": seriesProposer,
+	}), true
+}
+
+func answerTheLastProposal(rest ...any) func(*seriesRun) (string, bool) {
+	return func(run *seriesRun) (string, bool) {
+		if run.proposalID == "" {
+			return "", false
+		}
+		return run.args(append([]any{run.proposalID}, rest...)...), true
+	}
 }
 
 func constantArguments(values ...any) func(*seriesRun) (string, bool) {

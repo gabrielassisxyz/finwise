@@ -451,6 +451,7 @@ func TestTheReasonsCheckFailsForAReasonInNeitherPlaceOrInBoth(t *testing.T) {
 	without := []refusalReason{
 		reasonMonthClosed, reasonFutureMonth, reasonPendingReviews, reasonNotFound,
 		reasonUnknownLine, reasonInvalidBudget, reasonUnstablePot, reasonSplitWithReimbursement,
+		reasonProposalStale,
 	}
 	if problems := reasonProblems(cased, without); len(problems) != 0 {
 		t.Fatalf("an accounted list was reported: %v", problems)
@@ -521,7 +522,7 @@ func TestTheExtensionCheckRefusesAChangeOfItsOwnAndAnotherChangesId(t *testing.T
 func TestTheRefusalCheckValidatesTheBodyAgainstTheManifestsErrorSchema(t *testing.T) {
 	outsideTheList := refusalReason("made_up")
 	observed := writeObservation{status: 409, body: []byte(`{"error":{"kind":"refused","reason":"made_up"}}`)}
-	if problems := refusalProblems(outsideTheList, observed); len(problems) == 0 {
+	if problems := refusalProblems(refusingMethod, outsideTheList, observed); len(problems) == 0 {
 		t.Error("a body that is not an envelope of the manifest went unnoticed because it was the one expected")
 	}
 }

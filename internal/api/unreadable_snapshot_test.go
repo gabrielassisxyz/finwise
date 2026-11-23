@@ -20,6 +20,13 @@ func TestEveryReadAnswersLedgerUnavailableForAFileThatIsNotADatabase(t *testing.
 	for _, c := range readCases {
 		domain, name := splitMethod(t, c.method)
 		response := env.call("/api/"+domain+"/"+name, c.arguments, cookie)
+		// review.proposals reads only the app's database and never opens the ledger.
+		if c.method == "review.proposals" {
+			if response.Code != http.StatusOK || response.Body.String() != "[]" {
+				t.Errorf("%s %s: status %d body %s, want 200 []", c.method, c.arguments, response.Code, response.Body.String())
+			}
+			continue
+		}
 		expectError(t, c.method+" "+c.arguments, response, http.StatusServiceUnavailable, "ledger_unavailable")
 	}
 }

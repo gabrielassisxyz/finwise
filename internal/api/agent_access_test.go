@@ -119,7 +119,12 @@ func TestTheTokenIsRefusedAsReadOnlyForEveryWriteEvaluationAndSessionMethodBefor
 		t.Fatalf("the manifest has %d methods that are not reads, want %d", len(refused), writesAndEvaluationsInTheManifest+3)
 	}
 	sessionStatus := false
+	sawSubmitProposal := false
 	for _, method := range refused {
+		if method.Qualified() == submitProposalMethod {
+			sawSubmitProposal = true
+			continue
+		}
 		sessionStatus = sessionStatus || method.Qualified() == "session.status"
 		for _, body := range postBodies {
 			response := env.callWith(method.Route, body, bearer(token), nil)
@@ -137,8 +142,37 @@ func TestTheTokenIsRefusedAsReadOnlyForEveryWriteEvaluationAndSessionMethodBefor
 	if !sessionStatus {
 		t.Error("session.status is not among the methods refused")
 	}
+	if !sawSubmitProposal {
+		t.Error("review.submitProposal was not found in the manifest")
+	}
 	if after := scratch.State(t); after != before {
 		t.Errorf("a refused call changed the database:\n%s\nwas\n%s", after, before)
+	}
+}
+
+func TestTheTokenOpensSubmitProposalAndRefusesApproveAndRefuse(t *testing.T) {
+	token, hash := newTokenAndHash(t)
+	scratch := authoredtest.Open(t, fixtureClock)
+	full := newFullLedger(t)
+	env := newTestEnv(t, withLedger(full.Path, fixtureNow), withDatabase(scratch.Database), withAgentToken(hash))
+	draft := `[{"change":{"method":"transactions.addTag","arguments":["tx-instalment","#viagem"]},"reason":"Etiqueta sugerida","proposer":"revisor"}]`
+	response := env.callWith("/api/review/submitProposal", draft, bearer(token), nil)
+	if response.Code != http.StatusOK {
+		t.Fatalf("submitProposal with token answered %d %s, want 200", response.Code, response.Body.String())
+	}
+	if len(response.Result().Cookies()) != 0 {
+		t.Error("submitProposal with token set a cookie")
+	}
+	if !strings.Contains(env.logs.String(), "caller=agent") {
+		t.Errorf("request log missing caller=agent: %s", env.logs.String())
+	}
+	if strings.Contains(env.logs.String(), token) {
+		t.Error("request log leaked the agent token")
+	}
+	for _, path := range []string{"/api/review/approve", "/api/review/refuse"} {
+		if reads, status := readsOfBodyAs(env, path, bearer(token)); reads != 0 || status != http.StatusForbidden {
+			t.Errorf("%s with token: read body %d times, status %d, want 0 and 403", path, reads, status)
+		}
 	}
 }
 

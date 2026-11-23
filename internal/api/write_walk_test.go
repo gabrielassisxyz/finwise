@@ -26,9 +26,9 @@ var writesWithoutHandler = []string{}
 // holds changePin, and only that.
 var sessionServiceWrites = []string{changePin}
 
-// writesAndEvaluationsInTheManifest is the count the walk is pinned to: 55
+// writesAndEvaluationsInTheManifest is the count the walk is pinned to: 56
 // writes and one evaluation.
-const writesAndEvaluationsInTheManifest = 56
+const writesAndEvaluationsInTheManifest = 57
 
 func changingMethods(methods []contract.Method) []string {
 	var names []string
@@ -126,7 +126,7 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 		"transactions.setNote", "transactions.setReason", "transactions.setRefund", "transactions.setRefundLine",
 		"transactions.setReimbursable", "transactions.setSplit", "transactions.undoHistoryStep", "transactions.unlinkReimbursement",
 		"review.acceptPending", "review.approve", "review.dismissWarning", "review.propose", "review.refuse",
-		"review.runWarningAction", "review.markTransferDone",
+		"review.runWarningAction", "review.submitProposal", "review.markTransferDone",
 		"review.markStepDone", "review.keepSubscription", "review.cancelSubscription",
 		"review.closeMonth",
 	}

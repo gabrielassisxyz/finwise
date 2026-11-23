@@ -68,9 +68,9 @@ func TestTheWriteSeriesHoldsOverTheInventedLedger(t *testing.T) {
 		t.Errorf("with the series in force %d months are closed, want one", observed.closedInForce)
 	}
 	steps := observed.steps
-	if steps.recorded != 47 || steps.extensions != 1 || steps.nulls != 7 || steps.evaluations != 1 || len(observed.inForce) != len(fullLedgerMonths) {
-		t.Errorf("%d changes recorded, %d extended, %d answers of null and %d evaluations over %d months, want 47, 1, 7 and 1 over %d",
-			steps.recorded, steps.extensions, steps.nulls, steps.evaluations, len(observed.inForce), len(fullLedgerMonths))
+	if steps.recorded != 48 || steps.extensions != 1 || steps.nulls != 5 || steps.evaluations != 1 || steps.proposals != 3 || len(observed.inForce) != len(fullLedgerMonths) {
+		t.Errorf("%d changes recorded, %d extended, %d answers of null, %d evaluations and %d proposal steps over %d months, want 48, 1, 5, 1 and 3 over %d",
+			steps.recorded, steps.extensions, steps.nulls, steps.evaluations, steps.proposals, len(observed.inForce), len(fullLedgerMonths))
 	}
 	logSeries(t, observed)
 }
@@ -104,6 +104,7 @@ type seriesRun struct {
 	// last line change, which "all purchases here" extends.
 	ids        []string
 	lineOrigin string
+	proposalID string
 	observed   seriesObservation
 }
 
@@ -345,12 +346,15 @@ func (run *seriesRun) perform(number int, step seriesStep, handled bool) {
 		tally.skipped[step.missing]++
 		return
 	}
-	changes, file := 0, ""
+	changes, file, canonical := 0, "", ""
 	switch step.mode {
 	case stepNull:
 		changes = len(run.changes())
 	case stepEvaluation:
 		file = run.everything()
+	case stepProposal:
+		changes = len(run.changes())
+		canonical = run.canonical()
 	}
 	o := stepObservationOf(step.method, run.env.post(step.method, arguments))
 	o.origin = run.lineOrigin
@@ -359,6 +363,9 @@ func (run *seriesRun) perform(number int, step seriesStep, handled bool) {
 		o.changesAdded = len(run.changes()) - changes
 	case stepEvaluation:
 		o.fileChanged = run.everything() != file
+	case stepProposal:
+		o.changesAdded = len(run.changes()) - changes
+		o.canonicalChanged = run.canonical() != canonical
 	}
 	// Taking one step back is refused, by the undo's own rules, when anything it
 	// would restore changed since; that is counted, not failed.
@@ -370,10 +377,10 @@ func (run *seriesRun) perform(number int, step seriesStep, handled bool) {
 		tally.failures = append(tally.failures, problem)
 		return
 	}
-	run.count(step, o.changeID)
+	run.count(step, o.changeID, o.proposalID)
 }
 
-func (run *seriesRun) count(step seriesStep, changeID string) {
+func (run *seriesRun) count(step seriesStep, changeID, proposalID string) {
 	tally := &run.observed.steps
 	switch step.mode {
 	case stepRecorded:
@@ -388,6 +395,11 @@ func (run *seriesRun) count(step seriesStep, changeID string) {
 		tally.nulls++
 	case stepEvaluation:
 		tally.evaluations++
+	case stepProposal:
+		tally.proposals++
+		if proposalID != "" {
+			run.proposalID = proposalID
+		}
 	}
 }
 

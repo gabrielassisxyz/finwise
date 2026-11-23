@@ -125,6 +125,7 @@ describe('the error envelope', () => {
       'invalid_budget',
       'unstable_pot',
       'split_with_reimbursement',
+      'proposal_stale',
     ]);
     // The Go server reads the list from this definition, so it must be the contract's, in its order.
     expect(manifest.definitions.RefusalReason).toEqual({ type: 'string', enum: [...REFUSAL_REASONS] });
@@ -214,6 +215,7 @@ describe.each(STATES)('the stand-in over $name against the schemas', ({ name, bu
       'subscriptions.candidates': [[]],
       'subscriptions.recurring': [[]],
       'review.weekly': [[NOV], [CLOSED]],
+      'review.proposals': [[]],
       'review.closing': [[NOV], [CLOSED]],
       'review.payday': [[NOV], [CLOSED]],
       'accounts.list': [[]],

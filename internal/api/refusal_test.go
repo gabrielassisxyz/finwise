@@ -141,8 +141,8 @@ func TestGoRefusalReasonsAreTheManifestsList(t *testing.T) {
 	if fmt.Sprint(declared) != fmt.Sprint(want) {
 		t.Errorf("Go's reasons are %v, the manifest's are %v", declared, want)
 	}
-	if len(refusalReasons) != 9 {
-		t.Errorf("%d reasons, want the nine of the contract", len(refusalReasons))
+	if len(refusalReasons) != 10 {
+		t.Errorf("%d reasons, want the ten of the contract", len(refusalReasons))
 	}
 }
 

@@ -8,7 +8,7 @@ import (
 
 func init() {
 	writeCases = append(writeCases, reviewWarningWriteCases...)
-	answerOnlyNull = append(answerOnlyNull, "review.runWarningAction", "review.approve", "review.refuse", "review.propose")
+	answerOnlyNull = append(answerOnlyNull, "review.runWarningAction", "review.propose")
 	secrets = append(secrets,
 		// The ids of the warnings of the cases, and the ids of proposals nothing makes.
 		"charged-after-cancel", "silence-pair", "teto", "nope", "preco", "price:",

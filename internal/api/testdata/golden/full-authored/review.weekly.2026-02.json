@@ -1,0 +1,52 @@
+{
+  "limit": {
+    "cap": 600.00,
+    "spent": 207.00,
+    "remaining": 393.00,
+    "over": false,
+    "fill": 35
+  },
+  "week": null,
+  "queue": {
+    "items": [
+      {
+        "transactionId": "tx-boleto",
+        "day": "2026-03-10",
+        "name": "Alvorada Telecom S.A.",
+        "rawDescription": "ALVORADA TELECOM S.A.",
+        "amount": -109.90,
+        "accountLabel": "Itaú · Conta Corrente",
+        "person": false,
+        "pending": {
+          "reason": "Confiança abaixo do limite",
+          "suggestion": "Contas da casa",
+          "confidence": 64,
+          "justification": null
+        }
+      }
+    ],
+    "resolved": 0
+  },
+  "approvals": [
+    {
+      "id": "1",
+      "title": "Adicionar #viagem em Livraria Exemplo R$ 207,00",
+      "reason": "Compra feita na viagem de março",
+      "proposer": "revisor-semanal"
+    },
+    {
+      "id": "2",
+      "title": "Anotar em Streaming Exemplo: \"Plano anual\"",
+      "reason": "Anotar tipo de renovação",
+      "proposer": "agente-assinaturas"
+    }
+  ],
+  "warnings": [
+    {
+      "id": "charged-after-cancel:2:2026-03-10",
+      "text": "Marcada para cancelar e cobrou de novo: CLOUDSVC SUBSCRIPTION",
+      "subscriptionId": "2",
+      "actions": []
+    }
+  ]
+}

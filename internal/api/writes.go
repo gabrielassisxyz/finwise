@@ -49,10 +49,16 @@ type Writes struct {
 // the function it gives to Extend, through the recorder's view.
 type JournalHandler func(ctx context.Context, args []json.RawMessage, journal Journal, ledgerView *ledger.View) (any, error)
 
-// Journal is the engine's calls on committed changes.
+// Journal is the engine's calls on committed changes and proposals.
 type Journal interface {
 	Undo(ctx context.Context, id authored.ChangeID, at time.Time) error
 	Extend(ctx context.Context, origin authored.ChangeID, method string, write func(*authored.Recorder) error) error
+	Change(ctx context.Context, facts authored.ChangeFacts, write func(*authored.Recorder) error) error
+	DryRun(ctx context.Context, facts authored.ChangeFacts, write func(*authored.Recorder) error) (int64, authored.ChangeID, error)
+	View() *authored.View
+	InsertProposal(ctx context.Context, draft authored.ProposalDraft) (authored.ProposalID, error)
+	RefuseProposal(ctx context.Context, id authored.ProposalID, reason string, at time.Time) (authored.Proposal, bool, error)
+	MarkProposalStale(ctx context.Context, id authored.ProposalID, reason string, at time.Time) (bool, error)
 }
 
 // serveChange answers a `write` or an `evaluate` method. The app's own database

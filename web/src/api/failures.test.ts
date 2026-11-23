@@ -178,6 +178,7 @@ describe('the sentences of a refusal and of a failed save', () => {
       invalid_budget: 'O budget tem linha sem nome ou repetida.',
       unstable_pot: 'O banco não identifica esse cofrinho de forma estável.',
       split_with_reimbursement: 'Uma compra dividida não pode ter reembolso ligado.',
+      proposal_stale: 'Isso mudou depois da proposta. Nada foi alterado.',
     });
     expect([UNKNOWN_REFUSAL_MESSAGE, SAVE_FAILED_MESSAGE, SAVE_UNCONFIRMED_MESSAGE]).toEqual([
       'Não foi possível concluir.',

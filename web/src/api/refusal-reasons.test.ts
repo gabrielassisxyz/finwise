@@ -149,6 +149,7 @@ const reasonSentence: Record<RefusalReason, string> = {
   invalid_budget: 'O budget tem linha sem nome ou repetida.',
   unstable_pot: 'O banco não identifica esse cofrinho de forma estável.',
   split_with_reimbursement: 'Uma compra dividida não pode ter reembolso ligado.',
+  proposal_stale: 'Isso mudou depois da proposta. Nada foi alterado.',
 };
 
 describe('a write refused for a reason the person can act on', () => {

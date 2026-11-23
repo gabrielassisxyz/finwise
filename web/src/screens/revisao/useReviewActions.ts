@@ -20,5 +20,14 @@ export function useReviewActions() {
     overlay.showToast(message, [undoAction]);
   }
 
-  return { announce };
+  function notify(message: string): void {
+    revision.bump();
+    overlay.showToast(message);
+  }
+
+  function refresh(): void {
+    revision.bump();
+  }
+
+  return { announce, notify, refresh };
 }
