@@ -68,3 +68,33 @@ func scanTxKeys(rows *sql.Rows) ([]TxKey, error) {
 	}
 	return keys, rows.Err()
 }
+
+// DismissedWarnings is the id of every warning the person dismissed, whether
+// or not it holds now; none on the empty view. A row stays after its warning
+// stops holding, so the same warning holding again later is still dismissed.
+func (view *View) DismissedWarnings(ctx context.Context) (map[string]bool, error) {
+	dismissed := map[string]bool{}
+	_, err := view.read(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, statementDismissedWarningAll)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				return err
+			}
+			dismissed[id] = true
+		}
+		return rows.Err()
+	})
+	return dismissed, err
+}
+
+// DismissWarning makes id a dismissed warning inside the open change. A
+// warning already dismissed records nothing. The store checks no warning: the
+// table refuses an empty id, and a caller dismisses only what holds.
+func (recorder *Recorder) DismissWarning(ctx context.Context, id string) error {
+	return recorder.Put(ctx, dismissedWarningsTable, Row{"id": Text(id)})
+}
