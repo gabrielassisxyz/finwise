@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gabrielassisxyz/finwise/internal/authored"
+	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
 	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 	"github.com/gabrielassisxyz/finwise/internal/money"
@@ -156,5 +158,87 @@ func TestTheSalariedLedgerHasTwoReceivingAccountsAndOneChosen(t *testing.T) {
 	found := findSalaryAccount(accounts, rows)
 	if found.Account == nil || found.Account.ID != accountSalaryNew || found.Receiving != 2 || found.Tied {
 		t.Errorf("found %+v, want %s among 2, untied", found, accountSalaryNew)
+	}
+}
+
+// cushionBudget is a budget for 2026-03 whose fixed and variable lines add up
+// to cushion, beside an income and a provision that take no part in it.
+func cushionBudget(cushion, provision money.Cents) authored.Document {
+	return authored.Document{
+		authoredtest.Group("rec", authoredtest.Line("Salário", 500_000)),
+		authoredtest.Group("fix", authoredtest.Line("Aluguel", cushion-cushion/4)),
+		authoredtest.Group("var", authoredtest.Line("Mercado", cushion/4)),
+		authoredtest.Group("prov", authoredtest.Line("IPTU", provision)),
+		authoredtest.Group("res"),
+	}
+}
+
+// paydayFigures is the payday's cushion, difference and verdict as the server
+// wrote them.
+func paydayFigures(env *settingsEnv, month string) string {
+	env.t.Helper()
+	arguments := `["` + month + `"]`
+	return env.fieldOf("review.payday", arguments, "cushion") + " " + env.fieldOf("review.payday", arguments, "difference") +
+		" " + env.fieldOf("review.payday", arguments, "covered")
+}
+
+// The salaried ledger's chosen account holds 777.77.
+func TestThePaydaySetsTheBalanceAgainstTheFixedAndVariableLinesOfTheMonth(t *testing.T) {
+	cases := []struct {
+		label    string
+		document authored.Document
+		want     string
+	}{
+		{"a cushion below the balance", cushionBudget(70_000, 10_000), "700.00 77.77 true"},
+		{"a cushion equal to the balance", cushionBudget(77_777, 10_000), "777.77 0.00 true"},
+		{"a cushion above the balance", cushionBudget(80_000, 10_000), "800.00 -22.23 false"},
+		{"a provision raised, which is not part of the cushion", cushionBudget(70_000, 900_000), "700.00 77.77 true"},
+		{"a budget whose only lines are income", authored.Document{authoredtest.Group("rec", authoredtest.Line("Salário", 500_000))},
+			"0.00 777.77 true"},
+	}
+	for _, c := range cases {
+		t.Run(c.label, func(t *testing.T) {
+			env := newSettingsEnv(t, newSalariedLedger(t), fixtureNow)
+			authoredtest.SaveBudget(t, env.scratch.Database, fixtureNow, "2026-03", c.document)
+			if got := paydayFigures(env, "2026-03"); got != c.want {
+				t.Errorf("cushion, difference and covered = %s, want %s", got, c.want)
+			}
+			if label := env.fieldOf("review.payday", `["2026-03"]`, "balanceLabel"); label != `"Mercado Pago · Conta Salário"` {
+				t.Errorf("label %s", label)
+			}
+		})
+	}
+}
+
+// A month before the first version uses the first, so only a month whose
+// budget has no line at all, as in a database where none was saved, has no
+// cushion to compare with.
+func TestAMonthWithNoBudgetComparesNothingWithTheBalance(t *testing.T) {
+	env := newSettingsEnv(t, newSalariedLedger(t), fixtureNow)
+	if got := paydayFigures(env, "2026-03"); got != "0.00 null null" {
+		t.Errorf("with no budget the cushion, difference and covered are %s", got)
+	}
+	if got := env.fieldOf("review.payday", `["2026-03"]`, "balance"); got != "777.77" {
+		t.Errorf("balance %s", got)
+	}
+}
+
+// The shared full ledger has no payroll credit, so its balance is unknown and
+// nothing is compared with it; the cushion and the transfers are the budget's.
+func TestOverTheFullLedgerThePaydayAnswersTheCushionAndTransfersWithNoBalance(t *testing.T) {
+	env := newSettingsEnv(t, newFullLedger(t), fixtureNow)
+	authoredtest.SaveBudget(t, env.scratch.Database, fixtureNow, "2026-03", cushionBudget(70_000, 10_000))
+	for field, want := range map[string]string{
+		"cushion": "700.00", "balance": "null", "balanceLabel": "null", "difference": "null", "covered": "null",
+	} {
+		if got := env.fieldOf("review.payday", `["2026-03"]`, field); got != want {
+			t.Errorf("%s = %s, want %s", field, got, want)
+		}
+	}
+	iptu := budgetLineID(t, env.scratch.Database, "2026-03", "IPTU")
+	want := `[{"key":"line:` + iptu.String() + `","name":"IPTU","amount":100.00,"state":"pending","doneOn":null,"markedByHand":false},` +
+		`{"key":"investment","name":"Investimento","amount":4200.00,"state":"pending","doneOn":null,"markedByHand":false}]`
+	if got := env.fieldOf("review.payday", `["2026-03"]`, "transfers"); got != want {
+		t.Errorf("transfers = %s\nwant %s", got, want)
 	}
 }

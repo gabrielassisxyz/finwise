@@ -9,6 +9,7 @@ import (
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
+	"github.com/gabrielassisxyz/finwise/internal/brday"
 	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 )
 
@@ -260,11 +261,30 @@ func inventedAuthoredState(t testing.TB, scratch *authoredtest.Scratch) {
 		if _, err := authoredtest.SeedSubscription(recorder); err != nil {
 			return err
 		}
-		return authoredtest.SeedReviewMarks(recorder)
+		if err := authoredtest.SeedReviewMarks(recorder); err != nil {
+			return err
+		}
+		return seedPaydayMarks(ctx, recorder)
 	})
 	if err != nil {
 		t.Fatalf("the invented authored state: %v", err)
 	}
+}
+
+// seedPaydayMarks marks two of the payday transfers of 2026-03 that the seeded
+// budget and links derive, so the reads that follow the transfers show one
+// done; the third, into the linked investment, stays pending.
+func seedPaydayMarks(ctx context.Context, recorder *authored.Recorder) error {
+	marks := []struct {
+		key string
+		day brday.Day
+	}{{"pot:reserve:acc-pots/pot-1", "2026-03-18"}, {"investment", "2026-03-19"}}
+	for _, mark := range marks {
+		if _, err := recorder.MarkTransferDone(ctx, "2026-03", mark.key, mark.day); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // seedPotChoices places two pots of the full ledger in a bucket other than the

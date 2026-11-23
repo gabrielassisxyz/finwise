@@ -162,3 +162,7 @@ const unlinkedReimbursementStep = "Você desfez a ligação com o PIX"
 func linkedReimbursementStep(name string, cents money.Cents) string {
 	return "Você ligou ao PIX de " + name + " · R$\u00a0" + brazilianDecimal(cents)
 }
+
+// unnamedPot is what a payday transfer into a pot the bank gives no name is
+// called, as the interface calls such a pot.
+const unnamedPot = "Sem nome"

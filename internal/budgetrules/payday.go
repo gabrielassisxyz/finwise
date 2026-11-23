@@ -149,6 +149,13 @@ func withoutZero(transfers []Transfer) []Transfer {
 	return kept
 }
 
+// Cushion is what the account the salary lands on must hold before the salary
+// is set aside: the fixed and the variable groups. Provisions and reserves are
+// what payday sets aside, so they are not part of it.
+func Cushion(plan Plan) money.Cents {
+	return plan.total(GroupFixed) + plan.total(GroupVariable)
+}
+
 // TransferMarks is a month's marks: the day each key was marked done.
 type TransferMarks map[string]brday.Day
 

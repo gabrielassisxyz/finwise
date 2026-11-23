@@ -192,6 +192,20 @@ func TestEachRuleOfTheTransfersHoldsOnItsOwn(t *testing.T) {
 	}
 }
 
+func TestTheCushionIsTheFixedAndTheVariableGroups(t *testing.T) {
+	if got := Cushion(paydayPlan(exampleLines(800000)...)); got != 382000 {
+		t.Errorf("cushion = %d, want 382000", got)
+	}
+	richer := exampleLines(800000)
+	richer[5].amount += 99999
+	if got := Cushion(paydayPlan(richer...)); got != 382000 {
+		t.Errorf("a provision raised moved the cushion to %d", got)
+	}
+	if got := Cushion(paydayPlan()); got != 0 {
+		t.Errorf("the cushion of an empty budget = %d", got)
+	}
+}
+
 func TestAMarkCountsOnlyForATransferTheMonthLists(t *testing.T) {
 	transfers := Transfers(exampleInputs(800000))
 	marked := Marked(transfers, TransferMarks{"pot:" + paydayPotOne: "2026-03-20", "line:15": "2026-03-20", "Reserva": "2026-03-20"})
