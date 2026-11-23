@@ -105,7 +105,23 @@ func (found *router) serveWrite(w http.ResponseWriter, r *http.Request, method c
 		writeFailure(w, r, err)
 		return
 	}
+	found.afterCommit(ctx, method.Qualified(), instant)
 	writeEncoded(w, encoded)
+}
+
+// budgetSaves are the writes after whose commit Config.AfterBudgetSaved runs:
+// the two that can give a month its first line.
+var budgetSaves = map[string]bool{"budget.save": true, "budget.applyScenario": true}
+
+// afterCommit runs Config.AfterBudgetSaved for a budget save that committed. A
+// panic in it is dropped, as the request log drops a handler's: the save is
+// kept, and answering it as failed would tell the person it was not.
+func (found *router) afterCommit(ctx context.Context, method string, instant time.Time) {
+	if found.afterBudgetSaved == nil || !budgetSaves[method] {
+		return
+	}
+	defer func() { _ = recover() }()
+	found.afterBudgetSaved(ctx, instant)
 }
 
 // callWrite turns a panic into an error. The transaction is open underneath, and
