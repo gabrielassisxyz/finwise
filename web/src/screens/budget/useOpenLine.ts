@@ -15,13 +15,15 @@ export function useOpenLine(month: Ref<YearMonth>) {
     key.value = key.value === lineKey ? null : lineKey;
   }
 
+  let latest = 0;
   watch(
     () => [key.value, month.value, revision.current] as const,
     async ([opened, selected]) => {
+      const request = ++latest;
       if (!opened) return;
       const line = opened.slice(opened.indexOf(':') + 1);
       const loaded = await api.budget.establishments(selected, line);
-      if (opened === key.value && selected === month.value) establishments.value = loaded;
+      if (request === latest && opened === key.value && selected === month.value) establishments.value = loaded;
     },
     { immediate: true },
   );

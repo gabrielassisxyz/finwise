@@ -4,6 +4,7 @@ import { defineComponent, h } from 'vue';
 import { RouterView } from 'vue-router';
 import { prototypeState } from '@/api/fake/prototype-data';
 import { useRevisionStore } from '@/stores/revision';
+import { holdFirstCall } from '@/test/holdCall';
 import { mountRouted } from '@/test/mountRouted';
 import CofrinhoScreen from './CofrinhoScreen.vue';
 import CofrinhosScreen from './CofrinhosScreen.vue';
@@ -226,5 +227,21 @@ describe('Cofrinho page after a change', () => {
     await flushPromises();
     expect(wrapper.find('h1').text()).not.toBe('RF Pets');
     expect(wrapper.find('h1').text()).toBe('RF Saúde');
+  });
+
+  it('does not let an earlier answer replace a later one for the same pot', async () => {
+    const { wrapper, api } = await mountPot('rfp');
+    const first = holdFirstCall(api.savingsPots, 'detail');
+    useRevisionStore().bump();
+    await flushPromises();
+
+    await api.settings.setPotBucket('rfp', 'Investido');
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(wrapper.find('.subtitle').text()).toBe('Mercado Pago · Investido · 120% do CDI');
+
+    first.release();
+    await flushPromises();
+    expect(wrapper.find('.subtitle').text()).toBe('Mercado Pago · Investido · 120% do CDI');
   });
 });

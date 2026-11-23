@@ -53,7 +53,7 @@ const freshPlannedActualJSON = `[` +
 	`{"name":"Reservas de desejo","planned":0.00,"actual":0.00,"difference":0.00,"contributions":true,"lines":[]}]`
 
 func closingOf(month, cardBill string) string {
-	return `{"month":"` + month + `","closed":false,"closedOn":null,"steps":` + emptyClosingSteps +
+	return `{"month":"` + month + `","closed":false,"closedOn":null,"closeChangeId":null,"steps":` + emptyClosingSteps +
 		`,"pendingCount":0,"plannedActual":` + freshPlannedActualJSON + `,"leftover":0.00,"contributions":[],` +
 		`"cardBill":` + cardBill + `,"subscriptionsToReview":[],"report":[],"closedMonths":[]}`
 }
@@ -555,6 +555,7 @@ func newClosingExample(t *testing.T, marketAgain float64) *closingExample {
 type closingSeen struct {
 	Closed        bool    `json:"closed"`
 	ClosedOn      *string `json:"closedOn"`
+	CloseChangeID *string `json:"closeChangeId"`
 	PendingCount  int     `json:"pendingCount"`
 	PlannedActual []struct {
 		Name   string  `json:"name"`

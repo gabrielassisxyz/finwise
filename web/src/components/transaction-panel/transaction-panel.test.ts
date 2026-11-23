@@ -9,6 +9,7 @@ import { createFakeApi } from '@/api/fake';
 import { prototypeState } from '@/api/fake/prototype-data';
 import { useOverlayStore } from '@/stores/overlay';
 import { useRevisionStore } from '@/stores/revision';
+import { holdFirstCall } from '@/test/holdCall';
 import { lineNamed, recordLineMenu, tagNamed } from '@/test/lineMenu';
 import { mountAt, prototypeOverview } from '@/test/mount';
 import { mountWithFailures } from '@/test/readOnly';
@@ -334,5 +335,23 @@ describe('the line menus ask for the month they are for', () => {
     expect(await m.menuOf('.panel .part .pick')).toEqual([lineNamed(OCT, 2)]);
     expect(await m.defaultLineMenu()).toEqual([lineNamed(NOV, 2)]);
     expect(await m.menuOf('.panel .section:has(.nickname) .add')).toEqual([tagNamed(OCT, 2)]);
+  });
+});
+
+describe('TransactionDetail out-of-order loads', () => {
+  it('does not let an earlier detail answer replace a later one for the same transaction', async () => {
+    const { wrapper, api } = await openOn('t2');
+    const first = holdFirstCall(api.transactions, 'detail');
+    useRevisionStore().bump();
+    await flushPromises();
+
+    await api.transactions.setLine('t2', 'Lazer');
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(wrapper.find('.panel .line-button').text()).toContain('Lazer');
+
+    first.release();
+    await flushPromises();
+    expect(wrapper.find('.panel .line-button').text()).toContain('Lazer');
   });
 });

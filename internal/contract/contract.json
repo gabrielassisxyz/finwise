@@ -2960,6 +2960,13 @@
             }
           ]
         },
+        "closeChangeId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The change that closed the month, which `changes.undo` takes back to reopen it. Null for an open month, and for a month closed by a change that did more than close it."
+        },
         "steps": {
           "type": "array",
           "items": {
@@ -3019,6 +3026,7 @@
         "month",
         "closed",
         "closedOn",
+        "closeChangeId",
         "steps",
         "pendingCount",
         "plannedActual",

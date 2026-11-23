@@ -29,11 +29,13 @@ const actions = useClosingActions();
 
 const closing = ref<ClosingView | null>(null);
 
+let latest = 0;
 watch(
   () => [month.selected, revision.current] as const,
   async ([selected]) => {
+    const request = ++latest;
     const loaded = await api.review.closing(selected);
-    if (selected === month.selected) closing.value = loaded;
+    if (request === latest && selected === month.selected) closing.value = loaded;
   },
   { immediate: true },
 );
@@ -55,6 +57,14 @@ function askToClose(): void {
       await actions.closeMonth(month.selected);
       view.openStep = -1;
     },
+  });
+}
+
+function askToReopen(shown: ClosingView, closeChangeId: string): void {
+  overlay.confirm({
+    message: `Reabrir ${monthInSentence(shown.month)}? O budget deste mês volta a poder ser editado.`,
+    confirmLabel: 'Reabrir mês',
+    onConfirm: () => actions.reopenMonth(closeChangeId),
   });
 }
 
@@ -97,7 +107,12 @@ function openClosedMonth(selected: string): void {
           :read-only="closing.closed"
           @send="actions.sendSuggestion($event)"
         />
-        <StepClose v-else-if="step.id === 'close'" :view="closing" @close="askToClose" />
+        <StepClose
+          v-else-if="step.id === 'close'"
+          :view="closing"
+          @close="askToClose"
+          @reopen="askToReopen(closing, $event)"
+        />
       </ClosingStep>
     </div>
     <ClosedMonthsList :months="closing.closedMonths" @open="openClosedMonth" />

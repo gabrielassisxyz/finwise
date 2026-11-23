@@ -26,8 +26,8 @@ type candidate struct {
 
 // evaluate is step 4: every listed transaction the rules never met, from the
 // tracking start month on, in a month whose budget has a line, is indexed and
-// marked evaluated, and Decide is asked about it only when neither the person
-// nor a rule has put it on a line or in the queue. A transaction of a month with
+// marked evaluated, and Decide is asked about it only when nothing kept about
+// it already settles what it counts for. A transaction of a month with
 // no line stays unindexed, so the queue never holds what cannot be answered.
 func (step *pass) evaluate(listed []txrules.Transaction, index indexState, shown map[authored.TxKey]txrules.Transaction) error {
 	start, found, err := step.view.TrackingStartMonth(step.ctx)
@@ -126,16 +126,24 @@ func (step *pass) evaluateOne(next candidate, lines []authored.MonthLine, settin
 	return step.write(key, decision, lines)
 }
 
-// alreadyDecided reads, under the lock, whether the transaction is on a line or
-// in the queue, so a decision the person took in the minutes before a tick is
-// never touched.
+// alreadyDecided reads, under the lock, whether what is kept about the
+// transaction already settles what it counts for, so a decision the person took
+// before the rules met it is never touched.
 func (step *pass) alreadyDecided(key authored.TxKey) (bool, error) {
 	kept, err := step.view.Transactions(step.ctx, []authored.TxKey{key})
 	if err != nil {
 		return false, err
 	}
-	state := kept[key].State
-	return state.Line != nil || state.PendingReason != "", nil
+	return settled(kept[key]), nil
+}
+
+// settled is whether a transaction is on a line, waits in the queue, is split,
+// or is left out with a reason. An exclusion without a reason and a single part
+// take no effect in the budget, so they leave the transaction to the rules.
+func settled(kept authored.AuthoredTransaction) bool {
+	state := kept.State
+	excluded := state.Exclusion != nil && *state.Exclusion != ""
+	return state.Line != nil || state.PendingReason != "" || len(kept.Split) >= 2 || excluded
 }
 
 func (step *pass) decide(transaction txrules.Transaction, lines []authored.MonthLine, settings classrules.Settings) (classrules.Decision, error) {

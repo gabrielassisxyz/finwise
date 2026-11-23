@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"sync"
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/budgetrules"
@@ -9,39 +10,65 @@ import (
 )
 
 // A reimbursement ties a purchase to a credit that may have arrived in any
-// month, before the app's database existed included, so the credits are read
-// from the whole ledger in one pass, as the card reads its purchases.
+// month, before the app's database existed included, so whether either is
+// listed is read from the whole ledger in one pass, as the card reads its
+// purchases.
 
-// listedCredits is every credit the whole ledger lists now, newest first, with
-// the key the index gave each one it has met.
-type listedCredits struct {
+// wholeListing is one reading of the whole ledger of the request's snapshot:
+// every transaction it lists now, newest first, with the key the index gave
+// each one it has met.
+type wholeListing struct {
 	rows []txrules.Transaction
 	keys map[string]authored.TxKey
 }
 
-func readListedCredits(ctx context.Context, views Views) (listedCredits, error) {
+func readWholeListing(ctx context.Context, views Views) (wholeListing, error) {
 	whole, _, err := listedLedger(ctx, views.Ledger)
 	if err != nil {
-		return listedCredits{}, err
+		return wholeListing{}, err
 	}
-	credits := listedCredits{}
-	ids := []string{}
+	listing := wholeListing{rows: whole.listed}
+	ids := make([]string, 0, len(whole.listed))
 	for _, listed := range whole.listed {
+		ids = append(ids, listed.ID)
+	}
+	if listing.keys, err = views.Authored.TransactionKeys(ctx, ids); err != nil {
+		return wholeListing{}, err
+	}
+	return listing, nil
+}
+
+// sharedWholeListing reads the whole ledger the first time it is called and
+// answers that reading after, so the links of one answer share one reading,
+// and an answer whose links need none makes none.
+func sharedWholeListing(ctx context.Context, views Views) func() (wholeListing, error) {
+	return sync.OnceValues(func() (wholeListing, error) { return readWholeListing(ctx, views) })
+}
+
+func (listing wholeListing) credits() []txrules.Transaction {
+	credits := []txrules.Transaction{}
+	for _, listed := range listing.rows {
 		if listed.Amount > 0 {
-			credits.rows = append(credits.rows, listed)
-			ids = append(ids, listed.ID)
+			credits = append(credits, listed)
 		}
 	}
-	if credits.keys, err = views.Authored.TransactionKeys(ctx, ids); err != nil {
-		return listedCredits{}, err
+	return credits
+}
+
+// listedKeys is the key of every transaction the ledger lists that the index
+// has met.
+func (listing wholeListing) listedKeys() map[authored.TxKey]bool {
+	listed := make(map[authored.TxKey]bool, len(listing.keys))
+	for _, key := range listing.keys {
+		listed[key] = true
 	}
-	return credits, nil
+	return listed
 }
 
 // linkedCreditRows is the listed row of each credit a purchase among kept
 // links. A credit the ledger no longer lists has no row: its link is kept and
 // applies again once the credit is listed under its key.
-func linkedCreditRows(ctx context.Context, views Views, kept map[authored.TxKey]authored.AuthoredTransaction) (map[authored.TxKey]txrules.Transaction, error) {
+func linkedCreditRows(kept map[authored.TxKey]authored.AuthoredTransaction, whole func() (wholeListing, error)) (map[authored.TxKey]txrules.Transaction, error) {
 	wanted := map[authored.TxKey]bool{}
 	for _, transaction := range kept {
 		if credit := transaction.State.Credit; credit != nil {
@@ -52,12 +79,12 @@ func linkedCreditRows(ctx context.Context, views Views, kept map[authored.TxKey]
 	if len(wanted) == 0 {
 		return found, nil
 	}
-	credits, err := readListedCredits(ctx, views)
+	listing, err := whole()
 	if err != nil {
 		return nil, err
 	}
-	for _, credit := range credits.rows {
-		key, indexed := credits.keys[credit.ID]
+	for _, credit := range listing.credits() {
+		key, indexed := listing.keys[credit.ID]
 		if _, taken := found[key]; indexed && wanted[key] && !taken {
 			found[key] = credit
 		}
@@ -75,15 +102,16 @@ type candidateCredits struct {
 // readCandidates finds the candidates of the purchase at key; indexed is false
 // for a purchase the index has never met, which no credit can be linked to.
 func readCandidates(ctx context.Context, views Views, purchase authored.TxKey, indexed bool) (candidateCredits, error) {
-	credits, err := readListedCredits(ctx, views)
+	listing, err := readWholeListing(ctx, views)
 	if err != nil {
 		return candidateCredits{}, err
 	}
-	ids := make([]string, 0, len(credits.rows))
-	for _, credit := range credits.rows {
+	credits := listing.credits()
+	ids := make([]string, 0, len(credits))
+	for _, credit := range credits {
 		ids = append(ids, credit.ID)
 	}
-	kept, err := views.Authored.Transactions(ctx, keysInOrder(ids, credits.keys))
+	kept, err := views.Authored.Transactions(ctx, keysInOrder(ids, listing.keys))
 	if err != nil {
 		return candidateCredits{}, err
 	}
@@ -92,8 +120,8 @@ func readCandidates(ctx context.Context, views Views, purchase authored.TxKey, i
 		return candidateCredits{}, err
 	}
 	candidates := candidateCredits{rows: []txrules.Transaction{}}
-	for _, credit := range credits.rows {
-		key, creditIndexed := credits.keys[credit.ID]
+	for _, credit := range credits {
+		key, creditIndexed := listing.keys[credit.ID]
 		var state authored.TransactionState
 		linkedElsewhere := false
 		if creditIndexed {

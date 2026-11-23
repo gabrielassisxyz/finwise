@@ -33,6 +33,9 @@ function cardBill(state: FakeState): ClosingCardBill | null {
 
 export function createClosing(state: FakeState, original: FakeTransaction[], log: ChangeLog): ClosingApi {
   const find = (id: string) => state.subscriptions.find((subscription) => subscription.id === id);
+  // The change of each close made here. An undo puts the closed months back as they were, so an id is answered only
+  // while its month reads closed; a month closed before any change of the log has none.
+  const closeChanges = new Map<YearMonth, string>();
 
   return {
     async closing(month: YearMonth): Promise<ClosingView> {
@@ -41,6 +44,7 @@ export function createClosing(state: FakeState, original: FakeTransaction[], log
         month,
         closed: closedOn !== null,
         closedOn,
+        closeChangeId: closedOn !== null ? (closeChanges.get(month) ?? null) : null,
         steps: closingSteps(state, month),
         pendingCount: pendingCount(state),
         plannedActual: plannedActual(state, original, month),
@@ -83,6 +87,7 @@ export function createClosing(state: FakeState, original: FakeTransaction[], log
       if (pendingCount(state) > 0) throw new Error('A month with transactions waiting for review does not close');
       const changeId = log.begin();
       state.shell.closedMonths = [...state.shell.closedMonths, { month, closedOn: state.shell.today }];
+      closeChanges.set(month, changeId);
       return { changeId };
     },
   };
