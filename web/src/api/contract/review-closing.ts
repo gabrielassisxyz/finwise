@@ -111,6 +111,9 @@ export interface ClosingApi {
   /** Keeps a subscription under review and schedules the next review. */
   keepSubscription(month: YearMonth, id: string): Promise<KeptSubscription | null>;
   cancelSubscription(id: string): Promise<(ChangeResult & { name: string }) | null>;
-  /** Refused while anything is waiting for review, and for a month already closed. */
+  /**
+   * Refused for a month already closed, for a month after the current one, and while a transaction
+   * of that month or an earlier one waits for review.
+   */
   closeMonth(month: YearMonth): Promise<ChangeResult>;
 }
