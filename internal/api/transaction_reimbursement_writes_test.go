@@ -442,3 +442,37 @@ func TestANicknameNamesTheCandidateTheLinkAndTheLinksStep(t *testing.T) {
 		t.Errorf("the link's step is %q", detail.History[0].Text)
 	}
 }
+
+// Marking works on any listed transaction, a credit included, but only a
+// purchase is paid back: linking a PIX to a marked received PIX or to a marked
+// card refund changes nothing, and the PIX offered stays someone's income.
+func TestLinkingToAMarkedCreditChangesNothingAndThePIXStaysIncome(t *testing.T) {
+	for _, credit := range []string{txPixWhole, txRefund} {
+		env := newReimbursementEnv(t, reimbursementLedger(t))
+		env.putOnLine(txPixAna, "Salário")
+		env.change("transactions.setReimbursable", `["`+credit+`",true]`)
+		if got := env.reimbursementOf(credit); got == "null" {
+			t.Fatalf("%s: marking the credit kept nothing", credit)
+		}
+
+		env.expectEmptyChange("transactions.linkReimbursement", `["`+credit+`","`+txPixAna+`"]`)
+
+		for _, id := range []string{credit, txPixAna} {
+			if texts := env.countedPanelOf(id).texts(); len(texts) != 0 {
+				t.Errorf("%s: the history of %s is %v, want no step", credit, id, texts)
+			}
+		}
+		if row := reimbursementRowOf(t, env.readEnv, "2026-03", txPixAna); row.ReimbursementIncome || string(row.EffectiveAmount) != "150.00" {
+			t.Errorf("%s: the PIX is listed with reimbursementIncome %v and effective %s", credit, row.ReimbursementIncome, row.EffectiveAmount)
+		}
+		salary := budgetrules.LineID(budgetLineID(t, env.scratch.Database, "2026-03", "Salário"))
+		want := []budgetrules.LineAmount{{Line: salary, Effect: budgetrules.Received, Amount: 15_000}}
+		if outcome := env.outcome("2026-03", txPixAna); outcome.Disposition != budgetrules.Income || !slices.Equal(outcome.Lines, want) {
+			t.Errorf("%s: the PIX counts %+v, want 15000 received on Salário", credit, outcome)
+		}
+		env.change("transactions.setReimbursable", `["`+txDinner+`",true]`)
+		if !slices.Contains(candidateIDs(reimbursementDetailOf(t, env.readEnv, txDinner)), txPixAna) {
+			t.Errorf("%s: the PIX is not among the candidates of the marked dinner", credit)
+		}
+	}
+}
