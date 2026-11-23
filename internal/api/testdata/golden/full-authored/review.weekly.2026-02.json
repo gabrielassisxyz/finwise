@@ -1,0 +1,99 @@
+{
+  "limit": {
+    "cap": 600.00,
+    "spent": 207.00,
+    "remaining": 393.00,
+    "over": false,
+    "fill": 35
+  },
+  "week": null,
+  "queue": {
+    "items": [
+      {
+        "transactionId": "tx-pix-out",
+        "day": "2026-03-12",
+        "name": "Maria Exemplo",
+        "rawDescription": "PIX ENVIADO MARIA EXEMPLO",
+        "amount": -80.00,
+        "accountLabel": "Itaú · Conta Corrente",
+        "person": true,
+        "pending": {
+          "reason": "PIX para pessoa sem apelido",
+          "suggestion": null,
+          "confidence": null,
+          "justification": null
+        }
+      },
+      {
+        "transactionId": "tx-foreign",
+        "day": "2026-03-10",
+        "name": "CLOUDSVC SUBSCRIPTION",
+        "rawDescription": "CLOUDSVC SUBSCRIPTION",
+        "amount": -113.85,
+        "accountLabel": "Platinum Visa · final 1234",
+        "person": false,
+        "pending": {
+          "reason": "Baixa confiança",
+          "suggestion": "Delivery",
+          "confidence": 91,
+          "justification": "Assinatura de nuvem enquadrada em Delivery pelo histórico."
+        }
+      },
+      {
+        "transactionId": "tx-boleto",
+        "day": "2026-03-10",
+        "name": "Alvorada Telecom S.A.",
+        "rawDescription": "ALVORADA TELECOM S.A.",
+        "amount": -109.90,
+        "accountLabel": "Itaú · Conta Corrente",
+        "person": false,
+        "pending": {
+          "reason": "Confiança abaixo do limite",
+          "suggestion": "Contas da casa",
+          "confidence": 64,
+          "justification": null
+        }
+      },
+      {
+        "transactionId": "tx-instalment",
+        "day": "2026-03-06",
+        "name": "LIVRARIA EXEMPLO",
+        "rawDescription": "LIVRARIA EXEMPLO 1/3",
+        "amount": -129.00,
+        "accountLabel": "Platinum Visa · final 1234",
+        "person": false,
+        "pending": {
+          "reason": "Estabelecimento novo",
+          "suggestion": "Feira",
+          "confidence": 82,
+          "justification": "Livraria sem histórico, enquadrada em Feira no orçamento."
+        }
+      },
+      {
+        "transactionId": "tx-stale",
+        "day": "2026-01-05",
+        "name": "Amigo Exemplo",
+        "rawDescription": "PIX RECEBIDO AMIGO EXEMPLO",
+        "amount": 50.00,
+        "accountLabel": "C6 · Conta C6",
+        "person": true,
+        "pending": {
+          "reason": "PIX para pessoa sem apelido",
+          "suggestion": null,
+          "confidence": null,
+          "justification": null
+        }
+      }
+    ],
+    "resolved": 1
+  },
+  "approvals": [],
+  "warnings": [
+    {
+      "id": "charged-after-cancel:2:2026-03-10",
+      "text": "Marcada para cancelar e cobrou de novo: CLOUDSVC SUBSCRIPTION",
+      "subscriptionId": "2",
+      "actions": []
+    }
+  ]
+}

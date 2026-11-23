@@ -49,12 +49,21 @@ func acceptPending(ctx context.Context, args []json.RawMessage, writes Writes) (
 	if err != nil {
 		return nil, err
 	}
+	budget, err := writes.Authored.BudgetOf(ctx, monthOfDay(waiting.listed.Day))
+	if err != nil {
+		return nil, err
+	}
+	model, err := storedModelSuggestion(ctx, writes.Authored, waiting.key)
+	if err != nil {
+		return nil, err
+	}
+	suggested := transactionLinesOf(budget).pendingSuggestion(waiting.state, model)
 	kept, err := writes.Authored.Establishments(ctx, []string{waiting.listed.EstablishmentKey})
 	if err != nil {
 		return nil, err
 	}
 	shown := shownName(kept, waiting.listed.EstablishmentKey, waiting.listed.Name)
-	if err := recordAnswer(ctx, writes, waiting, line, answer, shown); err != nil {
+	if err := recordAnswer(ctx, writes, waiting, line, suggested, answer, shown); err != nil {
 		return nil, err
 	}
 	change, err := writes.Recorder.ID(ctx)
@@ -91,7 +100,7 @@ func waitingFor(ctx context.Context, writes Writes, id string) (pendingTransacti
 // two months, and the person ticked the box for the line they answered with.
 // So it is not looked up again in the current month, which may lack it. The
 // note goes after the step, so the history, newest first, reads it first.
-func recordAnswer(ctx context.Context, writes Writes, waiting pendingTransaction, line authored.LineID, answer pendingAnswer, shown string) error {
+func recordAnswer(ctx context.Context, writes Writes, waiting pendingTransaction, line authored.LineID, suggested shownSuggestion, answer pendingAnswer, shown string) error {
 	key, err := indexListed(ctx, writes.Ledger, writes.Recorder, waiting.listed)
 	if err != nil {
 		return err
@@ -99,7 +108,16 @@ func recordAnswer(ctx context.Context, writes Writes, waiting pendingTransaction
 	if err := writes.Recorder.SettleLine(ctx, key, line, authored.AuthorPerson); err != nil {
 		return err
 	}
-	step, err := writes.Recorder.AddHistoryStep(ctx, key, authored.StepEffect, answeredStep(waiting.state, line, answer.Line))
+	if suggested.source == suggestionModel {
+		outcome := authored.ModelAnswerCorrected
+		if suggested.line == line {
+			outcome = authored.ModelAnswerAccepted
+		}
+		if err := writes.Recorder.RecordModelAnswer(ctx, key, outcome); err != nil {
+			return err
+		}
+	}
+	step, err := writes.Recorder.AddHistoryStep(ctx, key, authored.StepEffect, answeredStep(suggested, line, answer.Line))
 	if err != nil {
 		return err
 	}
@@ -123,10 +141,10 @@ func recordAnswer(ctx context.Context, writes Writes, waiting pendingTransaction
 	return err
 }
 
-// answeredStep compares lines by id: a review with no suggestion is always a
-// change of line.
-func answeredStep(state authored.TransactionState, line authored.LineID, name string) string {
-	if state.PendingLine != nil && *state.PendingLine == line {
+// answeredStep compares lines by id against the suggestion the queue showed: a
+// review with no suggestion is always a change of line.
+func answeredStep(suggested shownSuggestion, line authored.LineID, name string) string {
+	if suggested.source != suggestionNone && suggested.line == line {
 		return lineAcceptedStep(name)
 	}
 	return lineChangedStep(name)
