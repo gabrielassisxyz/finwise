@@ -109,50 +109,36 @@ func columnValues(t *testing.T, database *sql.DB, query string) []string {
 	return values
 }
 
+// migrationsOnDisk reads every *.sql file in internal/authored/migrations from
+// disk as name=sha256, independent of the set the binary embeds.
+func migrationsOnDisk(t *testing.T) []string {
+	t.Helper()
+	directory := filepath.Join("..", "..", "internal", "authored", "migrations")
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".sql") {
+			names = append(names, strings.TrimSuffix(entry.Name(), ".sql"))
+		}
+	}
+	if len(names) == 0 {
+		t.Fatalf("%s holds no .sql file", directory)
+	}
+	slices.Sort(names)
+	recorded := make([]string, 0, len(names))
+	for _, name := range names {
+		recorded = append(recorded, name+"="+fileHash(t, filepath.Join(directory, name+".sql")))
+	}
+	return recorded
+}
+
 // requireCreatedDatabase checks a stopped server left the database the embedded
 // migration set creates.
 func requireCreatedDatabase(t *testing.T, path string) {
 	t.Helper()
-	journal, err := os.ReadFile(filepath.Join("..", "..", "internal", "authored", "migrations", "0001_journal.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	sum := sha256.Sum256(journal)
-	settings, err := os.ReadFile(filepath.Join("..", "..", "internal", "authored", "migrations", "0004_settings.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	settingsSum := sha256.Sum256(settings)
-	pots, err := os.ReadFile(filepath.Join("..", "..", "internal", "authored", "migrations", "0005_pots.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	potsSum := sha256.Sum256(pots)
-	subscriptions, err := os.ReadFile(filepath.Join("..", "..", "internal", "authored", "migrations", "0006_subscriptions.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	subscriptionsSum := sha256.Sum256(subscriptions)
-	session, err := os.ReadFile(filepath.Join("..", "..", "internal", "authored", "migrations", "0008_session.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	sessionSum := sha256.Sum256(session)
-	budget, err := os.ReadFile(filepath.Join("..", "..", "internal", "authored", "migrations", "0002_budget.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	budgetSum := sha256.Sum256(budget)
-	transactions, err := os.ReadFile(filepath.Join("..", "..", "internal", "authored", "migrations", "0003_transactions.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	transactionsSum := sha256.Sum256(transactions)
-	review, err := os.ReadFile(filepath.Join("..", "..", "internal", "authored", "migrations", "0007_review.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	reviewSum := sha256.Sum256(review)
 	database := inspectDatabase(t, path)
 	var id int64
 	var mode string
@@ -168,8 +154,7 @@ func requireCreatedDatabase(t *testing.T, path string) {
 		t.Errorf("tables = %v, want %v", tables, want)
 	}
 	recorded := columnValues(t, database, "SELECT name || '=' || sha256 FROM schema_migrations ORDER BY name")
-	if want := []string{"0001_journal=" + hex.EncodeToString(sum[:]), "0002_budget=" + hex.EncodeToString(budgetSum[:]), "0003_transactions=" + hex.EncodeToString(transactionsSum[:]), "0004_settings=" + hex.EncodeToString(settingsSum[:]), "0005_pots=" + hex.EncodeToString(potsSum[:]), "0006_subscriptions=" + hex.EncodeToString(subscriptionsSum[:]), "0008_session=" + hex.EncodeToString(sessionSum[:]),
-		"0007_review=" + hex.EncodeToString(reviewSum[:])}; !slices.Equal(recorded, slices.Sorted(slices.Values(want))) {
+	if want := migrationsOnDisk(t); !slices.Equal(recorded, want) {
 		t.Errorf("schema_migrations = %v, want %v", recorded, want)
 	}
 	month := columnValues(t, database, "SELECT value FROM meta WHERE key = 'tracking_start_month'")

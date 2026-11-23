@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -83,6 +84,23 @@ func withMigrations(t testing.TB, extra map[string]string) fstest.MapFS {
 		set[name+".sql"] = &fstest.MapFile{Data: []byte(body)}
 	}
 	return set
+}
+
+// embeddedMigrationNames is the sorted names of the embedded migrations plus
+// any extras a test adds.
+func embeddedMigrationNames(t testing.TB, extra ...string) []string {
+	t.Helper()
+	paths, err := fs.Glob(authored.EmbeddedMigrations(), "*.sql")
+	if err != nil || len(paths) == 0 {
+		t.Fatalf("embedded set: %v %v", paths, err)
+	}
+	names := make([]string, 0, len(paths)+len(extra))
+	for _, path := range paths {
+		names = append(names, strings.TrimSuffix(path, ".sql"))
+	}
+	names = append(names, extra...)
+	sort.Strings(names)
+	return names
 }
 
 func asOpenError(t testing.TB, err error) *authored.OpenError {
