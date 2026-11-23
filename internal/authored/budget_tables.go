@@ -55,8 +55,10 @@ var budgetVersionLinesTable = Table{
 		{Name: "from_month"}, {Name: "group_key"}, {Name: "position"}, {Name: "line_id"},
 		{Name: "name"}, {Name: "cents"}, {Name: "flag"},
 	},
-	Key:     []string{"from_month", "line_id", "name"},
-	OwnedBy: &Ownership{Owner: "budget_versions", Columns: []string{"from_month"}},
+	Key: []string{"from_month", "line_id", "name"},
+	// A line is the person's budget, so a later save that only added one to a
+	// version keeps the save that created the version from being undone.
+	OwnedBy: &Ownership{Owner: "budget_versions", Columns: []string{"from_month"}, OnUndo: RowsHoldTheirOwner},
 	Statements: TableStatements{
 		SelectRow: statementBudgetLineRow, SelectAll: statementBudgetLineAll, SelectOwned: statementBudgetLineOwned,
 		Insert: statementBudgetLineInsert, Update: statementBudgetLineUpdate, Delete: statementBudgetLineDelete,
