@@ -86,7 +86,7 @@ func eligiblePurchasesOfMonth(ctx context.Context, views Views, month brday.Mont
 	if err != nil {
 		return nil, err
 	}
-	rows, err := readAuthoredRows(ctx, views.Authored, view.listed)
+	rows, err := readAuthoredRows(ctx, views, view.listed)
 	if err != nil {
 		return nil, err
 	}

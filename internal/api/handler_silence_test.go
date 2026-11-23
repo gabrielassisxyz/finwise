@@ -86,6 +86,9 @@ var secrets = []string{
 	"Compra da empresa", "Marcada em lote", "20700",
 	// The reasons and the history's sentences of the transactions' line writes.
 	"apartamento", "Você alterou", "Você confirmou", "Regra aplicou", "Delivery",
+	// The amount the reimbursement's write cases expect back, which no instant
+	// of a log line can hold since 61 is no second.
+	"61.73",
 }
 
 // capturedLogs is what reached each of the three places a log could go.

@@ -94,13 +94,14 @@ var writeCases = append([]writeCase{
 	{method: "settings.setMinExamples", arguments: `[5]`, expects: expectsRecorded},
 	{method: "settings.setCardLabel", arguments: `["  Virtual "]`, expects: expectsRecorded, state: startFromTheInventedState},
 	{method: "settings.setClosing", arguments: `["manual",31]`, expects: expectsRecorded},
-}, slices.Concat(budgetWriteCases, potSettingsWriteCases, tagAndNicknameWriteCases, transactionCountWriteCases, transactionLineWriteCases, transactionHistoryWriteCases)...)
+}, slices.Concat(budgetWriteCases, potSettingsWriteCases, tagAndNicknameWriteCases, transactionCountWriteCases,
+	transactionLineWriteCases, transactionHistoryWriteCases, reimbursementWriteCases)...)
 
 // reasonsWithoutProducer are the reasons of the closed list that nothing
 // produces yet, and so have no case. A piece of work that first produces one
 // adds its case and removes the name.
 var reasonsWithoutProducer = []refusalReason{
-	reasonFutureMonth, reasonPendingReviews, reasonSplitWithReimbursement,
+	reasonFutureMonth, reasonPendingReviews,
 }
 
 // writeObservation is everything one run of a case saw. The checks read it and

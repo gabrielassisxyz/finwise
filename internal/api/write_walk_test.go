@@ -21,8 +21,6 @@ const changePin = "session.changePin"
 // Each piece of work that implements one removes its name here, and the list is
 // empty when every write of the contract is implemented.
 var writesWithoutHandler = []string{
-	"transactions.setReimbursable", "transactions.setExpectedReimbursement",
-	"transactions.linkReimbursement", "transactions.unlinkReimbursement",
 	"review.acceptPending", "review.approve",
 	"review.refuse", "review.propose", "review.dismissWarning", "review.runWarningAction",
 	"review.markStepDone", "review.keepSubscription", "review.cancelSubscription",
@@ -127,16 +125,18 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 		"subscriptions.acceptSuggestion", "subscriptions.create", "subscriptions.rejectSuggestion",
 		"subscriptions.setLine", "subscriptions.setNote", "subscriptions.setReviewDate", "subscriptions.setStatus",
 		"transactions.addFixedTag", "transactions.addTag", "transactions.addTagToMany", "transactions.applyLineToEstablishment",
-		"transactions.confirmLine", "transactions.excludeMany", "transactions.removeFixedTag", "transactions.removeTag",
-		"transactions.setDefaultLine", "transactions.setExcluded", "transactions.setExclusionReason", "transactions.setLine",
-		"transactions.setLineForMany", "transactions.setNickname", "transactions.setNote", "transactions.setReason",
-		"transactions.setRefund", "transactions.setRefundLine", "transactions.setSplit", "transactions.undoHistoryStep",
+		"transactions.confirmLine", "transactions.excludeMany", "transactions.linkReimbursement", "transactions.removeFixedTag",
+		"transactions.removeTag", "transactions.setDefaultLine", "transactions.setExcluded", "transactions.setExclusionReason",
+		"transactions.setExpectedReimbursement", "transactions.setLine", "transactions.setLineForMany", "transactions.setNickname",
+		"transactions.setNote", "transactions.setReason", "transactions.setRefund", "transactions.setRefundLine",
+		"transactions.setReimbursable", "transactions.setSplit", "transactions.undoHistoryStep", "transactions.unlinkReimbursement",
 	}
+	slices.Sort(implemented)
 	if !slices.Equal(registered, implemented) {
 		t.Errorf("the registry implements %v, want %v", registered, implemented)
 	}
-	if len(writesWithoutHandler) != 15 || slices.Contains(writesWithoutHandler, changePin) {
-		t.Errorf("the list holds %d names, want 15 without %s", len(writesWithoutHandler), changePin)
+	if len(writesWithoutHandler) != 11 || slices.Contains(writesWithoutHandler, changePin) {
+		t.Errorf("the list holds %d names, want 11 without %s", len(writesWithoutHandler), changePin)
 	}
 }
 

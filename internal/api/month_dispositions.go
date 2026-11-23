@@ -33,7 +33,7 @@ func disposeMonth(ctx context.Context, views Views, month brday.Month) (monthDis
 	if err != nil {
 		return monthDispositions{}, err
 	}
-	rows, err := readAuthoredRows(ctx, views.Authored, view.listed)
+	rows, err := readAuthoredRows(ctx, views, view.listed)
 	if err != nil {
 		return monthDispositions{}, err
 	}

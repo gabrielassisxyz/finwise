@@ -96,7 +96,7 @@ func chargeRowsOf(ctx context.Context, views Views, stored []authored.Subscripti
 			charged = append(charged, listed)
 		}
 	}
-	authoredRows, err := readAuthoredRows(ctx, views.Authored, charged)
+	authoredRows, err := readAuthoredRows(ctx, views, charged)
 	if err != nil {
 		return nil, err
 	}

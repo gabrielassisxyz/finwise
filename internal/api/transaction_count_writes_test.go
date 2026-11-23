@@ -117,6 +117,7 @@ type countedDetail struct {
 	Sections struct {
 		Split bool `json:"split"`
 	} `json:"sections"`
+	Reimbursed bool `json:"reimbursed"`
 }
 
 func detailOf(t *testing.T, env *readEnv, id string) countedDetail {

@@ -140,4 +140,5 @@ var allStatements = map[string]string{
 	"statementSubscriptionsInOrder":        statementSubscriptionsInOrder,
 	"statementSubscriptionOfEstablishment": statementSubscriptionOfEstablishment,
 	"statementNextSubscriptionID":          statementNextSubscriptionID,
+	"statementCreditLinks":                 statementCreditLinks,
 }

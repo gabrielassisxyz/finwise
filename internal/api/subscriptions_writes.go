@@ -86,7 +86,7 @@ func purchaseToSubscribe(ctx context.Context, writes Writes, id string) (purchas
 	if err != nil || !found || monthOfDay(row.listed.Day) != brday.MonthOf(nowOf(ctx)) {
 		return purchaseToKeep{}, false, err
 	}
-	rows, err := readAuthoredRows(ctx, writes.Authored, []txrules.Transaction{row.listed})
+	rows, err := readAuthoredRows(ctx, Views{Ledger: writes.Ledger, Authored: writes.Authored}, []txrules.Transaction{row.listed})
 	if err != nil {
 		return purchaseToKeep{}, false, err
 	}
