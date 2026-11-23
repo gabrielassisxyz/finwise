@@ -6,6 +6,7 @@ import type { SavingsPotGroup } from '@/api/types';
 import EmptyBlock from '@/components/ui/EmptyBlock.vue';
 import ToggleButton from '@/components/ui/ToggleButton.vue';
 import { brl } from '@/lib/format';
+import { createLatestLoad } from '@/lib/latestLoad';
 import { useRevisionStore } from '@/stores/revision';
 import { useSavingsViewStore } from '@/stores/savings-view';
 import PotRow from './PotRow.vue';
@@ -17,14 +18,14 @@ const revision = useRevisionStore();
 
 const groups = ref<SavingsPotGroup[] | null>(null);
 
-let latestRequest = 0;
+const loads = createLatestLoad();
 
 watch(
   [() => view.showClosed, () => revision.current],
   async ([includeClosed]) => {
-    const request = ++latestRequest;
+    const isLatest = loads.start();
     const loaded = await api.savingsPots.list({ includeClosed });
-    if (request === latestRequest && includeClosed === view.showClosed) groups.value = loaded;
+    if (isLatest() && includeClosed === view.showClosed) groups.value = loaded;
   },
   { immediate: true },
 );

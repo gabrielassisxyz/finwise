@@ -1,6 +1,7 @@
 import { ref, watch, type Ref } from 'vue';
 import { useApi } from '@/api/context';
 import type { BudgetEstablishment, YearMonth } from '@/api/types';
+import { createLatestLoad } from '@/lib/latestLoad';
 import { useRevisionStore } from '@/stores/revision';
 
 /** The line opened into its establishments, and what they are. */
@@ -15,15 +16,18 @@ export function useOpenLine(month: Ref<YearMonth>) {
     key.value = key.value === lineKey ? null : lineKey;
   }
 
-  let latest = 0;
+  const loads = createLatestLoad();
   watch(
     () => [key.value, month.value, revision.current] as const,
     async ([opened, selected]) => {
-      const request = ++latest;
-      if (!opened) return;
+      if (!opened) {
+        loads.cancel();
+        return;
+      }
+      const isLatest = loads.start();
       const line = opened.slice(opened.indexOf(':') + 1);
       const loaded = await api.budget.establishments(selected, line);
-      if (request === latest && opened === key.value && selected === month.value) establishments.value = loaded;
+      if (isLatest() && opened === key.value && selected === month.value) establishments.value = loaded;
     },
     { immediate: true },
   );

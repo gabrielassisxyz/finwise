@@ -5,6 +5,7 @@ import { useApi } from '@/api/context';
 import type { AccountDetail } from '@/api/types';
 import TransactionList from '@/components/transactions/TransactionList.vue';
 import { brl } from '@/lib/format';
+import { createLatestLoad } from '@/lib/latestLoad';
 
 const api = useApi();
 const route = useRoute();
@@ -15,15 +16,15 @@ const missing = ref(false);
 
 const id = computed(() => String(route.params.id));
 
-let latest = 0;
+const loads = createLatestLoad();
 watch(
   id,
   async (requested) => {
-    const request = ++latest;
+    const isLatest = loads.start();
     account.value = null;
     missing.value = false;
     const loaded = await api.accounts.detail(requested);
-    if (request !== latest || requested !== id.value) return;
+    if (!isLatest() || requested !== id.value) return;
     account.value = loaded;
     missing.value = loaded === null;
   },
