@@ -95,7 +95,7 @@ func pendingExample(t *testing.T) *authoredtest.Scratch {
 		if err != nil || !found {
 			return errors.Join(err, errors.New("P4 is not listed on the night that lists it"))
 		}
-		key, err := indexListed(a.ctx, a.writes.Recorder, night.listed)
+		key, err := indexListed(a.ctx, a.writes.Ledger, a.writes.Recorder, night.listed)
 		if err != nil {
 			return err
 		}

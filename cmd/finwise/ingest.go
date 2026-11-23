@@ -54,7 +54,7 @@ type serverIngests struct {
 	now    func() time.Time
 }
 
-func (runs serverIngests) once(ctx context.Context, trigger ingest.Trigger, at time.Time) {
+func (runs serverIngests) once(ctx context.Context, trigger ingest.Trigger, at time.Time) error {
 	counts, err := runs.in.take(ctx, trigger, at)
 	switch {
 	case err != nil:
@@ -62,6 +62,7 @@ func (runs serverIngests) once(ctx context.Context, trigger ingest.Trigger, at t
 	case !counts.Stopped:
 		logCounts(runs.logger, trigger, counts)
 	}
+	return err
 }
 
 // afterBudgetSaved is the API's call once a budget save has committed. It
@@ -69,6 +70,13 @@ func (runs serverIngests) once(ctx context.Context, trigger ingest.Trigger, at t
 // line, and so transactions to evaluate.
 func (runs serverIngests) afterBudgetSaved(ctx context.Context, at time.Time) {
 	runs.once(ctx, ingest.TriggerBudgetChange, at)
+}
+
+// beforeWrite is the API's call when a write found that the snapshot it reads
+// has not been taken in. Its error goes back to the write, which then records
+// nothing rather than index from that snapshot.
+func (runs serverIngests) beforeWrite(ctx context.Context, at time.Time) error {
+	return runs.once(ctx, ingest.TriggerWrite, at)
 }
 
 // every runs the ingest at once, as the start, and then on each tick of
@@ -118,6 +126,8 @@ func triggerName(trigger ingest.Trigger) string {
 		return "budget-change"
 	case ingest.TriggerCommand:
 		return "command"
+	case ingest.TriggerWrite:
+		return "write"
 	}
 	return "tick"
 }

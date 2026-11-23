@@ -152,7 +152,7 @@ func targetsNamedBy(ctx context.Context, writes Writes, ids []string) ([]transac
 	}
 	targets := make([]transactionTarget, 0, len(rows))
 	for _, row := range rows {
-		key, err := indexListed(ctx, writes.Recorder, row.listed)
+		key, err := indexListed(ctx, writes.Ledger, writes.Recorder, row.listed)
 		if err != nil {
 			return nil, err
 		}

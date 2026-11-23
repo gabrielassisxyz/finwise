@@ -46,7 +46,7 @@ func createSubscription(ctx context.Context, args []json.RawMessage, writes Writ
 	if err != nil || !found {
 		return nil, err
 	}
-	key, err := indexListed(ctx, writes.Recorder, purchase.listed)
+	key, err := indexListed(ctx, writes.Ledger, writes.Recorder, purchase.listed)
 	if err != nil {
 		return nil, err
 	}

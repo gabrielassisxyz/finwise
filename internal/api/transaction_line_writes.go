@@ -151,7 +151,7 @@ func setLineForMany(ctx context.Context, args []json.RawMessage, writes Writes) 
 		}
 	}
 	for i, row := range rows {
-		key, err := indexListed(ctx, writes.Recorder, row.listed)
+		key, err := indexListed(ctx, writes.Ledger, writes.Recorder, row.listed)
 		if err != nil {
 			return nil, err
 		}
@@ -219,7 +219,7 @@ func extendToEstablishment(ctx context.Context, recorder *authored.Recorder, vie
 		return 0, err
 	}
 	mover := establishmentMover{
-		recorder: recorder, view: view, line: *line, origin: origins.listed,
+		recorder: recorder, view: view, snapshot: snapshot, line: *line, origin: origins.listed,
 		name: shownName(kept, establishment, origins.listed.Name), months: map[brday.Month]monthLines{},
 	}
 	return mover.moveAll(ctx, wide, steps[0].Key)
@@ -273,6 +273,7 @@ func readEstablishmentWide(ctx context.Context, view *authored.View, snapshot *l
 type establishmentMover struct {
 	recorder *authored.Recorder
 	view     *authored.View
+	snapshot *ledger.View
 	line     authored.LineID
 	origin   txrules.Transaction
 	name     string
@@ -297,7 +298,7 @@ func (mover *establishmentMover) moveAll(ctx context.Context, wide establishment
 		if !moves {
 			continue
 		}
-		key, err = indexListed(ctx, mover.recorder, listed)
+		key, err = indexListed(ctx, mover.snapshot, mover.recorder, listed)
 		if err != nil {
 			return 0, err
 		}

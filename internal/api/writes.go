@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -87,6 +88,20 @@ func (found *router) serveChange(w http.ResponseWriter, r *http.Request, method 
 // point answers its failure and nothing it did is kept.
 func (found *router) serveWrite(w http.ResponseWriter, r *http.Request, method contract.Method, handler WriteHandler, arguments []json.RawMessage) {
 	ctx, instant := found.requestContext(r)
+	encoded, err := found.withSnapshotTakenIn(ctx, instant, func() ([]byte, error) {
+		return found.recordWrite(ctx, instant, method, handler, arguments)
+	})
+	if err != nil {
+		writeFailure(w, r, err)
+		return
+	}
+	found.afterCommit(ctx, method.Qualified(), instant)
+	writeEncoded(w, encoded)
+}
+
+// recordWrite is one attempt of a write: its own views, and the handler inside
+// one change that commits or keeps nothing.
+func (found *router) recordWrite(ctx context.Context, instant time.Time, method contract.Method, handler WriteHandler, arguments []json.RawMessage) ([]byte, error) {
 	// The authored half stays empty: a write reads the app's database through
 	// its recorder's view, in its own transaction.
 	views := openViews(found.reader, nil)
@@ -102,11 +117,29 @@ func (found *router) serveWrite(w http.ResponseWriter, r *http.Request, method c
 		return err
 	})
 	if err != nil {
-		writeFailure(w, r, err)
-		return
+		return nil, err
 	}
-	found.afterCommit(ctx, method.Qualified(), instant)
-	writeEncoded(w, encoded)
+	return encoded, nil
+}
+
+// withSnapshotTakenIn runs attempt and, when its lookup found the snapshot not
+// taken in, has the server take the snapshot in and runs it once more. The
+// first attempt left nothing: its change was rolled back and its views closed,
+// so the second one starts over fresh views. The take-in runs between the two,
+// outside any change, since a change begun inside the write's would wait for
+// the lock the write holds. A take-in that is not configured or fails, or a
+// second attempt that still finds the snapshot not taken in, ends the write as
+// a failure: going on would index from a snapshot the ingest never paired or
+// cleared.
+func (found *router) withSnapshotTakenIn(ctx context.Context, instant time.Time, attempt func() ([]byte, error)) ([]byte, error) {
+	encoded, err := attempt()
+	if !errors.Is(err, errSnapshotNotTakenIn) || found.takeSnapshotIn == nil {
+		return encoded, err
+	}
+	if err := found.takeSnapshotIn(ctx, instant); err != nil {
+		return nil, errSnapshotNotTakenIn
+	}
+	return attempt()
 }
 
 // budgetSaves are the writes after whose commit Config.AfterBudgetSaved runs:
@@ -137,17 +170,18 @@ func callWrite(ctx context.Context, handler WriteHandler, arguments []json.RawMe
 }
 
 func (found *router) serveJournal(w http.ResponseWriter, r *http.Request, handler JournalHandler, arguments []json.RawMessage) {
-	ctx, _ := found.requestContext(r)
-	views := openViews(found.reader, nil)
-	defer views.close()
-	result, err := handler(ctx, arguments, found.database, views.Ledger)
+	ctx, instant := found.requestContext(r)
+	encoded, err := found.withSnapshotTakenIn(ctx, instant, func() ([]byte, error) {
+		views := openViews(found.reader, nil)
+		defer views.close()
+		result, err := handler(ctx, arguments, found.database, views.Ledger)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(result)
+	})
 	if err != nil {
 		writeFailure(w, r, err)
-		return
-	}
-	encoded, err := json.Marshal(result)
-	if err != nil {
-		writeError(w, r, kindInternal)
 		return
 	}
 	writeEncoded(w, encoded)
