@@ -2,6 +2,7 @@ import { computed, inject, provide, ref, watch, type InjectionKey, type Ref } fr
 import { useApi } from '@/api/context';
 import type { ChangeResult, SplitPart, TransactionDetail, TransactionFilterOptions, YearMonth } from '@/api/types';
 import { useLineChange } from '@/components/transactions/useLineChange';
+import { createLatestLoad } from '@/lib/latestLoad';
 import { useOverlayStore } from '@/stores/overlay';
 import { usePanelStore } from '@/stores/panel';
 import { useRevisionStore } from '@/stores/revision';
@@ -24,18 +25,19 @@ function usePanelMenus(month: Ref<YearMonth | null>) {
   const currentMonth = computed(() => shell.overview?.today.slice(0, 7) ?? null);
   const menus = ref<PanelMenus | null>(null);
 
-  let latest = 0;
+  const loads = createLatestLoad();
   async function load(): Promise<void> {
-    const request = ++latest;
     const [transaction, current] = [month.value, currentMonth.value];
     if (!transaction || !current) {
+      loads.cancel();
       menus.value = null;
       return;
     }
+    const isLatest = loads.start();
     const months = [...new Set([transaction, current])];
     const answers = await Promise.all(months.map((asked) => api.transactions.filterOptions(asked)));
     // A slower answer for a transaction or a revision the panel already left must not land.
-    if (request !== latest) return;
+    if (!isLatest()) return;
     const answerFor = (asked: YearMonth) => answers[months.indexOf(asked)]!;
     menus.value = { month: transaction, ofTransaction: answerFor(transaction), ofCurrent: answerFor(current) };
   }

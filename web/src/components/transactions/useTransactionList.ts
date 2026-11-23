@@ -10,6 +10,7 @@ import type {
   YearMonth,
 } from '@/api/types';
 import { brl } from '@/lib/format';
+import { createLatestLoad } from '@/lib/latestLoad';
 import { normalize, plural } from '@/lib/text';
 import { useRevisionStore } from '@/stores/revision';
 
@@ -110,11 +111,11 @@ export function useTransactionList(month: Ref<YearMonth>, onlyAccount?: Ref<stri
   const arrivedAt = useRoute().query.establishment;
   if (typeof arrivedAt === 'string' && arrivedAt) filters.establishment = arrivedAt;
 
-  let latest = 0;
+  const loads = createLatestLoad();
 
   /** A refetch after a write keeps the rows on screen instead of flashing the skeleton. */
   async function load(mode: { quiet?: boolean } = {}): Promise<void> {
-    const request = ++latest;
+    const isLatest = loads.start();
     if (!mode.quiet) loading.value = true;
     const requested = { month: month.value, period: filters.period };
     const [list, filterOptions] = await Promise.all([
@@ -122,7 +123,7 @@ export function useTransactionList(month: Ref<YearMonth>, onlyAccount?: Ref<stri
       api.transactions.filterOptions(requested.month),
     ]);
     // A slower answer for a month, period or revision the list already left must not land.
-    if (request !== latest || requested.month !== month.value || requested.period !== filters.period) return;
+    if (!isLatest() || requested.month !== month.value || requested.period !== filters.period) return;
     transactions.value = list;
     options.value = filterOptions;
     loading.value = false;
