@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"reflect"
+	"slices"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
 	"github.com/gabrielassisxyz/finwise/internal/brday"
 	"github.com/gabrielassisxyz/finwise/internal/budgetrules"
+	"github.com/gabrielassisxyz/finwise/internal/ledger"
 	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 	"github.com/gabrielassisxyz/finwise/internal/money"
 )
@@ -287,6 +289,93 @@ func TestASplitOnACreditAndARefundMarkOnADebitAreKeptAndCountForNothing(t *testi
 	for id, want := range before {
 		if got := env.outcome("2026-03", id); !reflect.DeepEqual(got, want) {
 			t.Errorf("%s counts %+v after the writes, %+v before", id, got, want)
+		}
+	}
+}
+
+// A selection is found from one reading of the ledger's rows however many ids
+// and months it holds, each id once in the order first named and as the single
+// lookup finds it; an id the list does not show refuses it whole after that
+// same one reading.
+func TestASelectionReadsTheLedgersRowsOncePerCall(t *testing.T) {
+	ctx := t.Context()
+	snapshot := viewOf(t, newFullLedger(t).Path)
+	cases := []struct {
+		label string
+		ids   []string
+		want  []string
+	}{
+		{"three ids in two months, one named twice", []string{txPending, txLastOfFebruary, txPending, txBoleto}, []string{txPending, txLastOfFebruary, txBoleto}},
+		{"an id the list does not show", []string{txPending, "no-such-transaction", txLastOfFebruary}, nil},
+	}
+	for _, c := range cases {
+		readings := 0
+		counted := func() ([]ledger.Transaction, error) {
+			readings++
+			return snapshot.CleanTransactions(ctx, wholeLedger)
+		}
+		rows, err := selectionAmong(ctx, snapshot, c.ids, counted)
+		if readings != 1 {
+			t.Errorf("%s: the ledger's rows were read %d times, want once", c.label, readings)
+		}
+		if c.want == nil {
+			if kind, reason := classify(err); kind != kindRefused || reason != reasonNotFound || rows != nil {
+				t.Errorf("%s: answered %d rows and %v, want the refusal not_found and none", c.label, len(rows), err)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		var found []string
+		months := map[brday.Month]bool{}
+		for _, row := range rows {
+			found = append(found, row.listed.ID)
+			months[monthOfDay(row.listed.Day)] = true
+			single, listed, err := findListed(ctx, snapshot, row.listed.ID)
+			if err != nil || !listed || !reflect.DeepEqual(single, row) {
+				t.Errorf("%s: %s is not found as the single lookup finds it", c.label, row.listed.ID)
+			}
+		}
+		if !slices.Equal(found, c.want) || len(months) != 2 {
+			t.Errorf("%s: found %v in %d months, want %v in two", c.label, found, len(months), c.want)
+		}
+	}
+}
+
+// The index is not journaled, so a bulk write that indexed the ids it found
+// before reaching one the list does not show would leave their rows behind
+// under a caller that keeps the change. The snapshot is recorded as taken in,
+// so indexing would succeed and only finding every id first keeps it clean.
+func TestEveryBulkWriteFindsItsWholeSelectionBeforeItIndexesAny(t *testing.T) {
+	full := newFullLedger(t)
+	handlers := []struct {
+		method string
+		write  WriteHandler
+	}{
+		{"transactions.addTagToMany", addTagToTransactions},
+		{"transactions.excludeMany", excludeMany},
+		{"transactions.setLineForMany", setLineForMany},
+	}
+	for _, h := range handlers {
+		scratch := authoredtest.Open(t, fixtureClock)
+		budgetState()(t, scratch)
+		recordRunTakenIn(t, viewOf(t, full.Path), scratch.Database)
+		before := scratch.Everything(t)
+		var refusal error
+		err := inChange(t, scratch, full, func(writes Writes) error {
+			args := rawArguments(t, []string{txPending, txLastOfFebruary, "no-such-transaction"}, "Mercado")
+			_, refusal = h.write(t.Context(), args, writes)
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if kind, reason := classify(refusal); kind != kindRefused || reason != reasonNotFound {
+			t.Errorf("%s answered %v, want the refusal not_found", h.method, refusal)
+		}
+		if after := scratch.Everything(t); after != before {
+			t.Errorf("%s wrote before it refused:\n%s", h.method, differences(before, after))
 		}
 	}
 }
