@@ -20,15 +20,17 @@ const missing = ref(false);
 
 const id = computed(() => String(route.params.id));
 
+let latest = 0;
 watch(
   [id, () => revision.current],
   async ([requested], previous) => {
+    const request = ++latest;
     if (requested !== previous?.[0]) {
       pot.value = null;
       missing.value = false;
     }
     const loaded = await api.savingsPots.detail(requested);
-    if (requested !== id.value) return;
+    if (request !== latest || requested !== id.value) return;
     pot.value = loaded;
     missing.value = loaded === null;
   },

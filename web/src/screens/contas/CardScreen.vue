@@ -17,10 +17,13 @@ const revision = useRevisionStore();
 const card = ref<CardOverview | null | undefined>(undefined);
 
 // A write elsewhere (a nickname, the closing day) refetches in place.
+let latest = 0;
 watch(
   () => revision.current,
   async () => {
-    card.value = await api.card.overview();
+    const request = ++latest;
+    const loaded = await api.card.overview();
+    if (request === latest) card.value = loaded;
   },
   { immediate: true },
 );
