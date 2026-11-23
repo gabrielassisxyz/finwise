@@ -5,7 +5,8 @@
 
 > **What it is:** a personal finance app for one person, over the SQLite ledger that
 > [pluggy-sync](https://github.com/gabrielassisxyz/pluggy-sync) collects. The numbers are someone's
-> money: a wrong total or a silently dropped transaction is the failure that matters.
+> money: a wrong total or a silently dropped transaction is the failure that matters. What the person
+> decides is kept apart, in the app's own database (`finwise.db`); the ledger is never written.
 
 ## Tracker
 - Work is tracked with `br` in `.beads/` (`br ready`, `br show <id>`). A bead is self-contained:
@@ -55,41 +56,145 @@
   run it for any change that touches a screen and put its output in the pull request body.
 - **Backend:** Go, one module at the repository root (`github.com/gabrielassisxyz/finwise`, version in
   `go.mod`), driver `modernc.org/sqlite`. `internal/ledger` reads pluggy-sync's `pluggy-snapshot.db`
-  read-only, reopening it on every call; `ledgertest` beside it builds invented snapshots for tests.
-  `internal/money` holds amounts as integer cents and `internal/brday` turns Brazil days into UTC
-  bounds. `go test ./...` is the test command and `bin/ci` runs it with `gofmt`, `go vet` and
-  `go build`. A query that mirrors one in pluggy-sync's README cites its lines in a comment.
-- **Serve:** `finwise serve` is the HTTP backend over the ledger snapshot. It is read-only: every write
-  and evaluation of the contract is refused with `read_only`, and every method except `session.status`
-  and `session.unlock` needs the session cookie. The PIN is never stored; make its hash and start:
+  read-only, opening it afresh for each request so that one answer sees one state of the file; `ledgertest`
+  beside it builds invented snapshots for tests. `internal/authored` owns `finwise.db`, the app's own
+  database and the one SQLite file the code writes: it is the only package that executes SQL against it,
+  every statement is a constant registered in `internal/authored/statements.go` (a test fails for one that
+  is not), and a change to what the person authored is journaled so that it can be undone.
+  `internal/ingest` takes the ledger's snapshot into it. `internal/money` holds amounts as integer cents
+  and `internal/brday` turns Brazil days into UTC bounds. `go test ./...` is the test command and
+  `bin/ci` runs it with `gofmt`, `go vet` and `go build`. A query that mirrors one in pluggy-sync's
+  README cites its lines in a comment.
+- **Serve:** `finwise serve` is the HTTP backend over the ledger snapshot, and every method except
+  `session.status` and `session.unlock` needs the session cookie. Without `--db` it is read-only: every
+  write and evaluation of the contract is refused with `read_only` before its body is read. The PIN is
+  never stored, only its hash; make the hash and start, with a scratch database for the app's own:
 
   ```
   printf '%s\n' 123456 | go run ./cmd/finwise hash-pin          # prints pbkdf2-sha256$...
-  FINWISE_PIN_HASH='<that string>' go run ./cmd/finwise serve --ledger <snapshot.db> --dev-insecure-cookie
+  FINWISE_PIN_HASH='<that string>' go run ./cmd/finwise serve --ledger <snapshot.db> --db <scratch.db> --dev-insecure-cookie
   ```
 
   Settings: `--listen` / `FINWISE_LISTEN` (default `127.0.0.1:8080`), `--ledger` / `FINWISE_LEDGER`,
-  `FINWISE_PIN_HASH` (required), `FINWISE_SESSION_TTL` (idle expiry, default `12h`).
-  `--dev-insecure-cookie` is for plain HTTP only: without it the cookie is `__Host-` prefixed and
-  `Secure`, which a browser may refuse over HTTP. A missing snapshot does not stop the server; reads
-  answer `ledger_unavailable`. A read handler is registered in `internal/api` with
-  `Registry.Register("domain.name", handler)`, one `register<Domain>` function per domain listed in
-  `domainRegistrations`; `pendingReads` in `reads_pending_test.go` lists the reads still without one.
+  `--db` / `FINWISE_DB`, `FINWISE_PIN_HASH` (required), `FINWISE_SESSION_TTL` (idle expiry, default `12h`),
+  `--ingest-interval` / `FINWISE_INGEST_INTERVAL` (default `10m`, used only with `--db`); a flag wins over
+  its variable. `--dev-insecure-cookie` is for plain HTTP only: without it the cookie is `__Host-`
+  prefixed and `Secure`, which a browser may refuse over HTTP. A missing snapshot does not stop the
+  server; reads answer `ledger_unavailable`.
+- **The app's database:** `--db` is the path of `finwise.db`, where everything the person authors is kept
+  (budget, lines on transactions, tags, notes, splits, subscriptions, closed months, settings, a changed
+  PIN), with the journal that lets a change be undone. It is created when the file is missing or empty
+  (its directory must exist), migrated, and held open for the life of the process.
+  - Never point `--db` at the ledger. The file is recognised before anything is written, from its first
+    hundred bytes alone: an SQLite header whose application id is `0x46494E57` (1179209303). Any other
+    file, the snapshot included, stops the start with a message naming the path and is left as it was.
+  - Migrations run at start, each in one transaction, recorded by name and checksum; a changed or
+    unknown one stops the start. Before a migration is applied to a database that already records
+    migrations, the file is copied with `VACUUM INTO` to `<name>.before-<UTC timestamp>` beside it, and a
+    name already taken stops the start instead of being overwritten.
+  - `FINWISE_PIN_HASH` is still required. Once the PIN is changed in the app, the hash stored in the
+    database opens the app, the variable is ignored, and one log line at start says so.
+  - The tracking start month is the Brazil month in which the database was created, set once and never
+    again. The ingest asks about uncategorised transactions only from that month on; earlier ones are
+    never queued and can still be categorised by hand. A scratch database therefore starts at the day it
+    was made, and a restored backup keeps the month it was taken with.
+  - The ingest takes the snapshot in as one change by the rule: it indexes the transactions the ledger
+    lists, pairs a bank's pending row that vanished with the posted row that replaced it, and applies the
+    rules once to each new transaction in a month whose budget has a line, or queues what it cannot
+    decide. It runs at start, on a timer, right after a budget is saved or applied, and by
+    `finwise ingest`; it logs counts and the kind of a failure, never a value.
+- **Backup and ingest:** `finwise backup --db <file> --to <file>` takes its source as `serve` does (the
+  flag, then `FINWISE_DB`); `--to` is a flag only, so a stray variable cannot choose where a copy lands.
+  It recognises the source as above, but a missing or empty file is an error and is never created, and
+  nothing is migrated. It copies with `VACUUM INTO` to a temporary file beside the destination, checks
+  the copy (application id and `PRAGMA integrity_check`), publishes it with an operation that cannot
+  replace a file, and only then records the instant in the source (UTC, RFC 3339), which is what the
+  settings screen shows as the last backup. A destination that exists, or appears meanwhile, is refused
+  and left as it was. Never copy the file of a running database by hand: it can miss the write-ahead log.
+  To restore, stop the server, put the copy in place of the database with no `-wal` or `-shm` file beside
+  it, and start the server. `finwise ingest --db <file> --ledger <snapshot>` opens the database as `serve`
+  does (a missing file is created), runs the ingest once, as the person asking, and prints one line of
+  counts. Both exit 0 on success (for `ingest` also when nothing was new), 1 on failure with a message that
+  names a path or the kind of the failure and never a value, and 2 with their usage line when a flag is
+  missing.
 - **Real data at the desktop:** the interface can read the ledger instead of the stand-in. Start the
   backend over a snapshot as above, then in another terminal run `npm --prefix web run dev:backend`,
-  open the address it prints and unlock with the PIN whose hash you made. The frame, the accounts and
-  the transactions answer from the ledger (`shell.overview`, `accounts.list`, `accounts.detail`,
-  `transactions.list`, `transactions.filterOptions`, `transactions.detail`); a read with no handler yet
-  answers `internal`, so a screen that needs one shows its failure toast. What only the person can
-  author (budget lines, tags, nicknames, splits) is the contract's empty value, never a guess.
+  open the address it prints and unlock with the PIN whose hash you made. Every read of the contract has
+  a handler. Without `--db` what only the person can author (budget lines, tags, nicknames, splits) is
+  the contract's empty value, never a guess, and a write toasts that the app is read-only; with `--db`
+  the screens show what was saved, and a write is saved.
+- **Handlers:** `internal/api` registers a read, and the one evaluation, with
+  `Registry.Register("domain.name", handler)`, one `register<Domain>` function per domain listed in
+  `domainRegistrations`; the handler gets the request's `Views`, a view of the ledger and one of the
+  app's database, both closed when the request ends. A write is registered with `RegisterWrite` and gets
+  `Writes`, which adds the recorder of its change: the router opens the change, with the author `person`
+  and the request's instant, and commits it. `RegisterJournal` is for what acts on committed changes
+  (`changes.undo`, `transactions.applyLineToEstablishment`). `TestEveryReadMethodHasAHandler`
+  (`internal/api/reads_coverage_test.go`, its check is `readCoverageProblems`) fails for a read of the
+  manifest without a handler; a handler for a name the manifest lacks stops `NewHandler`. The files of
+  `internal/api` log nothing, since only the request log (`internal/api/logging.go`) writes, and read the
+  clock only from the request, so that a test can fix today; `TestOnlyTheRequestLogWritesAnything` and
+  `TestNoCodeThatTakesAClockReadsTheHostsClock` enforce both. The package holds no SQL.
 - **Money on the wire** is a JSON number in reais written from integer cents by `api.Reais`
-  (`19.99`, `-65.10`); no source file of `internal/api` may touch a float, and a test fails if one does.
+  (`19.99`, `-65.10`); no source file of `internal/api`, `internal/authored`, `internal/ingest`,
+  `internal/budgetrules`, `internal/classrules` or `internal/subrules` may touch a float, and a test fails
+  if one does.
+- **Refusals:** a failed call answers `{"error":{"kind":"<kind>"}}` and nothing more, except `refused`,
+  which always carries one reason of a closed list and is answered with HTTP 409:
+  `{"error":{"kind":"refused","reason":"month_closed"}}`. The reasons are the manifest's `RefusalReason`;
+  the sentences are Brazilian Portuguese and stay in the interface (`REFUSAL_SENTENCES` in
+  `web/src/api/failures.ts`).
+
+  | reason | when | what the person reads |
+  | --- | --- | --- |
+  | `month_closed` | saving or applying a budget for a closed month; closing a month already closed | Esse mês já está fechado. |
+  | `future_month` | closing a month after the current one | Esse mês ainda não chegou. |
+  | `pending_reviews` | closing a month while a transaction of it, or of an earlier month, waits for review | Resolva as pendências do mês antes de fechar. |
+  | `stale_change` | undoing or extending a change that is unknown, already undone, already extended, built on by a later change still in force, or whose undo the database or a check refuses | Isso já foi alterado depois e não pode mais ser desfeito. |
+  | `not_found` | a write whose answer is a change names a transaction, pot, subscription or establishment that the ledger does not list or the app's database does not have | Esse item não existe mais. |
+  | `unknown_line` | a write names a budget line that the budget of the month it applies to does not have | Essa linha não existe no budget desse mês. |
+  | `invalid_budget` | saving a budget with a line that has no name, a name used twice or the fees line's, an id that does not exist or repeats, or a group that is unknown or repeated | O budget tem linha sem nome ou repetida. |
+  | `unstable_pot` | a write to a pot the bank does not identify stably (its id begins `slot:`) | O banco não identifica esse cofrinho de forma estável. |
+  | `split_with_reimbursement` | splitting a purchase that has a linked reimbursement, or linking one to a split purchase | Uma compra dividida não pode ter reembolso ligado. |
+
+  The other sentences of the interface: a reason it does not know, "Não foi possível concluir."; a write
+  answered `internal`, `bad_request` or `unknown_method`, "Não foi possível salvar."; a write whose answer
+  never arrived, "Não deu para confirmar se foi salvo. Atualizando a tela."; `read_only`, "Somente leitura
+  por enquanto. Nada foi alterado.". What the interface does with each kind is in the Frontend bullet.
+  `bad_request` means the arguments do not match the method's schema or cannot be parsed (a month, a day,
+  an amount): a bug in a client, not something the person did. `read_only` is for a server without `--db`
+  and for a write or evaluation that has no handler. `ledger_unavailable` is answered by a write exactly
+  as by a read when the snapshot it needs is missing, and nothing is recorded.
 - **Conformance and golden files:** every registered read handler must have a case in `readCases`
   (`internal/api/conformance_test.go`). Each case is answered over the two invented ledgers of
-  `fixtures_test.go` (every shape the rules know, and empty), validated against the method's result
-  schema in the manifest and compared with `internal/api/testdata/golden/<ledger>/`, whose naming is in
+  `internal/api/fixtures_test.go` (every shape the rules know, and empty), validated against the method's
+  result schema in the manifest and compared with `internal/api/testdata/golden/<ledger>/`, whose naming is in
   its README. `go test ./internal/api -run TestEveryAnswerMatchesItsGoldenFile -update` rewrites them and
-  refuses to run while `FINWISE_LEDGER_SNAPSHOT` is set.
+  refuses to run while `FINWISE_LEDGER_SNAPSHOT` is set, so that a real ledger cannot reach a committed
+  file; read each golden diff in review, and never accept one by running the command.
+  - A third state, the full ledger with an invented authored state (`inventedAuthoredState`), has its
+    cases in `authoredReadCases` (`internal/api/authored_conformance_test.go`) and its files in
+    `internal/api/testdata/golden/full-authored/`. They stay apart from `readCases` because the
+    interface's equality test (`web/src/test/empty-ledger.test.ts`) finds the cases of `readCases` by
+    their written shape and requires a file in `internal/api/testdata/golden/empty/` for each, which a
+    case over authored state has none of. Its command is
+    `go test ./internal/api -run TestEveryAuthoredReadCaseAnswersAndMatchesItsGoldenFile -update`.
+  - Every write and evaluation is of exactly one mode, and
+    `TestEveryRegisteredWriteAndEvaluationHasACaseInItsMode` requires a case of that mode in `writeCases`
+    (`internal/api/write_conformance_test.go`, run by `internal/api/write_runner_test.go`) for each
+    registered handler. A recorded change: the answer validates against the manifest, its effects equal a
+    file of `internal/api/testdata/golden/writes/`, and undoing it returns a canonical dump of every
+    journaled table to the dump taken before it. Nothing to do: a null answer and no row added to the
+    journal. An evaluation: no table changes. An extension of an earlier change
+    (`transactions.applyLineToEstablishment`): undoing it returns the dump taken before its origin.
+    `changes.undo` and `session.changePin` have tests of their own. The command that rewrites the files is
+    `go test ./internal/api -run TestEveryWriteCaseConformsAndMatchesItsGoldenFile -update`.
+  - A case may expect a refusal with its reason, and
+    `TestEveryReasonOfTheClosedListIsCasedOrNamedAsWithoutAProducer` fails for a reason of the closed list
+    that has none.
+  - `TestEveryWriteAndEvaluationHasExactlyOneImplementation` (`internal/api/write_walk_test.go`) walks the
+    manifest: each write and evaluation has a registered handler or, for `session.changePin` alone, the
+    session service, or is named in `writesWithoutHandler`, which is empty while every one has a handler.
 
 ## Design
 - The design arrives as an HTML prototype. It is a reference, never code to copy: `design/README.md`
@@ -116,8 +221,14 @@
   may be opened read-only to check a schema, the keys of a JSON column or a count; no value from it
   (amount, description, name, document, id) is ever printed, logged, copied, committed or pasted, and
   a row count, though it may be shown to the person running the test, goes into no file and no pull
-  request. The one test that touches it runs only when `FINWISE_LEDGER_SNAPSHOT` names a file, and
-  logs counts only.
+  request. The tests that touch it run only when `FINWISE_LEDGER_SNAPSHOT` names a file, and log counts
+  only. The write side's, `TestTheWriteSideOverARealSnapshot`
+  (`internal/api/realsnapshot_writes_test.go`), runs a scripted series of the recorded writes on a
+  scratch database, undoes every change and compares the journaled tables before and after; what it
+  says is counts and fixed sentences.
+- An app database fed from a real snapshot holds real values too: its index of transactions has account
+  ids, days, amounts and establishment keys. A scratch one made for a check against a real ledger lives in
+  a temporary directory, is never committed or printed, and is removed afterwards.
 
 ## Common hurdles
 
