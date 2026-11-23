@@ -60,7 +60,7 @@ func newCountEnv(t *testing.T, fixture *ledgertest.Fixture, state func(*testing.
 func (env *countEnv) putOnLine(id, line string) {
 	env.t.Helper()
 	err := inChange(env.t, env.scratch, env.ledger, func(writes Writes) error {
-		target, err := countedTarget(env.t.Context(), writes, id)
+		target, err := targetNamedBy(env.t.Context(), writes, id)
 		if err != nil {
 			return err
 		}

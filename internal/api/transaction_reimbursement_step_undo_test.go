@@ -22,7 +22,7 @@ func (env *countEnv) awaitReviewOf(id string) {
 	env.t.Helper()
 	line := budgetLineID(env.t, env.scratch.Database, "2026-03", "Renda extra")
 	err := inChange(env.t, env.scratch, env.ledger, func(writes Writes) error {
-		target, err := countedTarget(env.t.Context(), writes, id)
+		target, err := targetNamedBy(env.t.Context(), writes, id)
 		if err != nil {
 			return err
 		}

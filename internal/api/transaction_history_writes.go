@@ -25,12 +25,9 @@ func setReason(ctx context.Context, args []json.RawMessage, writes Writes) (any,
 	if err != nil {
 		return nil, err
 	}
-	target, found, err := lookupTarget(ctx, writes, id)
+	target, err := targetNamedBy(ctx, writes, id)
 	if err != nil {
 		return nil, err
-	}
-	if !found {
-		return nil, refuse(reasonNotFound)
 	}
 	kept, err := keptAbout(ctx, writes.Authored, target.key)
 	if err != nil {

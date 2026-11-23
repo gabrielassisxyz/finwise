@@ -247,7 +247,7 @@ func TestLinkingSettlesTheCreditsReviewItsUndoBringsTheReviewBackAndTakingTheSte
 	env := newReimbursementEnv(t, reimbursementLedger(t))
 	review := `{"reason":"Estabelecimento novo","suggestion":"Renda extra","confidence":55,"justification":null}`
 	err := inChange(t, env.scratch, env.ledger, func(writes Writes) error {
-		target, err := countedTarget(t.Context(), writes, txPixAna)
+		target, err := targetNamedBy(t.Context(), writes, txPixAna)
 		if err != nil {
 			return err
 		}

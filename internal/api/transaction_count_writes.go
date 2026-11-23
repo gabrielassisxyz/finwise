@@ -54,7 +54,7 @@ func setSplit(ctx context.Context, args []json.RawMessage, writes Writes) (any, 
 			return nil, &badArgumentsError{}
 		}
 	}
-	target, err := countedTarget(ctx, writes, id)
+	target, err := targetNamedBy(ctx, writes, id)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func setExcluded(ctx context.Context, args []json.RawMessage, writes Writes) (an
 	if err != nil {
 		return nil, err
 	}
-	target, err := countedTarget(ctx, writes, id)
+	target, err := targetNamedBy(ctx, writes, id)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func setExclusionReason(ctx context.Context, args []json.RawMessage, writes Writ
 	if err != nil {
 		return nil, err
 	}
-	target, err := countedTarget(ctx, writes, id)
+	target, err := targetNamedBy(ctx, writes, id)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +198,7 @@ func setRefund(ctx context.Context, args []json.RawMessage, writes Writes) (any,
 	if err != nil {
 		return nil, err
 	}
-	target, err := countedTarget(ctx, writes, id)
+	target, err := targetNamedBy(ctx, writes, id)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +220,7 @@ func setRefundLine(ctx context.Context, args []json.RawMessage, writes Writes) (
 	if err != nil {
 		return nil, err
 	}
-	target, err := countedTarget(ctx, writes, id)
+	target, err := targetNamedBy(ctx, writes, id)
 	if err != nil {
 		return nil, err
 	}
@@ -237,19 +237,6 @@ func setRefundLine(ctx context.Context, args []json.RawMessage, writes Writes) (
 		return nil, err
 	}
 	return answerWithStep(ctx, writes, target.key, refundLineStep(name), changed)
-}
-
-// countedTarget is the transaction a write names, and a refusal for an id the
-// list does not show.
-func countedTarget(ctx context.Context, writes Writes, id string) (transactionTarget, error) {
-	target, found, err := lookupTarget(ctx, writes, id)
-	if err != nil {
-		return transactionTarget{}, err
-	}
-	if !found {
-		return transactionTarget{}, refuse(reasonNotFound)
-	}
-	return target, nil
 }
 
 // answerWithStep writes the step that says what the change did, when it did
