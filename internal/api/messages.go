@@ -120,6 +120,15 @@ func lineAppliedByRuleStep(line, establishment string) string {
 	return "Regra aplicou " + line + " (você pediu para todas em " + establishment + ")"
 }
 
+// The step an answer of the weekly queue leaves when the person keeps the
+// suggested line, and the note of the rule it creates for an establishment.
+
+func lineAcceptedStep(line string) string { return "Você aceitou " + line }
+
+func ruleCreatedNote(establishment, line string) string {
+	return "Regra criada: " + establishment + " sempre em " + line
+}
+
 // The cycles of a subscription, the contract's SubscriptionCycle.
 const (
 	cycleMonthly    = "Mensal"

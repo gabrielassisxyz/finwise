@@ -1,0 +1,95 @@
+{
+  "answer": {
+    "changeId": "5",
+    "name": "LIVRARIA EXEMPLO"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_state",
+      "key": [
+        2
+      ],
+      "column": "line_id",
+      "before": null,
+      "after": 9
+    },
+    {
+      "seq": 2,
+      "table": "tx_state",
+      "key": [
+        2
+      ],
+      "column": "classified_by",
+      "before": null,
+      "after": "person"
+    },
+    {
+      "seq": 3,
+      "table": "tx_state",
+      "key": [
+        2
+      ],
+      "column": "pending_reason",
+      "before": "Estabelecimento novo",
+      "after": null
+    },
+    {
+      "seq": 4,
+      "table": "history_steps",
+      "key": [
+        1
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "id": 1,
+        "tx_key": 2,
+        "change_id": 5,
+        "kind": "step",
+        "text": "Você alterou para Feira",
+        "day": "2026-03-20"
+      }
+    },
+    {
+      "seq": 5,
+      "table": "history_step_reasons",
+      "key": [
+        1
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "step_id": 1,
+        "reason": "vai ao mercado"
+      }
+    },
+    {
+      "seq": 6,
+      "table": "establishments",
+      "key": [
+        "text:LIVRARIA EXEMPLO"
+      ],
+      "column": "default_line_id",
+      "before": null,
+      "after": 9
+    },
+    {
+      "seq": 7,
+      "table": "history_steps",
+      "key": [
+        2
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "id": 2,
+        "tx_key": 2,
+        "change_id": 5,
+        "kind": "note",
+        "text": "Regra criada: LIVRARIA EXEMPLO sempre em Feira",
+        "day": "2026-03-20"
+      }
+    }
+  ]
+}

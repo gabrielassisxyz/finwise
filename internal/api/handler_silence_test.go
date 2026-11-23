@@ -89,6 +89,9 @@ var secrets = []string{
 	// The amount the reimbursement's write cases expect back, which no instant
 	// of a log line can hold since 61 is no second.
 	"61.73",
+	// The reason and the nickname of the accept's write cases, and the
+	// sentences its history writes.
+	"vai ao mercado", "Aluguel", "Você aceitou", "Regra criada",
 }
 
 // capturedLogs is what reached each of the three places a log could go.

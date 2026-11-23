@@ -1,0 +1,65 @@
+{
+  "answer": {
+    "changeId": "5",
+    "name": "Aluguel"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_state",
+      "key": [
+        3
+      ],
+      "column": "line_id",
+      "before": null,
+      "after": 4
+    },
+    {
+      "seq": 2,
+      "table": "tx_state",
+      "key": [
+        3
+      ],
+      "column": "classified_by",
+      "before": null,
+      "after": "person"
+    },
+    {
+      "seq": 3,
+      "table": "tx_state",
+      "key": [
+        3
+      ],
+      "column": "pending_reason",
+      "before": "PIX para pessoa sem apelido",
+      "after": null
+    },
+    {
+      "seq": 4,
+      "table": "history_steps",
+      "key": [
+        1
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "id": 1,
+        "tx_key": 3,
+        "change_id": 5,
+        "kind": "step",
+        "text": "Você alterou para Contas da casa",
+        "day": "2026-03-20"
+      }
+    },
+    {
+      "seq": 5,
+      "table": "establishments",
+      "key": [
+        "doc:11122233344"
+      ],
+      "column": "nickname",
+      "before": null,
+      "after": "Aluguel"
+    }
+  ]
+}
