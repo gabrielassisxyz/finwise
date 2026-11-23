@@ -196,28 +196,28 @@ func TestAgentProposeExitsWithUsageForBadFlagsMethodOrArgumentsAndSendsNothing(t
 	stub := newAnswering(t, http.StatusOK, `null`, nil)
 	token, _ := agentCredentials(t)
 	vars := map[string]string{agentURLVariable: stub.URL, agentTokenVariable: token}
-	const secretReason = "Motivo que nao deve aparecer"
-	const secretProposer = "agente-do-chamador"
+	const callerReason = "Motivo que nao deve aparecer"
+	const callerProposer = "agente-do-chamador"
 
 	cases := map[string][]string{
-		"missing reason":        {"agent", "propose", "--name", secretProposer, "transactions.addTag", `["tx-1","#x"]`},
-		"blank reason":          {"agent", "propose", "--reason", "  ", "--name", secretProposer, "transactions.addTag", `["tx-1","#x"]`},
-		"reason over 500":       {"agent", "propose", "--reason", strings.Repeat("a", 501), "--name", secretProposer, "transactions.addTag", `["tx-1","#x"]`},
-		"missing name":          {"agent", "propose", "--reason", secretReason, "transactions.addTag", `["tx-1","#x"]`},
-		"name over 40":          {"agent", "propose", "--reason", secretReason, "--name", strings.Repeat("b", 41), "transactions.addTag", `["tx-1","#x"]`},
-		"unknown flag":          {"agent", "propose", "--bogus", "x", "--reason", secretReason, "--name", secretProposer, "transactions.addTag", `["tx-1","#x"]`},
-		"missing arguments":     {"agent", "propose", "--reason", secretReason, "--name", secretProposer, "transactions.addTag"},
-		"too many arguments":    {"agent", "propose", "--reason", secretReason, "--name", secretProposer, "transactions.addTag", `[]`, `[]`},
-		"non-proposable method": {"agent", "propose", "--reason", secretReason, "--name", secretProposer, "budget.save", `["2026-03",[]]`},
-		"arguments not array":   {"agent", "propose", "--reason", secretReason, "--name", secretProposer, "transactions.addTag", `{}`},
-		"arguments null":        {"agent", "propose", "--reason", secretReason, "--name", secretProposer, "transactions.addTag", `null`},
+		"missing reason":        {"agent", "propose", "--name", callerProposer, "transactions.addTag", `["tx-1","#x"]`},
+		"blank reason":          {"agent", "propose", "--reason", "  ", "--name", callerProposer, "transactions.addTag", `["tx-1","#x"]`},
+		"reason over 500":       {"agent", "propose", "--reason", strings.Repeat("a", 501), "--name", callerProposer, "transactions.addTag", `["tx-1","#x"]`},
+		"missing name":          {"agent", "propose", "--reason", callerReason, "transactions.addTag", `["tx-1","#x"]`},
+		"name over 40":          {"agent", "propose", "--reason", callerReason, "--name", strings.Repeat("b", 41), "transactions.addTag", `["tx-1","#x"]`},
+		"unknown flag":          {"agent", "propose", "--bogus", "x", "--reason", callerReason, "--name", callerProposer, "transactions.addTag", `["tx-1","#x"]`},
+		"missing arguments":     {"agent", "propose", "--reason", callerReason, "--name", callerProposer, "transactions.addTag"},
+		"too many arguments":    {"agent", "propose", "--reason", callerReason, "--name", callerProposer, "transactions.addTag", `[]`, `[]`},
+		"non-proposable method": {"agent", "propose", "--reason", callerReason, "--name", callerProposer, "budget.save", `["2026-03",[]]`},
+		"arguments not array":   {"agent", "propose", "--reason", callerReason, "--name", callerProposer, "transactions.addTag", `{}`},
+		"arguments null":        {"agent", "propose", "--reason", callerReason, "--name", callerProposer, "transactions.addTag", `null`},
 	}
 	for label, args := range cases {
 		res := runCommand(context.Background(), args, "", vars, nil)
 		if res.code != exitUsage || res.stdout != "" || !strings.Contains(res.stderr, agentProposeUsage) {
 			t.Errorf("%s: exit %d stdout %q stderr %q", label, res.code, res.stdout, res.stderr)
 		}
-		if strings.Contains(res.stderr, secretReason) || strings.Contains(res.stderr, secretProposer) {
+		if strings.Contains(res.stderr, callerReason) || strings.Contains(res.stderr, callerProposer) {
 			t.Errorf("%s: stderr leaked caller input: %q", label, res.stderr)
 		}
 		if label == "non-proposable method" {
