@@ -24,7 +24,7 @@ var writesWithoutHandler = []string{
 	"review.approve",
 	"review.refuse", "review.propose", "review.dismissWarning", "review.runWarningAction",
 	"review.markStepDone", "review.keepSubscription", "review.cancelSubscription",
-	"review.closeMonth", "review.markTransferDone",
+	"review.closeMonth",
 }
 
 // sessionServiceWrites are the writes the session service answers itself. It
@@ -131,13 +131,14 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 		"transactions.setNote", "transactions.setReason", "transactions.setRefund", "transactions.setRefundLine",
 		"transactions.setReimbursable", "transactions.setSplit", "transactions.undoHistoryStep", "transactions.unlinkReimbursement",
 		"review.acceptPending",
+		"review.markTransferDone",
 	}
 	slices.Sort(implemented)
 	if !slices.Equal(registered, implemented) {
 		t.Errorf("the registry implements %v, want %v", registered, implemented)
 	}
-	if len(writesWithoutHandler) != 10 || slices.Contains(writesWithoutHandler, changePin) {
-		t.Errorf("the list holds %d names, want 10 without %s", len(writesWithoutHandler), changePin)
+	if len(writesWithoutHandler) != 9 || slices.Contains(writesWithoutHandler, changePin) {
+		t.Errorf("the list holds %d names, want 9 without %s", len(writesWithoutHandler), changePin)
 	}
 }
 

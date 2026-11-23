@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "changeId": "2"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "transfer_marks",
+      "key": [
+        "2026-03",
+        "pot:investment:inv-it-1"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "month": "2026-03",
+        "transfer_key": "pot:investment:inv-it-1",
+        "done_on": "2026-03-20"
+      }
+    }
+  ]
+}
