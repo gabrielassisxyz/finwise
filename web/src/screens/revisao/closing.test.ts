@@ -5,6 +5,7 @@ import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
 import { useReviewViewStore } from '@/stores/review-view';
 import { useRevisionStore } from '@/stores/revision';
+import { holdFirstCall } from '@/test/holdCall';
 import { prototypeOverview } from '@/test/mount';
 import { mountRouted } from '@/test/mountRouted';
 import ClosingTab from './ClosingTab.vue';
@@ -348,5 +349,23 @@ describe('Fechamento, the closed months', () => {
     expect(wrapper.findAll('.send').every((button) => button.attributes('disabled') !== undefined)).toBe(true);
     await open(wrapper, 'Pendências');
     expect(wrapper.find('.resolve').exists()).toBe(false);
+  });
+});
+
+describe('Fechamento, out-of-order loads', () => {
+  it('does not let an earlier closing answer replace a later one for the same month', async () => {
+    const { wrapper, api } = await mountClosing();
+    const first = holdFirstCall(api.review, 'closing');
+    useRevisionStore().bump();
+    await flushPromises();
+
+    await api.review.markStepDone('2026-11', 'planned-actual');
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(stepOf(wrapper, 'Orçado × realizado').find('.status').text()).toBe('Feito');
+
+    first.release();
+    await flushPromises();
+    expect(stepOf(wrapper, 'Orçado × realizado').find('.status').text()).toBe('Feito');
   });
 });

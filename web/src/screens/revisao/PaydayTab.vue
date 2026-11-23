@@ -18,11 +18,13 @@ const actions = useReviewActions();
 const shown = ref<{ month: YearMonth; view: PaydayView } | null>(null);
 const view = computed(() => shown.value?.view ?? null);
 
+let latest = 0;
 watch(
   () => [month.selected, revision.current] as const,
   async ([selected]) => {
+    const request = ++latest;
     const loaded = await api.review.payday(selected);
-    if (selected === month.selected) shown.value = { month: selected, view: loaded };
+    if (request === latest && selected === month.selected) shown.value = { month: selected, view: loaded };
   },
   { immediate: true },
 );
