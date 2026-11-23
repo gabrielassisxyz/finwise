@@ -20,9 +20,7 @@ const changePin = "session.changePin"
 // writesWithoutHandler lists the writes and evaluations nothing implements yet.
 // Each piece of work that implements one removes its name here, and the list is
 // empty when every write of the contract is implemented.
-var writesWithoutHandler = []string{
-	"review.closeMonth",
-}
+var writesWithoutHandler = []string{}
 
 // sessionServiceWrites are the writes the session service answers itself. It
 // holds changePin, and only that.
@@ -130,13 +128,14 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 		"review.acceptPending", "review.approve", "review.dismissWarning", "review.propose", "review.refuse",
 		"review.runWarningAction", "review.markTransferDone",
 		"review.markStepDone", "review.keepSubscription", "review.cancelSubscription",
+		"review.closeMonth",
 	}
 	slices.Sort(implemented)
 	if !slices.Equal(registered, implemented) {
 		t.Errorf("the registry implements %v, want %v", registered, implemented)
 	}
-	if len(writesWithoutHandler) != 1 || slices.Contains(writesWithoutHandler, changePin) {
-		t.Errorf("the list holds %d names, want 1 without %s", len(writesWithoutHandler), changePin)
+	if len(writesWithoutHandler) != 0 {
+		t.Errorf("the list holds %d names, want none", len(writesWithoutHandler))
 	}
 }
 

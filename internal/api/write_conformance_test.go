@@ -102,9 +102,7 @@ var writeCases = append([]writeCase{
 // reasonsWithoutProducer are the reasons of the closed list that nothing
 // produces yet, and so have no case. A piece of work that first produces one
 // adds its case and removes the name.
-var reasonsWithoutProducer = []refusalReason{
-	reasonFutureMonth, reasonPendingReviews,
-}
+var reasonsWithoutProducer = []refusalReason{}
 
 // writeObservation is everything one run of a case saw. The checks read it and
 // nothing else, so each can be fed a broken one.

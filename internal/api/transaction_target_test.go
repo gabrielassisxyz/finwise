@@ -159,15 +159,22 @@ func TestTheLookupFindsNothingAndWritesNothingForAnIDTheListDoesNotShow(t *testi
 	}
 }
 
-// A method of the manifest that takes a month and has no handler of its own,
-// which these tests lend a handler of theirs over the real registry. The
-// handler looks up the one transaction it is lent, whatever the month.
+// A method of the manifest that takes a month, whose handler these tests
+// replace with one of theirs in the server's own registry, every other method
+// keeping its own. The handler looks up the one transaction it is lent,
+// whatever the month.
 const (
 	unhandledMethod    = "review.closeMonth"
 	unhandledRoute     = "/api/review/closeMonth"
 	unhandledArguments = `["2026-03"]`
 	lentTransaction    = "tx-month-end"
 )
+
+// replacingWrite puts handler where the registry holds the write's own, which
+// registering a second one for the method would refuse.
+func replacingWrite(method string, handler WriteHandler) envOption {
+	return func(config *Config) { config.Reads.writes[method] = handler }
+}
 
 // lookingUpThenFailing is a write handler that finds the transaction it is lent,
 // and then fails as a write can after its lookup.
@@ -185,7 +192,7 @@ func TestAWriteThatFailsAfterItsLookupLeavesTheIndexAsItWas(t *testing.T) {
 	scratch := authoredtest.Open(t, fixtureClock)
 	var looked bool
 	env := newTestEnv(t, withLedger(newFullLedger(t).Path, fixtureNow), withDatabase(scratch.Database),
-		withWrite(unhandledMethod, lookingUpThenFailing(&looked)))
+		replacingWrite(unhandledMethod, lookingUpThenFailing(&looked)))
 	before := scratch.Everything(t)
 	response := env.call(unhandledRoute, unhandledArguments, env.unlock())
 	if !looked || response.Code != http.StatusInternalServerError {
@@ -205,7 +212,7 @@ func TestOverASnapshotThatCannotBeReadTheLookupAndTheReadsAnswerLedgerUnavailabl
 	inventedAuthoredState(t, scratch)
 	var looked bool
 	env := newTestEnv(t, withLedger(path, fixtureNow), withDatabase(scratch.Database),
-		withWrite(unhandledMethod, lookingUpThenFailing(&looked)))
+		replacingWrite(unhandledMethod, lookingUpThenFailing(&looked)))
 	cookie := env.unlock()
 	before := scratch.Everything(t)
 	expectError(t, "the lookup", env.call(unhandledRoute, unhandledArguments, cookie), http.StatusServiceUnavailable, "ledger_unavailable")
