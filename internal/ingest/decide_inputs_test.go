@@ -77,6 +77,26 @@ func TestAnExampleExcludedWithAReasonNoLongerCountsAndOneWithoutStillDoes(t *tes
 	}
 }
 
+func TestASplitExampleNoLongerCounts(t *testing.T) {
+	for _, split := range []bool{false, true} {
+		name := map[bool]string{false: "not split", true: "split"}[split]
+		t.Run(name, func(t *testing.T) {
+			w := fiveExamplesOnMercado(t, func(w *world, first authored.TxKey) {
+				if !split {
+					return
+				}
+				mercado, delivery := w.line("2026-03", "Mercado"), w.line("2026-03", "Delivery")
+				w.asPerson(func(recorder *authored.Recorder) error {
+					return recorder.SetSplit(t.Context(), first, []authored.SplitPart{
+						{Position: 0, Line: &mercado, Cents: 600}, {Position: 1, Line: &delivery, Cents: 400},
+					})
+				})
+			})
+			w.wantFiveOrFourExamples(name, !split)
+		})
+	}
+}
+
 // wantFiveOrFourExamples wants the new purchase applied on Mercado when all
 // five examples count, and pending with Mercado at 100 when only four do.
 func (w *world) wantFiveOrFourExamples(label string, applied bool) {
