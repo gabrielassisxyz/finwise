@@ -227,17 +227,36 @@ func requireFreshSchema(t *testing.T, path string) {
 	if got := tableNames(t, database); !equalStrings(got, want) {
 		t.Errorf("tables = %v, want %v", got, want)
 	}
-	if got, want := recordedMigrations(t, database), []string{"0001_journal=" + embeddedSum(t, "0001_journal"), "0002_budget=" + embeddedSum(t, "0002_budget"), "0003_transactions=" + embeddedSum(t, "0003_transactions"), "0004_settings=" + embeddedSum(t, "0004_settings"), "0005_pots=" + embeddedSum(t, "0005_pots"), "0006_subscriptions=" + embeddedSum(t, "0006_subscriptions"), "0008_session=" + embeddedSum(t, "0008_session"),
-		"0007_review=" + embeddedSum(t, "0007_review")}; !equalStrings(got, slices.Sorted(slices.Values(want))) {
+	if got, want := recordedMigrations(t, database), migrationsOnDisk(t); !equalStrings(got, want) {
 		t.Errorf("schema_migrations = %v, want %v", got, want)
 	}
 }
 
-func embeddedSum(t testing.TB, name string) string {
+// migrationsOnDisk reads every *.sql file in migrations/ from disk as
+// name=sha256, independent of the set the binary embeds.
+func migrationsOnDisk(t testing.TB) []string {
 	t.Helper()
-	content, err := os.ReadFile(filepath.Join("migrations", name+".sql"))
+	entries, err := os.ReadDir("migrations")
 	if err != nil {
 		t.Fatal(err)
 	}
-	return shaOf(content)
+	var names []string
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".sql") {
+			names = append(names, strings.TrimSuffix(entry.Name(), ".sql"))
+		}
+	}
+	if len(names) == 0 {
+		t.Fatal("migrations directory holds no .sql file")
+	}
+	slices.Sort(names)
+	recorded := make([]string, 0, len(names))
+	for _, name := range names {
+		content, err := os.ReadFile(filepath.Join("migrations", name+".sql"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		recorded = append(recorded, name+"="+shaOf(content))
+	}
+	return recorded
 }
