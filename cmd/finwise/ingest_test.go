@@ -169,7 +169,7 @@ var countKeys = []string{"indexed", "paired", "unpaired", "applied", "pending_lo
 	"pending_unnamed_person", "pending_new_establishment", "left", "nothing_to_store", "already_decided"}
 
 var (
-	triggerNames = []string{"start", "tick", "budget-change", "command"}
+	triggerNames = []string{"start", "tick", "budget-change", "command", "write"}
 	failureKinds = []string{"snapshot-unavailable", "ledger-read", "rows-unplaced", "database", "panic", "unknown"}
 )
 
