@@ -389,13 +389,13 @@ const SAVINGS_POTS: FakeSavingsPot[] = [
 ];
 
 const PLANNED_CONTRIBUTIONS: FakePlannedContribution[] = [
-  { name: 'RF Casa', amount: 0, state: 'on-target', doneOn: null },
-  { name: 'Gás e IPTU', amount: 120, state: 'done', doneOn: '2026-11-05' },
-  { name: 'Assinaturas anuais', amount: 50, state: 'done', doneOn: '2026-11-05' },
-  { name: 'Remédios', amount: 150, state: 'done', doneOn: '2026-11-05' },
-  { name: 'Compras', amount: 500, state: 'pending', doneOn: null },
-  { name: 'Viagens', amount: 600, state: 'pending', doneOn: null },
-  { name: 'Investimento', amount: 3800, state: 'pending', doneOn: null },
+  { key: 'pot:rf-casa', name: 'RF Casa', amount: 0, state: 'on-target', doneOn: null },
+  { key: 'line:gas-e-iptu', name: 'Gás e IPTU', amount: 120, state: 'done', doneOn: '2026-11-05' },
+  { key: 'line:assinaturas-anuais', name: 'Assinaturas anuais', amount: 50, state: 'done', doneOn: '2026-11-05' },
+  { key: 'line:remedios', name: 'Remédios', amount: 150, state: 'done', doneOn: '2026-11-05' },
+  { key: 'line:compras', name: 'Compras', amount: 500, state: 'pending', doneOn: null },
+  { key: 'line:viagens', name: 'Viagens', amount: 600, state: 'pending', doneOn: null },
+  { key: 'investment', name: 'Investimento', amount: 3800, state: 'pending', doneOn: null },
 ];
 
 const ACCOUNTS: FakeAccount[] = [

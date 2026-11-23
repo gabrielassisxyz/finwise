@@ -94,7 +94,7 @@ describe('savings pot detail', () => {
 
   it('lets a pot at its target switch off even with a deposit still planned', async () => {
     const state = prototypeState();
-    state.plannedContributions.push({ name: 'RF Saúde', amount: 100, state: 'pending', doneOn: null });
+    state.plannedContributions.push({ key: 'pot:rf-saude', name: 'RF Saúde', amount: 100, state: 'pending', doneOn: null });
     const detail = await createFakeApi({ state }).savingsPots.detail('rfs');
     expect(detail?.contribution).toEqual({ state: 'switched-off' });
   });

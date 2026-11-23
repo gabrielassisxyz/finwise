@@ -139,9 +139,9 @@ func planOfDocument(document authored.Document) budgetrules.Plan {
 }
 
 // monthFactsOf is what the plan is weighed against in the month: what the
-// month's transactions add to each line, the balance of each counted pot, and
-// whether the month is closed. The investment made follows the payday's
-// transfer, which nothing marks yet, so it is nothing made.
+// month's transactions add to each line, the balance of each counted pot,
+// whether the month is closed, and the investment made, which follows the
+// payday's investment transfer of the plan and the month's marks.
 func monthFactsOf(ctx context.Context, views Views, month brday.Month, plan budgetrules.Plan, disposed monthDispositions) (budgetrules.MonthFacts, error) {
 	balances, err := countedPotBalances(ctx, views, plan)
 	if err != nil {
@@ -151,9 +151,13 @@ func monthFactsOf(ctx context.Context, views Views, month brday.Month, plan budg
 	if err != nil {
 		return budgetrules.MonthFacts{}, err
 	}
+	marks, err := views.Authored.TransferMarks(ctx, month)
+	if err != nil {
+		return budgetrules.MonthFacts{}, err
+	}
 	return budgetrules.MonthFacts{
 		Figures: budgetrules.LineFigures(disposed.outcomes), PotBalances: balances,
-		FeesLine: budgetrules.LineID(feesLineID), Closed: closed,
+		FeesLine: budgetrules.LineID(feesLineID), Closed: closed, Made: budgetrules.MadeInvestment(plan, marks, closed),
 	}, nil
 }
 
@@ -161,23 +165,9 @@ func monthFactsOf(ctx context.Context, views Views, month brday.Month, plan budg
 // of the plan is linked to, where the link counts. The pots are read without
 // the yield, which a balance does not need, and only when a line has a link.
 func countedPotBalances(ctx context.Context, views Views, plan budgetrules.Plan) (map[budgetrules.LineID]money.Cents, error) {
-	links := map[budgetrules.LineID]string{}
-	for _, group := range plan {
-		if group.Key != budgetrules.GroupProvisions && group.Key != budgetrules.GroupReserves {
-			continue
-		}
-		for _, line := range group.Lines {
-			if !line.ID.Set {
-				continue
-			}
-			potID, linked, err := views.Authored.PotOfLine(ctx, authored.LineID(line.ID.ID))
-			if err != nil {
-				return nil, err
-			}
-			if linked {
-				links[line.ID.ID] = potID
-			}
-		}
+	links, err := linksOfPlan(ctx, views.Authored, plan)
+	if err != nil {
+		return nil, err
 	}
 	if len(links) == 0 {
 		return map[budgetrules.LineID]money.Cents{}, nil
@@ -187,6 +177,30 @@ func countedPotBalances(ctx context.Context, views Views, plan budgetrules.Plan)
 		return nil, err
 	}
 	return budgetrules.PotBalances(links, pots.listedPots()), nil
+}
+
+// linksOfPlan is the pot each provision and reserve line of the plan is linked
+// to now, by line id.
+func linksOfPlan(ctx context.Context, chosen *authored.View, plan budgetrules.Plan) (map[budgetrules.LineID]string, error) {
+	links := map[budgetrules.LineID]string{}
+	for _, group := range plan {
+		if group.Key != budgetrules.GroupProvisions && group.Key != budgetrules.GroupReserves {
+			continue
+		}
+		for _, line := range group.Lines {
+			if !line.ID.Set {
+				continue
+			}
+			potID, linked, err := chosen.PotOfLine(ctx, authored.LineID(line.ID.ID))
+			if err != nil {
+				return nil, err
+			}
+			if linked {
+				links[line.ID.ID] = potID
+			}
+		}
+	}
+	return links, nil
 }
 
 // listedPots are the pots the ledger lists now, as the rule of a counted link

@@ -130,6 +130,8 @@ export interface FakeSavingsPot {
 
 /** The month's planned deposit into a pot or an investment, and whether it has been made. */
 export interface FakePlannedContribution {
+  /** Its identity in the list, which a mark names. */
+  key: string;
   /** The pot's name, or "Investimento" for the deposit shared by every investment. */
   name: string;
   amount: number;

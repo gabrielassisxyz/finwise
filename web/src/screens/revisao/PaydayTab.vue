@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useApi } from '@/api/context';
-import type { PaydayTransfer, PaydayView } from '@/api/types';
+import type { PaydayTransfer, PaydayView, YearMonth } from '@/api/types';
 import EmptyBlock from '@/components/ui/EmptyBlock.vue';
 import { brl, orUnknown, shortDay, UNKNOWN } from '@/lib/format';
 import { useMonthStore } from '@/stores/month';
@@ -13,13 +13,16 @@ const month = useMonthStore();
 const revision = useRevisionStore();
 const actions = useReviewActions();
 
-const view = ref<PaydayView | null>(null);
+// A transfer's key belongs to the month its list was loaded for, which the
+// selected month may already have left.
+const shown = ref<{ month: YearMonth; view: PaydayView } | null>(null);
+const view = computed(() => shown.value?.view ?? null);
 
 watch(
   () => [month.selected, revision.current] as const,
   async ([selected]) => {
     const loaded = await api.review.payday(selected);
-    if (selected === month.selected) view.value = loaded;
+    if (selected === month.selected) shown.value = { month: selected, view: loaded };
   },
   { immediate: true },
 );
@@ -49,7 +52,8 @@ function stateText(transfer: PaydayTransfer): string {
 }
 
 async function markDone(transfer: PaydayTransfer): Promise<void> {
-  const result = await api.review.markTransferDone(transfer.name);
+  if (!shown.value) return;
+  const result = await api.review.markTransferDone(shown.value.month, transfer.key);
   if (result) actions.announce(`${transfer.name}: transferência marcada como feita.`, result.changeId);
 }
 </script>
@@ -73,7 +77,7 @@ async function markDone(transfer: PaydayTransfer): Promise<void> {
         title="Nenhuma transferência planejada"
         hint="Elas aparecem aqui quando o budget tiver aportes para fazer no dia do salário."
       />
-      <div v-for="transfer in view.transfers" :key="transfer.name" class="row stack-row">
+      <div v-for="transfer in view.transfers" :key="transfer.key" class="row stack-row">
         <span class="name stack-full">{{ transfer.name }}</span>
         <span class="amount" data-label="Valor">{{ brl(transfer.amount) }}</span>
         <span class="state" :class="transfer.state" data-label="Estado">{{ stateText(transfer) }}</span>

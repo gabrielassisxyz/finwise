@@ -205,3 +205,7 @@ const (
 	renewalWordYearly   = "anual"
 	renewalWordBiennial = "bienal"
 )
+
+// unnamedPot is what a payday transfer into a pot the bank gives no name is
+// called, as the interface calls such a pot.
+const unnamedPot = "Sem nome"

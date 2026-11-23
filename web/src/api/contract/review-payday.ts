@@ -4,6 +4,8 @@ import type { IsoDay, YearMonth } from './common';
 export type TransferState = 'on-target' | 'done' | 'pending';
 
 export interface PaydayTransfer {
+  /** The transfer's identity within its month; the name is only what the person reads. */
+  key: string;
   name: string;
   amount: number;
   state: TransferState;
@@ -27,5 +29,5 @@ export interface PaydayView {
 export interface PaydayApi {
   payday(month: YearMonth): Promise<PaydayView>;
   /** Null when the transfer is unknown or already done. */
-  markTransferDone(name: string): Promise<ChangeResult | null>;
+  markTransferDone(month: YearMonth, key: string): Promise<ChangeResult | null>;
 }

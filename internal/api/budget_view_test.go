@@ -320,7 +320,8 @@ func TestAnEmptyDraftHasNoLinesAndANullDraftIsNoDraft(t *testing.T) {
 	}
 }
 
-func TestAClosedMonthIsClosedAndItsInvestmentIsNotYetMade(t *testing.T) {
+// A closed month is taken as wholly made, with nothing marked.
+func TestAClosedMonthIsClosedAndItsInvestmentIsWhollyMade(t *testing.T) {
 	example := newBudgetExample(t)
 	authoredtest.CloseMonth(t, example.scratch.Database, fixtureNow, "2026-03", "2026-04-02")
 	view := example.view(`["2026-03"]`)
@@ -328,7 +329,7 @@ func TestAClosedMonthIsClosedAndItsInvestmentIsNotYetMade(t *testing.T) {
 		t.Error("a month in closed_months answers closed false")
 	}
 	expectLine(t, "the investment of a closed month", view.line(t, "inv", "Investimento"),
-		moneyCellJSON("4230.00")+","+moneyCellJSON("0.00")+`,{"type":"percent","value":50}`, `[]`, "null", false)
+		moneyCellJSON("4230.00")+","+moneyCellJSON("4230.00")+`,{"type":"percent","value":50}`, `[]`, "null", false)
 	if example.view(`["2026-02"]`).Closed {
 		t.Error("a month not in closed_months answers closed true")
 	}

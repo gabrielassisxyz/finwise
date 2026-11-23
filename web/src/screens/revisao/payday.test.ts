@@ -1,5 +1,5 @@
 import { flushPromises } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { prototypeState } from '@/api/fake/prototype-data';
 import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
@@ -71,5 +71,54 @@ describe('Dia do salário', () => {
     await flushPromises();
     expect(rowOf(wrapper, 'Compras').find('.state').text()).toBe('Pendente');
     expect(overlay.toast).toBeNull();
+  });
+
+  it('tells two transfers of one name apart by their key, and marks only the one pressed', async () => {
+    const state = prototypeState();
+    state.plannedContributions = [
+      { key: 'pot:reserve:nu/1', name: 'Reserva', amount: 60, state: 'pending', doneOn: null },
+      { key: 'pot:reserve:mp/1', name: 'Reserva', amount: 240, state: 'pending', doneOn: null },
+    ];
+    const { wrapper, overlay, api } = await mountPayday(state);
+    const mark = vi.spyOn(api.review, 'markTransferDone');
+    const rows = () =>
+      wrapper.findAll('.row').map((row) => [row.find('.name').text(), plain(row.find('.amount').text()), row.find('.state').text()]);
+    expect(rows()).toEqual([
+      ['Reserva', 'R$ 60,00', 'Pendente'],
+      ['Reserva', 'R$ 240,00', 'Pendente'],
+    ]);
+
+    await wrapper.findAll('.row')[1]!.find('.mark').trigger('click');
+    await flushPromises();
+    expect(useMonthStore().selected).toBe('2026-11');
+    expect(mark).toHaveBeenCalledExactlyOnceWith('2026-11', 'pot:reserve:mp/1');
+    expect(rows()).toEqual([
+      ['Reserva', 'R$ 60,00', 'Pendente'],
+      ['Reserva', 'R$ 240,00', 'Feita em 28/11 · marcada por você'],
+    ]);
+
+    overlay.toast!.actions.find((action) => action.label === 'Desfazer')!.run();
+    await flushPromises();
+    expect(rows()).toEqual([
+      ['Reserva', 'R$ 60,00', 'Pendente'],
+      ['Reserva', 'R$ 240,00', 'Pendente'],
+    ]);
+  });
+
+  it('keeps a transfer on its own row when another of the same name leaves the list', async () => {
+    const state = prototypeState();
+    state.plannedContributions = [
+      { key: 'pot:reserve:nu/1', name: 'Reserva', amount: 60, state: 'pending', doneOn: null },
+      { key: 'pot:reserve:mp/1', name: 'Reserva', amount: 240, state: 'pending', doneOn: null },
+    ];
+    const { wrapper, revision } = await mountPayday(state);
+    const second = wrapper.findAll('.row')[1]!.element;
+
+    state.plannedContributions.splice(0, 1);
+    revision.bump();
+    await flushPromises();
+    const rows = wrapper.findAll('.row');
+    expect(rows.map((row) => plain(row.find('.amount').text()))).toEqual(['R$ 240,00']);
+    expect(rows[0]!.element).toBe(second);
   });
 });

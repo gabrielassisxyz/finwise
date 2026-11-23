@@ -22,7 +22,7 @@ const changePin = "session.changePin"
 // empty when every write of the contract is implemented.
 var writesWithoutHandler = []string{
 	"review.markStepDone", "review.keepSubscription", "review.cancelSubscription",
-	"review.closeMonth", "review.markTransferDone",
+	"review.closeMonth",
 }
 
 // sessionServiceWrites are the writes the session service answers itself. It
@@ -129,14 +129,14 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 		"transactions.setNote", "transactions.setReason", "transactions.setRefund", "transactions.setRefundLine",
 		"transactions.setReimbursable", "transactions.setSplit", "transactions.undoHistoryStep", "transactions.unlinkReimbursement",
 		"review.acceptPending", "review.approve", "review.dismissWarning", "review.propose", "review.refuse",
-		"review.runWarningAction",
+		"review.runWarningAction", "review.markTransferDone",
 	}
 	slices.Sort(implemented)
 	if !slices.Equal(registered, implemented) {
 		t.Errorf("the registry implements %v, want %v", registered, implemented)
 	}
-	if len(writesWithoutHandler) != 5 || slices.Contains(writesWithoutHandler, changePin) {
-		t.Errorf("the list holds %d names, want 5 without %s", len(writesWithoutHandler), changePin)
+	if len(writesWithoutHandler) != 4 || slices.Contains(writesWithoutHandler, changePin) {
+		t.Errorf("the list holds %d names, want 4 without %s", len(writesWithoutHandler), changePin)
 	}
 }
 

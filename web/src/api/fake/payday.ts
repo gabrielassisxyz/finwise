@@ -23,7 +23,8 @@ export function createPayday(state: FakeState, log: ChangeLog): PaydayApi {
         balanceLabel: account ? `${account.bank} · ${account.name}` : null,
         difference,
         covered: difference === null ? null : difference >= 0,
-        transfers: state.plannedContributions.map(({ name, amount, state: transferState, doneOn, markedByHand }) => ({
+        transfers: state.plannedContributions.map(({ key, name, amount, state: transferState, doneOn, markedByHand }) => ({
+          key,
           name,
           amount,
           state: transferState,
@@ -33,8 +34,9 @@ export function createPayday(state: FakeState, log: ChangeLog): PaydayApi {
       };
     },
 
-    async markTransferDone(name) {
-      const transfer = state.plannedContributions.find((candidate) => candidate.name === name);
+    // The seeded list is the same for every month, so the month names nothing here.
+    async markTransferDone(_month, key) {
+      const transfer = state.plannedContributions.find((candidate) => candidate.key === key);
       if (!transfer || transfer.state !== 'pending') return null;
       const changeId = log.begin();
       Object.assign(transfer, { state: 'done', doneOn: state.shell.today, markedByHand: true });

@@ -92,6 +92,8 @@ var secrets = []string{
 	// The reason and the nickname of the accept's write cases, and the
 	// sentences its history writes.
 	"vai ao mercado", "Aluguel", "Você aceitou", "Regra criada",
+	// The key of the payday's investment transfer, which its mark's write cases send.
+	"investment",
 }
 
 // capturedLogs is what reached each of the three places a log could go.

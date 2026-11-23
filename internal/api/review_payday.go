@@ -5,27 +5,45 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/gabrielassisxyz/finwise/internal/budgetrules"
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
 // salaryOperation is the provider's operation type of a payroll credit.
 const salaryOperation = "FOLHA_PAGAMENTO"
 
-// paydayView answers the one figure the bank supports: the balance of the
-// account the salary lands on. The cushion comes from a budget that does not
-// exist yet, so there is nothing to compare the balance with, and the
-// difference and its verdict are left unknown rather than saying "covered".
+// paydayView sets the balance of the account the salary lands on against the
+// cushion of the month's budget. A month whose budget has no line has no
+// cushion to compare with, so the difference and its verdict are left unknown
+// rather than saying "covered" against a zero that is only an absence.
 type paydayView struct {
-	Cushion      Reais   `json:"cushion"`
-	Balance      *Reais  `json:"balance"`
-	BalanceLabel *string `json:"balanceLabel"`
-	Difference   *Reais  `json:"difference"`
-	Covered      *bool   `json:"covered"`
-	Transfers    []any   `json:"transfers"`
+	Cushion      Reais                `json:"cushion"`
+	Balance      *Reais               `json:"balance"`
+	BalanceLabel *string              `json:"balanceLabel"`
+	Difference   *Reais               `json:"difference"`
+	Covered      *bool                `json:"covered"`
+	Transfers    []paydayTransferWire `json:"transfers"`
 }
 
+// paydayTransferWire is the contract's PaydayTransfer. Nothing marks a transfer
+// by itself yet, so a done one was always marked by the person.
+type paydayTransferWire struct {
+	Key          string  `json:"key"`
+	Name         string  `json:"name"`
+	Amount       Reais   `json:"amount"`
+	State        string  `json:"state"`
+	DoneOn       *string `json:"doneOn"`
+	MarkedByHand bool    `json:"markedByHand"`
+}
+
+const (
+	transferPending = "pending"
+	transferDone    = "done"
+)
+
 func readPayday(ctx context.Context, args []json.RawMessage, views Views) (any, error) {
-	if _, err := onlyMonthArgument(args); err != nil {
+	month, err := onlyMonthArgument(args)
+	if err != nil {
 		return nil, err
 	}
 	accounts, err := views.Ledger.Accounts(ctx)
@@ -36,13 +54,35 @@ func readPayday(ctx context.Context, args []json.RawMessage, views Views) (any, 
 	if err != nil {
 		return nil, err
 	}
-	view := paydayView{Transfers: []any{}}
+	planned, err := transfersOfMonth(ctx, views, month)
+	if err != nil {
+		return nil, err
+	}
+	cushion := budgetrules.Cushion(planned.plan)
+	view := paydayView{Cushion: Reais(cushion), Transfers: paydayTransfersWire(planned.transfers)}
 	if salary := findSalaryAccount(accounts, rows).Account; salary != nil {
 		balance := Reais(salary.Balance)
 		label := bankAccountDescription(bankLabels(accounts)[salary.ID], nameOfAccount(*salary))
 		view.Balance, view.BalanceLabel = &balance, &label
+		if planned.budget.HasLines() {
+			difference := balance - Reais(cushion)
+			covered := difference >= 0
+			view.Difference, view.Covered = &difference, &covered
+		}
 	}
 	return view, nil
+}
+
+func paydayTransfersWire(transfers []budgetrules.MarkedTransfer) []paydayTransferWire {
+	wire := make([]paydayTransferWire, 0, len(transfers))
+	for _, transfer := range transfers {
+		shown := paydayTransferWire{Key: transfer.Key, Name: transfer.Name, Amount: Reais(transfer.Amount), State: transferPending}
+		if transfer.Done() {
+			shown.State, shown.DoneOn, shown.MarkedByHand = transferDone, textPointer(string(transfer.DoneOn)), true
+		}
+		wire = append(wire, shown)
+	}
+	return wire
 }
 
 // salaryFinding says where the salary lands and how sure that is. Receiving is

@@ -1,0 +1,33 @@
+{
+  "cushion": 3650.00,
+  "balance": null,
+  "balanceLabel": null,
+  "difference": null,
+  "covered": null,
+  "transfers": [
+    {
+      "key": "pot:reserve:acc-pots/pot-1",
+      "name": "Caixinha da casa",
+      "amount": 150.00,
+      "state": "pending",
+      "doneOn": null,
+      "markedByHand": false
+    },
+    {
+      "key": "pot:investment:inv-it-1",
+      "name": "LCI Exemplo",
+      "amount": 600.00,
+      "state": "pending",
+      "doneOn": null,
+      "markedByHand": false
+    },
+    {
+      "key": "investment",
+      "name": "Investimento",
+      "amount": 7100.00,
+      "state": "pending",
+      "doneOn": null,
+      "markedByHand": false
+    }
+  ]
+}
