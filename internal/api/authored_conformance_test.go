@@ -19,10 +19,18 @@ import (
 type authoredReadCase struct {
 	method    string
 	arguments string
+	// over is what the case adds to the third state before it is answered, on
+	// a router of its own: a read whose subject the third state cannot hold
+	// without changing what every other case answers.
+	over func(t *testing.T, scratch *authoredtest.Scratch, full *ledgertest.Fixture)
 }
 
 func authoredRead(method, arguments string) authoredReadCase {
 	return authoredReadCase{method: method, arguments: arguments}
+}
+
+func authoredReadOver(method, arguments string, over func(t *testing.T, scratch *authoredtest.Scratch, full *ledgertest.Fixture)) authoredReadCase {
+	return authoredReadCase{method: method, arguments: arguments, over: over}
 }
 
 // authoredReadCases are answered over the full ledger and the invented authored
@@ -76,6 +84,7 @@ var authoredReadCases = []authoredReadCase{
 	authoredRead("budget.establishments", `["2026-03","Tarifas e juros"]`),
 	authoredRead("budget.establishments", `["2026-03","Academia"]`),
 	authoredRead("transactions.detail", `["tx-refund"]`),
+	authoredReadOver("review.weekly", `["2026-03"]`, queueOverTheThirdState),
 }
 
 // newAuthoredReadEnv is the third state: both stores, the database holding the
@@ -84,6 +93,29 @@ func newAuthoredReadEnv(t *testing.T) *readEnv {
 	t.Helper()
 	scratch, full := newAuthoredStores(t)
 	return newReadEnvOver(t, full, scratch.Database)
+}
+
+// authoredEnvOf is the router a case is answered by: shared, the third state's,
+// unless the case adds to it.
+func authoredEnvOf(t *testing.T, shared *readEnv, c authoredReadCase) *readEnv {
+	t.Helper()
+	if c.over == nil {
+		return shared
+	}
+	scratch, full := newAuthoredStores(t)
+	c.over(t, scratch, full)
+	return newReadEnvOver(t, full, scratch.Database)
+}
+
+// authoredCasesOver counts the cases answered by a router of their own.
+func authoredCasesOver() int {
+	count := 0
+	for _, c := range authoredReadCases {
+		if c.over != nil {
+			count++
+		}
+	}
+	return count
 }
 
 // newAuthoredStores are the two stores of the third state: the full ledger, and
@@ -125,9 +157,9 @@ func TestEveryAuthoredReadCaseAnswersAndMatchesItsGoldenFile(t *testing.T) {
 	if len(authoredReadCases) == 0 {
 		t.Fatal("there is no authored read case, so the directory and its comparison do not exist")
 	}
-	env := newAuthoredReadEnv(t)
+	shared := newAuthoredReadEnv(t)
 	for _, c := range authoredReadCases {
-		status, body := env.answer(c.method, c.arguments)
+		status, body := authoredEnvOf(t, shared, c).answer(c.method, c.arguments)
 		if status != http.StatusOK {
 			t.Errorf("%s %s: status %d", c.method, c.arguments, status)
 			continue

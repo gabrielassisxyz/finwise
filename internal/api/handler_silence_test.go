@@ -155,10 +155,14 @@ func runEveryCase(t *testing.T, addRequestLog func([]byte)) {
 	}
 	authoredEnv := newAuthoredReadEnv(t)
 	for _, c := range authoredReadCases {
-		authoredEnv.answer(c.method, c.arguments)
+		env := authoredEnvOf(t, authoredEnv, c)
+		env.answer(c.method, c.arguments)
+		if env != authoredEnv {
+			addRequestLog(env.logs.Bytes())
+		}
 	}
 	addRequestLog(authoredEnv.logs.Bytes())
-	if logged, want := bytes.Count(authoredEnv.logs.Bytes(), []byte("route=")), 1+len(authoredReadCases); logged != want {
+	if logged, want := bytes.Count(authoredEnv.logs.Bytes(), []byte("route=")), 1+len(authoredReadCases)-authoredCasesOver(); logged != want {
 		t.Errorf("the authored state logged %d requests, want %d: its cases were not all run", logged, want)
 	}
 	for _, c := range allWriteCases() {
@@ -187,8 +191,9 @@ func TestNoHandlerLogsWhatItReads(t *testing.T) {
 		}
 	}
 	// Every router of the run opened one session: one per ledger, one for the
-	// authored state and one for each write case.
-	if opened, want := bytes.Count(logs.request, []byte("route=/api/session/unlock ")), 3+len(allWriteCases()); opened != want {
+	// authored state, one for each authored case that adds to it and one for
+	// each write case.
+	if opened, want := bytes.Count(logs.request, []byte("route=/api/session/unlock ")), 3+authoredCasesOver()+len(allWriteCases()); opened != want {
 		t.Errorf("%d routers were built and %d expected, so a kind of case was not run", opened, want)
 	}
 	for _, method := range routesMissing(logs.request, methods) {
