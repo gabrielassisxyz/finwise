@@ -343,7 +343,7 @@ func TestTheFeesLineNeedsAMonthWhoseBudgetHasALine(t *testing.T) {
 		authoredtest.PutVersion(t, scratch.Database, fixtureNow, "2026-01")
 	})
 	env.lineChange(txPending, authored.FeesLineName)
-	if stored := env.storedAbout(txPending).State; !lineIs(stored, feesLineID) {
+	if stored := env.storedAbout(txPending).State; !lineIs(stored, authored.FeesLineID) {
 		t.Errorf("the fees line stored %+v", stored)
 	}
 	for _, line := range []string{authored.FeesLineName, "Salário"} {

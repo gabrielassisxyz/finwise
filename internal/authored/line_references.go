@@ -20,10 +20,6 @@ import (
 // Of the tables that name a line, only tx_state and tx_split_parts are read or
 // written here.
 
-// feesLine is the built-in line, which the budget's migration seeds under this
-// id.
-const feesLine LineID = 1
-
 // The month of a transaction is the month of its index row's Brazil day, so
 // nothing here reads the ledger. ?1 is null for every indexed transaction, or a
 // JSON array of the keys to judge.
@@ -240,7 +236,7 @@ func (cache monthLines) of(ctx context.Context, tx *sql.Tx, month brday.Month) (
 		has[line.ID] = true
 	}
 	if budget.HasLines() {
-		has[feesLine] = true
+		has[FeesLineID] = true
 	}
 	cache[month] = has
 	return has, nil

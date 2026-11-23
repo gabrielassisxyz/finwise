@@ -157,7 +157,7 @@ func monthFactsOf(ctx context.Context, views Views, month brday.Month, plan budg
 	}
 	return budgetrules.MonthFacts{
 		Figures: budgetrules.LineFigures(disposed.outcomes), PotBalances: balances,
-		FeesLine: budgetrules.LineID(feesLineID), Closed: closed, Made: budgetrules.MadeInvestment(plan, marks, closed),
+		FeesLine: budgetrules.LineID(authored.FeesLineID), Closed: closed, Made: budgetrules.MadeInvestment(plan, marks, closed),
 	}, nil
 }
 
