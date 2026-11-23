@@ -156,7 +156,7 @@ export interface FakeSubscription {
   amount: number;
   cycle: SubscriptionCycle;
   nextCharge: IsoDay;
-  line: string;
+  line: string | null;
   status: SubscriptionStatus;
   reviewOn: IsoDay;
   note: string;

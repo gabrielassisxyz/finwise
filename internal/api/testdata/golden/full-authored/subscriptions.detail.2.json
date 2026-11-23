@@ -1,0 +1,30 @@
+{
+  "id": "2",
+  "name": "CLOUDSVC SUBSCRIPTION",
+  "cycle": "Mensal",
+  "amount": 113.85,
+  "marks": [
+    {
+      "text": "Cobrou após cancelar",
+      "tone": "bad"
+    }
+  ],
+  "nextCharge": "2026-04-10",
+  "monthlyEquivalent": 113.85,
+  "annualEquivalent": 1366.20,
+  "line": null,
+  "status": "Cancelar",
+  "reviewOn": "2026-03-20",
+  "note": "Migrar os arquivos antes de cancelar",
+  "charges": [
+    {
+      "day": "2026-03-10",
+      "amount": 113.85,
+      "foreign": {
+        "originalAmount": "US$ 20,00",
+        "iof": 3.85
+      }
+    }
+  ],
+  "alternatives": []
+}

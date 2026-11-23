@@ -1,0 +1,74 @@
+{
+  "answer": {
+    "changeId": "3"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_state",
+      "key": [
+        11
+      ],
+      "column": "credit_tx_key",
+      "before": null,
+      "after": 13
+    },
+    {
+      "seq": 2,
+      "table": "tx_state",
+      "key": [
+        11
+      ],
+      "column": "credit_cents",
+      "before": null,
+      "after": 5000
+    },
+    {
+      "seq": 3,
+      "table": "tx_state",
+      "key": [
+        13
+      ],
+      "column": "pending_reason",
+      "before": "Estabelecimento novo",
+      "after": null
+    },
+    {
+      "seq": 4,
+      "table": "tx_state",
+      "key": [
+        13
+      ],
+      "column": "pending_line_id",
+      "before": 3,
+      "after": null
+    },
+    {
+      "seq": 5,
+      "table": "tx_state",
+      "key": [
+        13
+      ],
+      "column": "pending_confidence",
+      "before": 55,
+      "after": null
+    },
+    {
+      "seq": 6,
+      "table": "history_steps",
+      "key": [
+        4
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "id": 4,
+        "tx_key": 11,
+        "change_id": 3,
+        "kind": "step",
+        "text": "Você ligou ao PIX de Amigo Exemplo · R$ 50,00",
+        "day": "2026-03-20"
+      }
+    }
+  ]
+}

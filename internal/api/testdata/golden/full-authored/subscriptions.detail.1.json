@@ -1,0 +1,22 @@
+{
+  "id": "1",
+  "name": "Mercado da esquina",
+  "cycle": "Mensal",
+  "amount": 120.00,
+  "marks": [],
+  "nextCharge": "2026-03-10",
+  "monthlyEquivalent": 120.00,
+  "annualEquivalent": 1440.00,
+  "line": null,
+  "status": "Manter",
+  "reviewOn": "2026-05-10",
+  "note": "Cesta do mês, revisar o plano",
+  "charges": [
+    {
+      "day": "2026-02-10",
+      "amount": 120.00,
+      "foreign": null
+    }
+  ],
+  "alternatives": []
+}

@@ -161,7 +161,7 @@ func panelsFirstSplit(t *testing.T, id string, detail countedDetail) string {
 func TestThePanelsFirstSplitIsAcceptedForEveryPurchaseThatShowsTheSplit(t *testing.T) {
 	scratch, full := newAuthoredStores(t)
 	env := newReadEnvOver(t, full, scratch.Database)
-	var checked, onALine int
+	var checked, onALine, linked int
 	for _, month := range fullLedgerMonths {
 		ids, _ := listedCents(t, env, month)
 		for _, id := range ids {
@@ -170,6 +170,14 @@ func TestThePanelsFirstSplitIsAcceptedForEveryPurchaseThatShowsTheSplit(t *testi
 				continue
 			}
 			payload := panelsFirstSplit(t, id, detail)
+			// A purchase a credit pays back is not split until the link goes.
+			if detail.Reimbursed {
+				if status, body := env.answer("transactions.setSplit", payload); status != http.StatusConflict || string(body) != refusedWith(reasonSplitWithReimbursement) {
+					t.Errorf("%s of a linked purchase answered %d %s", payload, status, body)
+				}
+				linked++
+				continue
+			}
 			if status, body := env.answer("transactions.setSplit", payload); status != http.StatusOK {
 				t.Errorf("%s answered %d %s", payload, status, body)
 				continue
@@ -186,8 +194,8 @@ func TestThePanelsFirstSplitIsAcceptedForEveryPurchaseThatShowsTheSplit(t *testi
 			checked++
 		}
 	}
-	t.Logf("the panel's split was accepted on %d purchases, %d of them on a line", checked, onALine)
-	if checked < 10 || onALine < 3 {
-		t.Errorf("the panel's split was tried on %d purchases, %d of them on a line", checked, onALine)
+	t.Logf("the panel's split was accepted on %d purchases, %d of them on a line, and refused on %d linked", checked, onALine, linked)
+	if checked+linked < 10 || onALine < 3 || linked < 1 {
+		t.Errorf("the panel's split was tried on %d purchases, %d of them on a line, and %d linked", checked, onALine, linked)
 	}
 }

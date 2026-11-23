@@ -8,6 +8,7 @@ import { useRevisionStore } from '@/stores/revision';
 import { lineNamed, recordLineMenu } from '@/test/lineMenu';
 import { prototypeOverview } from '@/test/mount';
 import { mountWithFailures } from '@/test/readOnly';
+import { prototypeState } from '@/api/fake/prototype-data';
 import { mountRouted } from '@/test/mountRouted';
 import AssinaturaScreen from './AssinaturaScreen.vue';
 
@@ -197,5 +198,24 @@ describe('Assinatura, the menu of lines', () => {
     await mounted.settle();
     expect(months).toEqual(['2026-11', '2026-11']);
     expect(await menu()).toEqual([lineNamed('2026-11', 2)]);
+  });
+});
+
+describe('Assinatura, a subscription with no budget line', () => {
+  it('shows a dash on the line button, marks no line as current, and takes the one picked', async () => {
+    const state = prototypeState();
+    state.subscriptions.find((subscription) => subscription.id === 'ho')!.line = null;
+    const { wrapper } = await mountRouted(AssinaturaScreen, routes, '/assinaturas/ho', { state });
+    useShellStore().overview = prototypeOverview();
+    await flushPromises();
+    const overlay = useOverlayStore();
+    expect(plain(wrapper.find('.line-button').text())).toBe('— ▾');
+
+    await wrapper.find('.line-button').trigger('click');
+    expect(overlay.menu?.items.length).toBeGreaterThan(0);
+    expect(overlay.menu?.items.filter((item) => item.current)).toEqual([]);
+    overlay.menu!.items.find((item) => item.label === 'Lazer')!.onPick!();
+    await flushPromises();
+    expect(plain(wrapper.find('.line-button').text())).toBe('Lazer ▾');
   });
 });

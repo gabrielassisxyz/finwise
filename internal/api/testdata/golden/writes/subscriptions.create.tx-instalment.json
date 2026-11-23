@@ -1,0 +1,30 @@
+{
+  "answer": {
+    "changeId": "3",
+    "name": "LIVRARIA EXEMPLO"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "subscriptions",
+      "key": [
+        1
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "id": 1,
+        "establishment_key": "text:LIVRARIA EXEMPLO",
+        "created_from_tx_key": 1,
+        "created_day": "2026-03-06",
+        "created_cents": 12900,
+        "name": "LIVRARIA EXEMPLO",
+        "line_id": 9,
+        "status": "Analisar",
+        "status_day": "2026-03-20",
+        "review_on": "2026-06-20",
+        "note": ""
+      }
+    }
+  ]
+}

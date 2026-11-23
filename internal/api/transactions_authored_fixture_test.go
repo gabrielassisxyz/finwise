@@ -44,7 +44,7 @@ var (
 // lack part of what was paid and one of two that exceed it, an exclusion with a
 // reason and one without, a credit on its own line marked as
 // a refund of another, a refund the person says is not one, a reimbursable
-// purchase with a credit linked to it, and a history with a reason, a step
+// purchase with a credit linked to it and one with none, and a history with a reason, a step
 // overwritten since and a note. Each transaction is found with the lookup every write
 // uses, and tx-last-of-february is left out of the index on purpose: it has
 // only what its establishment has.
@@ -54,7 +54,8 @@ func inventedTransactionAuthorship(t testing.TB, scratch *authoredtest.Scratch, 
 	lines := lineIDsByName(t, scratch.Database)
 	snapshot := viewOf(t, fixture.Path)
 	authorOver(t, scratch, snapshot, lines, firstDecisions, "scratch.seedTransactions", func(a authoring) error {
-		return each(a.linesAndReviews, a.establishments, a.tagsAndNote, a.splitAndExclusions, a.refundAndReimbursement, a.firstStepOfTheMarket)
+		return each(a.linesAndReviews, a.establishments, a.tagsAndNote, a.splitAndExclusions, a.refundAndReimbursement, a.firstStepOfTheMarket,
+			a.reimbursementsToSeed)
 	})
 	authorOver(t, scratch, snapshot, lines, laterCorrection, "scratch.correctLine", func(a authoring) error {
 		return a.laterCorrections()

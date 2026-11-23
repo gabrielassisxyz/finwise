@@ -88,13 +88,14 @@ func newAuthoredReadEnv(t *testing.T) *readEnv {
 
 // newAuthoredStores are the two stores of the third state: the full ledger, and
 // a database holding the invented authored state with what the person said
-// about that ledger's transactions on top.
+// about that ledger's transactions, and the subscriptions kept over it, on top.
 func newAuthoredStores(t *testing.T) (*authoredtest.Scratch, *ledgertest.Fixture) {
 	t.Helper()
 	scratch := authoredtest.Open(t, fixtureClock)
 	inventedAuthoredState(t, scratch)
 	full := newFullLedger(t)
 	inventedTransactionAuthorship(t, scratch, full)
+	inventedSubscriptions(t, scratch, full)
 	return scratch, full
 }
 

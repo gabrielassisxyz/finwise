@@ -233,6 +233,7 @@ func reimbursedPurchase(credit money.Cents) (txrules.Transaction, authoredRows) 
 		},
 		linkedCredits: map[authored.TxKey]bool{creditKey: true},
 		months:        map[brday.Month]transactionLines{"2026-03": transactionLinesOf(authored.Budget{})},
+		credits:       map[authored.TxKey]txrules.Transaction{creditKey: {ID: "tx-credit", Day: "2026-03-12", Amount: credit}},
 	}
 	return purchase, rows
 }
@@ -296,6 +297,7 @@ func TestDisposableHandsDisposeEveryFactOfTheRowAndEveryDecisionAboutIt(t *testi
 			creditKey: {State: authored.TransactionState{ClassifiedBy: authored.AuthorPerson, Exclusion: authoredtest.Some(""), Refund: authoredtest.Some(true)}},
 		},
 		linkedCredits: map[authored.TxKey]bool{3: false, creditKey: true},
+		credits:       map[authored.TxKey]txrules.Transaction{creditKey: {ID: "tx-credit", Amount: creditCents}},
 	}
 	cases := []struct {
 		listed txrules.Transaction

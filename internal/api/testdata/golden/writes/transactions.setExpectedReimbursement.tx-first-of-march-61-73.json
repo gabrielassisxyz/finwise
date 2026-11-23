@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "changeId": "5"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_state",
+      "key": [
+        15
+      ],
+      "column": "expected_cents",
+      "before": 500,
+      "after": 6173
+    }
+  ]
+}

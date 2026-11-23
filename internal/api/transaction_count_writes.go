@@ -58,6 +58,11 @@ func setSplit(ctx context.Context, args []json.RawMessage, writes Writes) (any, 
 	if err != nil {
 		return nil, err
 	}
+	if len(given) >= 2 {
+		if err := refuseSplitOfALinkedPurchase(ctx, writes, target.key); err != nil {
+			return nil, err
+		}
+	}
 	lines, err := linesOfMonth(ctx, writes.Authored, monthOfDay(target.listed.Day))
 	if err != nil {
 		return nil, err

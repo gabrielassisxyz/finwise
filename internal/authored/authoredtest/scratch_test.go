@@ -80,7 +80,7 @@ func TestTheCanonicalDumpIsOneJSONDocumentWithEveryTableInNameOrder(t *testing.T
 	names := []string{
 		"budget_version_lines", "budget_versions", "closed_months", "establishment_tags", "establishments", "history_step_reasons", "history_steps", "pot_lines", "pot_settings", "scenarios",
 		authoredtest.Children, authoredtest.Facts, authoredtest.Parents, authoredtest.Tags, authoredtest.Things,
-		"settings",
+		"settings", "subscriptions",
 		"tx_split_parts", "tx_state", "tx_tags",
 	}
 	last := -1
