@@ -2,6 +2,7 @@
   "month": "2026-03",
   "closed": false,
   "closedOn": null,
+  "closeChangeId": null,
   "steps": [
     {
       "id": "pending",

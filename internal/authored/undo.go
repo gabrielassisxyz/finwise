@@ -42,6 +42,9 @@ const (
 	CauseOtherMethod
 	// CauseExtended: an extension of a change already extended.
 	CauseExtended
+	// CauseOwnedRowHeld: a row it would remove owns a row that it does not
+	// restore, in a table whose rows hold their owner.
+	CauseOwnedRowHeld
 )
 
 // StaleChangeError is a refusal: nothing was changed.
@@ -65,9 +68,10 @@ func stale(id ChangeID, cause StaleCause) *StaleChangeError {
 // included, by restoring each unit's first before, and marks it undone at the
 // given instant. It refuses, changing nothing, when the change is unknown or
 // undone, when a later change in force has an effect on any unit it would
-// restore, when a unit no longer holds what the change left, or when the
-// database or a registered check refuses the restored state. It records no
-// change and cannot itself be undone.
+// restore, when a unit no longer holds what the change left, when removing a
+// row would take along an owned row it does not restore whose table holds its
+// owner, or when the database or a registered check refuses the restored
+// state. It records no change and cannot itself be undone.
 func (database *Database) Undo(ctx context.Context, id ChangeID, at time.Time) error {
 	err := database.journalTransaction(ctx, func(tx *sql.Tx) error {
 		state, found, err := loadChange(ctx, tx, id)
@@ -84,7 +88,7 @@ func (database *Database) Undo(ctx context.Context, id ChangeID, at time.Time) e
 			return &TransactionError{cause: err}
 		}
 		units := collapse(effects)
-		if err := stillInForce(ctx, tx, database.journal, id, units); err != nil {
+		if err := restorable(ctx, tx, database.journal, id, units); err != nil {
 			return err
 		}
 		if err := restoreUnrecorded(ctx, tx, database.journal, units); err != nil {
@@ -132,9 +136,68 @@ func stillInForce(ctx context.Context, tx *sql.Tx, registry *Registry, id Change
 	return nil
 }
 
+// restorable is step 2 for an undo and for the restore of a part. An extension
+// removes nothing, so its origin is judged by stillInForce alone.
+func restorable(ctx context.Context, tx *sql.Tx, registry *Registry, id ChangeID, units []collapsed) error {
+	if err := stillInForce(ctx, tx, registry, id, units); err != nil {
+		return err
+	}
+	return removesNoHeldRow(ctx, tx, registry, id, units)
+}
+
+// removesNoHeldRow is the rest of step 2: removing an owner's row takes along
+// every row it owns, and one that the undo does not itself restore may only be
+// taken from a table whose rows follow their owner. Such a row in a table whose
+// rows hold their owner was written by another change or around the journal,
+// so the undo is refused here, before anything is written.
+func removesNoHeldRow(ctx context.Context, tx *sql.Tx, registry *Registry, id ChangeID, units []collapsed) error {
+	restored := make(map[Unit]bool, len(units))
+	for _, unit := range units {
+		restored[unit.unit] = true
+	}
+	plans, err := planRows(registry, units)
+	if err != nil {
+		return &TransactionError{cause: err}
+	}
+	for _, plan := range plans {
+		if plan.row == nil || plan.row.before.Valid {
+			continue
+		}
+		held, err := leavesAHeldRow(ctx, tx, registry, plan, restored)
+		if err != nil {
+			return &TransactionError{cause: err}
+		}
+		if held {
+			return stale(id, CauseOwnedRowHeld)
+		}
+	}
+	return nil
+}
+
+// leavesAHeldRow says whether the row that plan removes owns a row that is not
+// among restored, in a table whose rows hold their owner.
+func leavesAHeldRow(ctx context.Context, tx *sql.Tx, registry *Registry, plan *rowPlan, restored map[Unit]bool) (bool, error) {
+	for _, owned := range registry.owned[plan.table.Name] {
+		if owned.OwnedBy.OnUndo == RowsFollowTheirOwner {
+			continue
+		}
+		rows, err := readOwned(ctx, tx, owned, plan.key)
+		if err != nil {
+			return false, err
+		}
+		for _, row := range rows {
+			if !restored[Unit{Table: owned.Name, Key: EncodeKey(owned.keyOf(row)...)}] {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
 // restoreUnrecorded is step 3 for an undo: each row is written once with its
 // target, or removed once, rows first touched last first. Removing an owner
-// removes the rows it owns; none of it is an effect.
+// removes the rows it owns, which step 2 left only where they are the undo's
+// own or follow their owner; none of it is an effect.
 func restoreUnrecorded(ctx context.Context, tx *sql.Tx, registry *Registry, units []collapsed) error {
 	plans, err := planRows(registry, units)
 	if err != nil {
@@ -274,7 +337,7 @@ func selectedUnits(ctx context.Context, tx *sql.Tx, registry *Registry, source C
 			units = append(units, unit)
 		}
 	}
-	if err := stillInForce(ctx, tx, registry, source, units); err != nil {
+	if err := restorable(ctx, tx, registry, source, units); err != nil {
 		return nil, err
 	}
 	return units, nil

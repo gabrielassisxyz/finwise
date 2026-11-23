@@ -65,6 +65,15 @@ CREATE TABLE plain (
   id   INTEGER PRIMARY KEY NOT NULL,
   note TEXT NOT NULL
 ) STRICT;
+CREATE TABLE lists (
+  id   INTEGER PRIMARY KEY NOT NULL,
+  name TEXT NOT NULL
+) STRICT;
+CREATE TABLE entries (
+  list_id INTEGER NOT NULL REFERENCES lists (id),
+  item    TEXT NOT NULL,
+  PRIMARY KEY (list_id, item)
+) STRICT;
 `
 
 var (
@@ -132,8 +141,12 @@ func scratchTables() []authored.Table {
 			Statements: scratchStatements(name, columns, key, nil)}
 	}
 	reasons := set("step_reasons", []string{"step_id"}, "step_id", "reason")
-	reasons.OwnedBy = &authored.Ownership{Owner: "steps", Columns: []string{"step_id"}}
+	reasons.OwnedBy = &authored.Ownership{Owner: "steps", Columns: []string{"step_id"}, OnUndo: authored.RowsFollowTheirOwner}
 	reasons.Statements = scratchStatements("step_reasons", []string{"step_id", "reason"}, []string{"step_id"}, []string{"step_id"})
+	// A list's entries are owned by it as a version's lines are: they hold it.
+	entries := set("entries", []string{"list_id", "item"}, "list_id", "item")
+	entries.OwnedBy = &authored.Ownership{Owner: "lists", Columns: []string{"list_id"}, OnUndo: authored.RowsHoldTheirOwner}
+	entries.Statements = scratchStatements("entries", []string{"list_id", "item"}, []string{"list_id", "item"}, []string{"list_id"})
 	return []authored.Table{
 		{
 			Name: "facts", Shape: authored.ShapeAttribute, Kind: authored.KindOptionalFacts, Key: []string{"id"},
@@ -154,6 +167,8 @@ func scratchTables() []authored.Table {
 		reasons,
 		set("parents", []string{"id"}, "id", "name"),
 		set("children", []string{"id"}, "id", "parent_id", "label"),
+		set("lists", []string{"id"}, "id", "name"),
+		entries,
 	}
 }
 
@@ -354,6 +369,14 @@ func parent(id int64, name string) authored.Row {
 
 func child(id, parentID int64, label string) authored.Row {
 	return authored.Row{"id": integer(id), "parent_id": integer(parentID), "label": text(label)}
+}
+
+func list(id int64, name string) authored.Row {
+	return authored.Row{"id": integer(id), "name": text(name)}
+}
+
+func entry(listID int64, item string) authored.Row {
+	return authored.Row{"list_id": integer(listID), "item": text(item)}
 }
 
 func key(values ...authored.Value) []authored.Value { return values }

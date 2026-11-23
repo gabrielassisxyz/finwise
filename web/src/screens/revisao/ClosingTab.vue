@@ -61,6 +61,14 @@ function askToClose(): void {
   });
 }
 
+function askToReopen(shown: ClosingView, closeChangeId: string): void {
+  overlay.confirm({
+    message: `Reabrir ${monthInSentence(shown.month)}? O budget deste mês volta a poder ser editado.`,
+    confirmLabel: 'Reabrir mês',
+    onConfirm: () => actions.reopenMonth(closeChangeId),
+  });
+}
+
 function openClosedMonth(selected: string): void {
   month.selected = selected;
   view.openStep = 1;
@@ -100,7 +108,12 @@ function openClosedMonth(selected: string): void {
           :read-only="closing.closed"
           @send="actions.sendSuggestion($event)"
         />
-        <StepClose v-else-if="step.id === 'close'" :view="closing" @close="askToClose" />
+        <StepClose
+          v-else-if="step.id === 'close'"
+          :view="closing"
+          @close="askToClose"
+          @reopen="askToReopen(closing, $event)"
+        />
       </ClosingStep>
     </div>
     <ClosedMonthsList :months="closing.closedMonths" @open="openClosedMonth" />

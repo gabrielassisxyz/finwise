@@ -1,6 +1,8 @@
 package authored_test
 
 import (
+	"database/sql"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,6 +12,8 @@ import (
 	"testing"
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
+	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
+	"github.com/gabrielassisxyz/finwise/internal/brday"
 )
 
 var (
@@ -291,4 +295,226 @@ func describeCause(cause authored.StaleCause) string {
 		return "it succeeds"
 	}
 	return fmt.Sprintf("refused, cause %d", cause)
+}
+
+// Random budget histories over the app's own tables: saves over a few months,
+// many of which add one line to a version another save created, and undos of
+// any change in force. A refused undo changes nothing, and after every step
+// each row is as the last change in force that wrote it left it.
+
+var budgetHistoryMonths = []brday.Month{"2026-02", "2026-03", "2026-04"}
+
+const (
+	budgetHistorySeeds = 40
+	budgetHistorySteps = 24
+)
+
+type budgetHistory struct {
+	*budgetEnv
+	seed   int64
+	random *rand.Rand
+	names  int
+	steps  []string
+}
+
+func TestEveryChangeInForceKeepsTheRowsItLeftThroughRandomBudgetSavesAndUndos(t *testing.T) {
+	endings := map[string]int{}
+	for seed := int64(1); seed <= budgetHistorySeeds; seed++ {
+		t.Run(fmt.Sprint(seed), func(t *testing.T) {
+			history := &budgetHistory{budgetEnv: newBudgetEnvWithNothing(t), seed: seed, random: rand.New(rand.NewSource(seed))}
+			for range budgetHistorySteps {
+				if history.random.Intn(5) < 2 {
+					endings[history.undoAny()]++
+				} else {
+					history.saveRandom()
+				}
+				history.expectEveryChangeInForceWhole()
+			}
+		})
+	}
+	t.Logf("undos over %d seeds: %v", budgetHistorySeeds, endings)
+	for _, ending := range []string{"accepted", refusedFor(authored.CauseOwnedRowHeld), refusedFor(authored.CauseLaterChange)} {
+		if endings[ending] == 0 {
+			t.Errorf("no undo ended %q; the histories no longer reach it", ending)
+		}
+	}
+}
+
+func refusedFor(cause authored.StaleCause) string { return fmt.Sprintf("refused %d", cause) }
+
+func (history *budgetHistory) record(format string, args ...any) {
+	history.steps = append(history.steps, fmt.Sprintf(format, args...))
+}
+
+func (history *budgetHistory) fail(format string, args ...any) {
+	history.t.Helper()
+	history.t.Fatalf("seed %d, after:\n  %s\n%s\nreproduce with: go test ./internal/authored -run 'TestEveryChangeInForceKeepsTheRowsItLeftThroughRandomBudgetSavesAndUndos/^%d$'",
+		history.seed, strings.Join(history.steps, "\n  "), fmt.Sprintf(format, args...), history.seed)
+}
+
+func (history *budgetHistory) saveRandom() {
+	history.t.Helper()
+	month := budgetHistoryMonths[history.random.Intn(len(budgetHistoryMonths))]
+	document, edit := history.edited(month)
+	history.record("save %s with %s", month, edit)
+	history.record("  change %d", history.save(month, document))
+}
+
+// edited is the invented budget, or the budget in force for month with one
+// edit, most often a line added at the end of a group, which the save records
+// as that line alone.
+func (history *budgetHistory) edited(month brday.Month) (authored.Document, string) {
+	budget := history.budget(month)
+	if !budget.HasLines() || history.random.Intn(8) == 0 {
+		return authoredtest.InventedBudget(), "the invented budget"
+	}
+	document := authoredtest.DocumentOf(budget)
+	history.names++
+	group := &document[history.random.Intn(len(document))]
+	switch roll := history.random.Intn(6); {
+	case roll < 3 || len(group.Lines) == 0:
+		group.Lines = append(group.Lines, authoredtest.Line(fmt.Sprintf("Linha %d", history.names), 5_000))
+		return document, "a line added to " + group.Key
+	case roll == 3:
+		group.Lines[0].Cents += 100
+		return document, group.Lines[0].Name + " given another amount"
+	case roll == 4:
+		removed := group.Lines[0].Name
+		group.Lines = group.Lines[1:]
+		return document, removed + " removed"
+	default:
+		renamed := group.Lines[0].Name
+		group.Lines[0].Name = fmt.Sprintf("Nome %d", history.names)
+		return document, renamed + " renamed"
+	}
+}
+
+// undoAny undoes a random change in force and answers how it ended.
+func (history *budgetHistory) undoAny() string {
+	history.t.Helper()
+	var open []authoredtest.Change
+	for _, change := range history.scratch.Changes(history.t) {
+		if change.UndoneAt == "" {
+			open = append(open, change)
+		}
+	}
+	if len(open) == 0 {
+		return "nothing to undo"
+	}
+	picked := open[history.random.Intn(len(open))]
+	history.record("undo %d", picked.ID)
+	state := history.scratch.State(history.t)
+	err := history.undo(authored.ChangeID(picked.ID))
+	var stale *authored.StaleChangeError
+	switch {
+	case errors.As(err, &stale):
+		history.record("  refused, cause %d", stale.Cause)
+		if history.scratch.State(history.t) != state {
+			history.fail("the refused undo of %d changed the tables or the journal", picked.ID)
+		}
+		return refusedFor(stale.Cause)
+	case err != nil:
+		history.fail("the undo of %d failed: %v", picked.ID, err)
+	}
+	return "accepted"
+}
+
+const selectEffectsInForce = `
+SELECT e.change_id, e.tbl, e.key, coalesce(e.col, ''), e.after
+FROM change_effects AS e JOIN changes AS c ON c.id = e.change_id
+WHERE c.undone_at IS NULL ORDER BY e.change_id, e.seq`
+
+// leftBy is what the last change in force that wrote a row left in it, absent
+// for a row it removed.
+type leftBy struct {
+	change int64
+	after  sql.NullString
+}
+
+func (history *budgetHistory) expectEveryChangeInForceWhole() {
+	history.t.Helper()
+	rows := history.rowsByUnit()
+	for unit, left := range history.leftInForce() {
+		got, found := rows[unit]
+		switch {
+		case left.after.Valid && got != left.after.String:
+			history.fail("change %d, in force, left %s %s as %s; it now holds %q", left.change, unit.Table, unit.Key, left.after.String, got)
+		case !left.after.Valid && found:
+			history.fail("change %d, in force, removed %s %s; it now holds %s", left.change, unit.Table, unit.Key, got)
+		}
+	}
+}
+
+func (history *budgetHistory) leftInForce() map[authored.Unit]leftBy {
+	history.t.Helper()
+	rows, err := history.scratch.Inspect(history.t).QueryContext(history.t.Context(), selectEffectsInForce)
+	if err != nil {
+		history.t.Fatal(err)
+	}
+	defer rows.Close()
+	left := map[authored.Unit]leftBy{}
+	for rows.Next() {
+		var unit authored.Unit
+		var by leftBy
+		if err := rows.Scan(&by.change, &unit.Table, &unit.Key, &unit.Column, &by.after); err != nil {
+			history.t.Fatal(err)
+		}
+		if unit.Column != "" {
+			history.fail("change %d wrote the column %s of %s, which this check does not read", by.change, unit.Column, unit.Table)
+		}
+		left[unit] = by
+	}
+	if err := rows.Err(); err != nil {
+		history.t.Fatal(err)
+	}
+	return left
+}
+
+// rowsByUnit is every row of the app's journaled tables as the dump encodes it,
+// which is how an effect encodes a row, under the unit of its key.
+func (history *budgetHistory) rowsByUnit() map[authored.Unit]string {
+	history.t.Helper()
+	keys := map[string][]string{}
+	for _, table := range authored.AppTables() {
+		keys[table.Name] = table.Key
+	}
+	rows := map[authored.Unit]string{}
+	for _, line := range strings.Split(strings.TrimSuffix(dump(history.t, history.scratch.Database), "\n"), "\n") {
+		if line == "" {
+			continue
+		}
+		table, encoded, _ := strings.Cut(line, " ")
+		key, ours := keys[table]
+		if !ours {
+			history.fail("the dump holds a row of %s, which is not a table of the app", table)
+		}
+		rows[authored.Unit{Table: table, Key: keyOfEncoded(history.t, key, encoded)}] = encoded
+	}
+	return rows
+}
+
+func keyOfEncoded(t testing.TB, key []string, encoded string) string {
+	t.Helper()
+	decoder := json.NewDecoder(strings.NewReader(encoded))
+	decoder.UseNumber()
+	var row map[string]any
+	if err := decoder.Decode(&row); err != nil {
+		t.Fatalf("%s: %v", encoded, err)
+	}
+	values := make([]authored.Value, len(key))
+	for i, name := range key {
+		switch typed := row[name].(type) {
+		case string:
+			values[i] = text(typed)
+		case json.Number:
+			number, err := typed.Int64()
+			if err != nil {
+				t.Fatalf("%s: %v", encoded, err)
+			}
+			values[i] = integer(number)
+		default:
+			values[i] = null
+		}
+	}
+	return authored.EncodeKey(values...)
 }

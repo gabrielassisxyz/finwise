@@ -182,9 +182,10 @@ func TestAnUndoThatMovesOnlyAnOpenMonthOrTheMonthItReopensPasses(t *testing.T) {
 	}
 }
 
-// Removing a version takes with it a line a later save added there, which is
-// no unit of the undo; the closed month had it, so the undo is refused even
-// though what January holds equals the lines the undo names.
+// Removing a version would take with it a line a later save added there, which
+// is no unit of the undo, although what January holds equals the lines the undo
+// names. A version's lines hold it, so the undo is refused before the closed
+// month's check is reached, and the closed month keeps the line.
 func TestAVersionsLineThatNoUnitNamesStillCountsAsWhatTheClosedMonthHad(t *testing.T) {
 	env := newExamplesBudgetEnv(t)
 	first := env.save("2026-02", env.january(unchanged))
@@ -193,7 +194,7 @@ func TestAVersionsLineThatNoUnitNamesStillCountsAsWhatTheClosedMonthHad(t *testi
 		t.Fatalf("the second save recorded %+v, want the added line alone", effects)
 	}
 	env.mustClose("2026-02")
-	env.expectRefusedByTheClosedMonths("the undo of the first save", first)
+	env.expectHeld("the undo of the first save", first)
 }
 
 func TestTheRestoreOfAPartIsRefusedByTheClosedMonthsCheckAndLeavesTheChangeOpen(t *testing.T) {
