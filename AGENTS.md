@@ -101,8 +101,9 @@
   - The ingest takes the snapshot in as one change by the rule: it indexes the transactions the ledger
     lists, pairs a bank's pending row that vanished with the posted row that replaced it, and applies the
     rules once to each new transaction in a month whose budget has a line, or queues what it cannot
-    decide. It runs at start, on a timer, right after a budget is saved or applied, and by
-    `finwise ingest`; it logs counts and the kind of a failure, never a value.
+    decide. It runs at start, on a timer, right after a budget is saved or applied, before a write that
+    looks a transaction up over a snapshot not yet taken in (trigger `write`), and by `finwise ingest`;
+    it logs counts and the kind of a failure, never a value.
 - **Backup and ingest:** `finwise backup --db <file> --to <file>` takes its source as `serve` does (the
   flag, then `FINWISE_DB`); `--to` is a flag only, so a stray variable cannot choose where a copy lands.
   It recognises the source as above, but a missing or empty file is an error and is never created, and
@@ -135,6 +136,13 @@
   `internal/api` log nothing, since only the request log (`internal/api/logging.go`) writes, and read the
   clock only from the request, so that a test can fix today; `TestOnlyTheRequestLogWritesAnything` and
   `TestNoCodeThatTakesAClockReadsTheHostsClock` enforce both. The package holds no SQL.
+  A write reaches the index only through `indexListed` (`internal/api/transaction_target.go`,
+  `TestOnlyTheIndexDoorGivesALedgerRowAKey`), which refuses to index from a snapshot whose projected run
+  is not the run the ingest took in last and leaves a key it already gives as the ingest left it. The
+  write then keeps nothing, the router runs `Config.TakeSnapshotIn` outside its change and tries it once
+  more over fresh views, and a write whose snapshot still is not taken in answers `internal`. The test
+  environments of `internal/api` record the fixture's run as taken in (`authoredtest.TakeRunIn`);
+  `newTestEnvNotTakenIn` leaves it out.
 - **Money on the wire** is a JSON number in reais written from integer cents by `api.Reais`
   (`19.99`, `-65.10`); no source file of `internal/api`, `internal/authored`, `internal/ingest`,
   `internal/budgetrules`, `internal/classrules` or `internal/subrules` may touch a float, and a test fails

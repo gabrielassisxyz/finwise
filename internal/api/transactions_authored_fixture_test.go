@@ -108,6 +108,7 @@ type authoring struct {
 
 func authorOver(t testing.TB, scratch *authoredtest.Scratch, snapshot *ledger.View, lines map[string]authored.LineID, at time.Time, method string, write func(authoring) error) {
 	t.Helper()
+	recordRunTakenIn(t, snapshot, scratch.Database)
 	facts := authored.ChangeFacts{Author: authored.AuthorPerson, Method: method, At: at}
 	err := scratch.Database.Change(t.Context(), facts, func(recorder *authored.Recorder) error {
 		view := recorder.View()

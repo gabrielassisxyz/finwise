@@ -14,7 +14,9 @@ import (
 	"time"
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
+	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
 	"github.com/gabrielassisxyz/finwise/internal/contract"
+	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
 // testEnv is one handler with an injected clock, a counting PIN check and a
@@ -31,7 +33,22 @@ type testEnv struct {
 
 type envOption func(*Config)
 
+// newTestEnv builds the router. Given a ledger and the app's database, it
+// records the snapshot's run as taken in first, as the server's ingest would
+// have, so a write's lookup reads a snapshot taken in.
 func newTestEnv(t *testing.T, options ...envOption) *testEnv {
+	t.Helper()
+	return buildTestEnv(t, true, options)
+}
+
+// newTestEnvNotTakenIn is newTestEnv leaving the database as it is, for a test
+// of what a write does while the snapshot it reads is not the one taken in.
+func newTestEnvNotTakenIn(t *testing.T, options ...envOption) *testEnv {
+	t.Helper()
+	return buildTestEnv(t, false, options)
+}
+
+func buildTestEnv(t *testing.T, takenIn bool, options []envOption) *testEnv {
 	t.Helper()
 	methods, err := contract.Load()
 	if err != nil {
@@ -50,6 +67,9 @@ func newTestEnv(t *testing.T, options ...envOption) *testEnv {
 	}
 	for _, option := range options {
 		option(&config)
+	}
+	if takenIn {
+		takeTheSnapshotIn(t, config)
 	}
 	env.handler, err = NewHandler(config)
 	if err != nil {
@@ -164,6 +184,35 @@ func withRead(method string, handler ReadHandler) envOption {
 // withWrite registers a write handler before the router is built.
 func withWrite(method string, handler WriteHandler) envOption {
 	return func(config *Config) { config.Reads.RegisterWrite(method, handler) }
+}
+
+// takeTheSnapshotIn records the projected run of the router's snapshot as the
+// run its database took in. Without both stores, or over a snapshot that cannot
+// say its run, there is nothing to record, and the test reads that snapshot as
+// it is.
+func takeTheSnapshotIn(t *testing.T, config Config) {
+	t.Helper()
+	if config.Ledger == nil || config.Database == nil {
+		return
+	}
+	view := config.Ledger.View()
+	defer view.Close()
+	recordRunTakenIn(t, view, config.Database)
+}
+
+// recordRunTakenIn records the projected run of snapshot as the run database
+// took in, for a state built by hand as writes over that snapshot would have
+// left it. It must be called outside any change of database.
+func recordRunTakenIn(t testing.TB, snapshot *ledger.View, database *authored.Database) {
+	t.Helper()
+	if run, err := snapshot.ProjectedRun(t.Context()); err == nil {
+		authoredtest.TakeRunIn(t, database, run)
+	}
+}
+
+// withTakeIn is what the router calls to take a snapshot in before a write.
+func withTakeIn(fn func(context.Context, time.Time) error) envOption {
+	return func(config *Config) { config.TakeSnapshotIn = fn }
 }
 
 // withDatabase serves over the app's database, which is what lets a write run.

@@ -19,7 +19,8 @@ import (
 )
 
 // inChange runs write in one change of the person's over the fixture ledger,
-// as the router runs a write handler.
+// as the router runs a write handler. A write that looks a transaction up
+// needs the fixture's run taken in first, with recordRunTakenIn.
 func inChange(t *testing.T, scratch *authoredtest.Scratch, fixture *ledgertest.Fixture, write func(Writes) error) error {
 	t.Helper()
 	snapshot := viewOf(t, fixture.Path)
@@ -80,10 +81,11 @@ func TestTheLookupMintsAKeyAtFirstSightWithTheRowsFactsAndJournalsNothing(t *tes
 	}
 	for _, c := range cases {
 		t.Run(c.id, func(t *testing.T) {
-			scratch := authoredtest.Open(t, fixtureClock)
+			scratch, full := authoredtest.Open(t, fixtureClock), newFullLedger(t)
+			recordRunTakenIn(t, viewOf(t, full.Path), scratch.Database)
 			before := scratch.Everything(t)
 			var target transactionTarget
-			err := inChange(t, scratch, newFullLedger(t), func(writes Writes) error {
+			err := inChange(t, scratch, full, func(writes Writes) error {
 				var found bool
 				var err error
 				if target, found, err = lookupTarget(t.Context(), writes, c.id); err == nil && !found {
@@ -108,12 +110,16 @@ func TestTheLookupMintsAKeyAtFirstSightWithTheRowsFactsAndJournalsNothing(t *tes
 	}
 }
 
-func TestTheLookupOfAnIndexedTransactionRefreshesItsRowAndMintsNothing(t *testing.T) {
+// After the ingest took a snapshot in, the index row of a transaction it met is
+// the ingest's: a lookup answers its key and writes nothing over it, even where
+// what the lookup read would say otherwise.
+func TestTheLookupOfAnIndexedTransactionLeavesItsRowAsItWasAndMintsNothing(t *testing.T) {
 	scratch := authoredtest.Open(t, fixtureClock)
 	full := newFullLedger(t)
-	var stale authored.TxKey
+	recordRunTakenIn(t, viewOf(t, full.Path), scratch.Database)
+	var known authored.TxKey
 	err := inChange(t, scratch, full, func(writes Writes) (err error) {
-		stale, err = writes.Recorder.IndexTransaction(t.Context(), authoredtest.Seen(txPending, "2026-03-01", -1, "text:OUTRO NOME"))
+		known, err = writes.Recorder.IndexTransaction(t.Context(), authoredtest.Seen(txPending, "2026-03-01", -1, "text:OUTRO NOME"))
 		return err
 	})
 	if err != nil {
@@ -125,22 +131,18 @@ func TestTheLookupOfAnIndexedTransactionRefreshesItsRowAndMintsNothing(t *testin
 		target, _, err = lookupTarget(t.Context(), writes, txPending)
 		return err
 	})
-	if err != nil || target.key != stale {
-		t.Fatalf("the lookup answered key %d (%v), want the one already given, %d", target.key, err, stale)
+	if err != nil || target.key != known {
+		t.Fatalf("the lookup answered key %d (%v), want the one already given, %d", target.key, err, known)
 	}
-	added := linesAdded(before, scratch.Everything(t))
-	refreshed := `tx_key=1 account_id="card-itau" day="2026-03-19" cents=-1850 establishment_key="text:PADARIA EXEMPLO" bank_pending=1 first_run=NULL last_run=NULL evaluated=0`
-	if len(added) != 1 || !slices.Equal(added["tx_index"], []string{refreshed}) {
-		t.Errorf("the lookup changed %v, want only the index row refreshed to %s", added, refreshed)
-	}
-	if strings.Count(scratch.Everything(t), "tx_key=") != 2 {
-		t.Error("the index holds more than one row and one id")
+	if after := scratch.Everything(t); after != before {
+		t.Errorf("the lookup of a key already given changed %v, want nothing", linesAdded(before, after))
 	}
 }
 
 func TestTheLookupFindsNothingAndWritesNothingForAnIDTheListDoesNotShow(t *testing.T) {
 	scratch := authoredtest.Open(t, fixtureClock)
 	full := newFullLedger(t)
+	recordRunTakenIn(t, viewOf(t, full.Path), scratch.Database)
 	before := scratch.Everything(t)
 	for _, id := range []string{"no-such-transaction", txForeignTax, txPotTransfer} {
 		err := inChange(t, scratch, full, func(writes Writes) error {
@@ -231,6 +233,7 @@ func TestOverASnapshotThatCannotBeReadTheLookupAndTheReadsAnswerLedgerUnavailabl
 func TestTheWholeLedgerIsListedInOnePassAndWhatAWriteTouchesIsIndexedUnderTheKeyTheLookupFinds(t *testing.T) {
 	scratch := authoredtest.Open(t, fixtureClock)
 	full := newFullLedger(t)
+	recordRunTakenIn(t, viewOf(t, full.Path), scratch.Database)
 	keys := map[string]authored.TxKey{}
 	err := inChange(t, scratch, full, func(writes Writes) error {
 		view, _, err := listedLedger(t.Context(), writes.Ledger)
@@ -239,7 +242,7 @@ func TestTheWholeLedgerIsListedInOnePassAndWhatAWriteTouchesIsIndexedUnderTheKey
 		}
 		for _, listed := range view.listed {
 			if listed.ID == txMonthEnd || listed.ID == txPending {
-				if keys[listed.ID], err = indexListed(t.Context(), writes.Recorder, listed); err != nil {
+				if keys[listed.ID], err = indexListed(t.Context(), writes.Ledger, writes.Recorder, listed); err != nil {
 					return err
 				}
 			}

@@ -397,6 +397,8 @@ func TestTheSelectionFindsAndIndexesWhatTheSingleLookupDoes(t *testing.T) {
 		t.Fatalf("only %d transactions are listed, so the comparison would prove little", len(ids))
 	}
 	bySingle, byBulk := authoredtest.Open(t, fixtureClock), authoredtest.Open(t, fixtureClock)
+	recordRunTakenIn(t, viewOf(t, full.Path), bySingle.Database)
+	recordRunTakenIn(t, viewOf(t, full.Path), byBulk.Database)
 	for _, id := range ids {
 		err := inChange(t, bySingle, full, func(writes Writes) error {
 			_, found, err := lookupTarget(t.Context(), writes, id)

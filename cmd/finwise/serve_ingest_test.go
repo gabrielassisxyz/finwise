@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -227,8 +228,8 @@ func TestWithoutADatabaseServeRunsNoIngest(t *testing.T) {
 		t.Errorf("a server without a database ran the ingest %d times: %q", calls.Load(), result.stdout)
 	}
 	env := environment{now: func() time.Time { return testNow }, runIngest: never}
-	if config := apiConfig(serveSettings{ledgerPath: ledgerPath}, nil, env, nil); config.AfterBudgetSaved != nil {
-		t.Error("without a database the API was given an ingest to run after a save")
+	if config := apiConfig(serveSettings{ledgerPath: ledgerPath}, nil, env, nil); config.AfterBudgetSaved != nil || config.TakeSnapshotIn != nil {
+		t.Error("without a database the API was given an ingest to run after a save or before a write")
 	}
 }
 
@@ -439,4 +440,73 @@ func TestABudgetSaveIsAnsweredAndKeptWhenItsIngestFails(t *testing.T) {
 	if !failed {
 		t.Errorf("the failure of the ingest after the save was not logged by its kind: %q", result.stdout)
 	}
+}
+
+// The pending purchase of November and the posted row the bank replaces it with
+// on the next night: another id, the same account, amount and establishment.
+const (
+	pendingPurchase = "tx-" + ledgerSentinel + "-pending"
+	postedPurchase  = "tx-" + ledgerSentinel + "-posted"
+)
+
+func pendingNight(t *testing.T, path string, runs int, posted bool) {
+	t.Helper()
+	november := func(day int) time.Time { return time.Date(2026, time.November, day, 15, 0, 0, 0, time.UTC) }
+	row := cardPurchase(pendingPurchase, november(16), "FEIRA "+ledgerSentinel, 4187.39)
+	row.Status = "PENDING"
+	if posted {
+		row = cardPurchase(postedPurchase, november(17), "FEIRA "+ledgerSentinel, 4187.39)
+	}
+	inventedNight(t, path, runs, append(novemberRows(), row), nil)
+}
+
+// postStatus posts with the session cookie and answers the status and the body.
+func (server *runningServer) postStatus(t *testing.T, cookie *http.Cookie, path, body string) (int, string) {
+	t.Helper()
+	request, err := http.NewRequest(http.MethodPost, "http://"+server.address+path, strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.AddCookie(cookie)
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	text, _ := io.ReadAll(response.Body)
+	return response.StatusCode, string(text)
+}
+
+// The timer never fires here: the snapshot replaced while the server runs is
+// taken in by the write itself, before the write looks the posted row up.
+func TestAWriteOnARowOfASnapshotReplacedWhileTheServerRunsFindsItUnderThePendingRowsKey(t *testing.T) {
+	files := newServedFiles(t)
+	pendingNight(t, files.ledgerPath, 1, false)
+	budgetedDatabase(t, files.databasePath)
+	taken := runsTakenIn(t, files.databasePath)
+	server := startServer(t, files.serveArgs("--ingest-interval", "1h"), serveVars(t))
+	waitFor(t, "the start's run", func() bool { return slices.Equal(taken(), []string{"1"}) })
+	cookie, _ := server.unlockBody(t, testPIN)
+	if status, body := server.postStatus(t, cookie, "/api/transactions/addTag", `["`+pendingPurchase+`","feira"]`); status != http.StatusOK {
+		t.Fatalf("the tag on the pending row answered %d %s", status, body)
+	}
+
+	pendingNight(t, files.ledgerPath, 2, true)
+	status, body := server.postStatus(t, cookie, "/api/transactions/addTag", `["`+postedPurchase+`","lanche"]`)
+	result := server.stopGracefully(t)
+
+	if status != http.StatusOK || !strings.HasPrefix(body, `{"changeId":"`) {
+		t.Fatalf("the tag on the posted row answered %d %s, want 200 and a change", status, body)
+	}
+	inspector := inspectDatabase(t, files.databasePath)
+	keys := columnValues(t, inspector, "SELECT count(*) || '/' || count(DISTINCT tx_key) FROM tx_ids WHERE provider_id IN ('"+pendingPurchase+"', '"+postedPurchase+"')")
+	if !slices.Equal(keys, []string{"2/1"}) {
+		t.Errorf("the pending and the posted row are %v provider ids over keys, want 2/1: both under one key", keys)
+	}
+	if run := columnValues(t, inspector, "SELECT value FROM meta WHERE key = 'last_ingested_run'"); !slices.Equal(run, []string{"2"}) {
+		t.Errorf("the run taken in is %v, want the replacing night's", run)
+	}
+	requireOnlyCountsAndKinds(t, "serve", result)
+	requireTriggers(t, ingestRecords(t, result.stdout), "start", "write")
 }

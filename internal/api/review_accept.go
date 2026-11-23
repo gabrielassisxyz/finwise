@@ -92,7 +92,7 @@ func waitingFor(ctx context.Context, writes Writes, id string) (pendingTransacti
 // So it is not looked up again in the current month, which may lack it. The
 // note goes after the step, so the history, newest first, reads it first.
 func recordAnswer(ctx context.Context, writes Writes, waiting pendingTransaction, line authored.LineID, answer pendingAnswer, shown string) error {
-	key, err := indexListed(ctx, writes.Recorder, waiting.listed)
+	key, err := indexListed(ctx, writes.Ledger, writes.Recorder, waiting.listed)
 	if err != nil {
 		return err
 	}
