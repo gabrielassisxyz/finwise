@@ -167,4 +167,7 @@ var allStatements = map[string]string{
 	"statementTransactionsSettledBy":  statementTransactionsSettledBy,
 
 	"statementTransferMarksOfMonth": statementTransferMarksOfMonth,
+
+	"statementClosingStepsOfMonth": statementClosingStepsOfMonth,
+	"statementClosedMonthsNewest":  statementClosedMonthsNewest,
 }
