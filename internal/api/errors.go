@@ -118,7 +118,6 @@ func classify(err error) (errorKind, refusalReason) {
 	var refusal *refusalError
 	var stale *authored.StaleChangeError
 	var bad *badArgumentsError
-	var declined *readOnlyError
 	switch {
 	case errors.As(err, &refusal):
 		return kindRefused, refusal.reason
@@ -126,8 +125,6 @@ func classify(err error) (errorKind, refusalReason) {
 		return kindRefused, reasonStaleChange
 	case errors.As(err, &bad):
 		return kindBadRequest, ""
-	case errors.As(err, &declined):
-		return kindReadOnly, ""
 	case ledger.IsUnsupportedVersion(err),
 		ledger.IsUnreadableSnapshot(err),
 		ledger.IsNotProjected(err),
@@ -162,13 +159,6 @@ func noteErrorKind(ctx context.Context, kind errorKind) {
 type badArgumentsError struct{}
 
 func (*badArgumentsError) Error() string { return "api: the arguments are not what the method takes" }
-
-// readOnlyError is a handler declining an input only the part of the app that
-// stores and evaluates what a person authors could answer. It is answered as
-// every write is.
-type readOnlyError struct{}
-
-func (*readOnlyError) Error() string { return "api: the app is read-only for now" }
 
 // refusalError is a handler declining a request that was well formed, for one
 // of the closed list's reasons. It carries the reason and no text: an argument

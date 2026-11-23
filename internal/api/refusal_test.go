@@ -166,7 +166,6 @@ func TestHandlerErrorsAreMappedByClassWhateverTheMethod(t *testing.T) {
 		"an extended change":        {stale(authored.CauseExtended), kindRefused, reasonStaleChange},
 		"a wrapped stale change":    {fmt.Errorf("undo: %w", stale(authored.CauseLaterChange)), kindRefused, reasonStaleChange},
 		"arguments":                 {&badArgumentsError{}, kindBadRequest, ""},
-		"a read-only input":         {&readOnlyError{}, kindReadOnly, ""},
 		"a missing snapshot":        {fmt.Errorf("ledger: %w", fs.ErrNotExist), kindLedgerUnavailable, ""},
 		"an unreadable snapshot":    {fmt.Errorf("ledger: %w", fs.ErrPermission), kindLedgerUnavailable, ""},
 		"an unsupported snapshot":   {&ledger.UnsupportedVersionError{Found: 9}, kindLedgerUnavailable, ""},
