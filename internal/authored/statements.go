@@ -174,4 +174,14 @@ var allStatements = map[string]string{
 	"statementBudgetEffectsInForce": statementBudgetEffectsInForce,
 
 	"statementCloseChangeOfMonth": statementCloseChangeOfMonth,
+
+	"statementNewestChangeID":        statementNewestChangeID,
+	"statementInsertProposal":        statementInsertProposal,
+	"statementProposalByID":          statementProposalByID,
+	"statementWaitingProposals":      statementWaitingProposals,
+	"statementAllProposals":          statementAllProposals,
+	"statementApproveProposal":       statementApproveProposal,
+	"statementRefuseProposal":        statementRefuseProposal,
+	"statementMarkProposalStale":     statementMarkProposalStale,
+	"statementEffectsInForceBetween": statementEffectsInForceBetween,
 }

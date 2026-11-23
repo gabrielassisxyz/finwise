@@ -150,7 +150,8 @@ func requireCreatedDatabase(t *testing.T, path string) {
 	}
 	tables := columnValues(t, database, "SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name")
 	if want := []string{"budget_version_lines", "budget_versions", "change_effects", "changes", "closed_months", "establishment_tags", "establishments", "history_step_reasons", "history_steps", "lines", "meta", "pin", "pot_lines", "pot_settings", "scenarios", "schema_migrations", "settings", "sqlite_sequence", "subscriptions", "tx_ids", "tx_index", "tx_split_parts", "tx_state", "tx_tags",
-		"closing_steps", "dismissed_warnings", "transfer_marks"}; !slices.Equal(tables, slices.Sorted(slices.Values(want))) {
+		"closing_steps", "dismissed_warnings", "transfer_marks",
+		"proposals"}; !slices.Equal(tables, slices.Sorted(slices.Values(want))) {
 		t.Errorf("tables = %v, want %v", tables, want)
 	}
 	recorded := columnValues(t, database, "SELECT name || '=' || sha256 FROM schema_migrations ORDER BY name")
