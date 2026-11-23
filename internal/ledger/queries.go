@@ -318,6 +318,64 @@ const queryYieldUnresolved = `
 SELECT pending_id FROM pending_posted_candidates
 UNION SELECT posted_id FROM pending_posted_candidates`
 
+// queryYieldTransferHistory is what "latest_tx", "transfers" and "judged" read
+// about the transfers (pluggy-sync README lines 433-478), as rows of three
+// kinds: 'version', every unambiguous version of every document that was ever
+// a reserve transfer, with the first of "judged"'s reasons that depends on the
+// row alone; 'removal', the events "transfers" counts as gone; and 'pair', both
+// ids of every row of pending_posted_candidates, which "judged" calls
+// unresolved (lines 466-467) and which the reader keeps as a set. The two CTEs
+// are each evaluated once, so the ledger's transactions are walked once for the
+// documents and once for the pairs, however many parts use them.
+const queryYieldTransferHistory = `
+WITH
+reserve_transfer_documents AS MATERIALIZED (
+  SELECT DISTINCT document_id FROM (` + reserveTransferDocuments + `)
+),
+pairs AS MATERIALIZED (SELECT pending_id, posted_id FROM pending_posted_candidates)
+SELECT 'version', document_id, provider_id, id, run_id, parent, observed_day,
+       operation_type IS 'TRANSFERENCIA_SALDO_RESERVADO', date, datetime(date), status IS NOT 'POSTED',
+       CASE WHEN description LIKE 'Dinheiro reservado %' THEN substr(description, 20)
+            WHEN description LIKE 'Dinheiro retirado %' THEN substr(description, 19) END,
+       CASE
+         WHEN description NOT LIKE 'Dinheiro reservado %' AND description NOT LIKE 'Dinheiro retirado %'
+           THEN 'unmatched transfer'
+         WHEN (description LIKE 'Dinheiro reservado %' AND NOT amount < 0)
+           OR (description LIKE 'Dinheiro retirado %' AND NOT amount > 0) THEN 'transfer sign'
+         WHEN currency IS NOT 'BRL' THEN 'currency'
+         WHEN typeof(amount) NOT IN ('integer', 'real') OR abs(amount) >= 1e12
+           OR abs(amount * 100 - round(amount * 100)) > 1e-7 THEN 'amount'
+       END,
+       CAST(round(amount * 100) AS INTEGER)
+FROM (
+  SELECT o.document_id, d.provider_id, o.id, o.run_id, o.parent, o.observed_day,
+         json_extract(v.body, '$.operationType') AS operation_type,
+         json_extract(v.body, '$.date') AS date,
+         json_extract(v.body, '$.amount') AS amount,
+         json_extract(v.body, '$.currencyCode') AS currency,
+         json_extract(v.body, '$.description') AS description,
+         json_extract(v.body, '$.status') AS status
+  FROM reserve_transfer_documents r
+  -- CROSS JOIN keeps the documents found above as the outer loop, where the
+  -- planner would otherwise walk every transaction document again.
+  CROSS JOIN observations o ON o.document_id = r.document_id
+  JOIN documents d ON d.id = o.document_id AND d.kind = 'transactions'
+  JOIN versions v ON v.sha256 = o.sha256
+  WHERE NOT EXISTS (SELECT 1 FROM ambiguities am
+                    WHERE am.run_id = o.run_id AND am.document_id = o.document_id)
+)
+UNION ALL
+SELECT 'removal', document_id, NULL, NULL, run_id, NULL, effective_day,
+       NULL, NULL, NULL, NULL, NULL, NULL, NULL
+FROM events
+WHERE event IN ('removed', 'parent_gone')
+  AND document_id IN (SELECT document_id FROM reserve_transfer_documents)
+UNION ALL
+SELECT 'pair', NULL, pending_id, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL FROM pairs
+UNION ALL
+SELECT 'pair', NULL, posted_id, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL FROM pairs
+ORDER BY 1, 2, 4, 5`
+
 const queryInvestments = `
 SELECT id, item_id, type, subtype, name, balance, currency
 FROM investments
@@ -397,6 +455,7 @@ var allQueries = map[string]string{
 	"queryYieldRemovals":        queryYieldRemovals,
 	"queryYieldWalks":           queryYieldWalks,
 	"queryYieldUnresolved":      queryYieldUnresolved,
+	"queryYieldTransferHistory": queryYieldTransferHistory,
 	"queryInvestments":          queryInvestments,
 	"queryInvestmentHistory":    queryInvestmentHistory,
 	"queryBalanceHistory":       queryBalanceHistory,

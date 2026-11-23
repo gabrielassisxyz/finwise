@@ -78,8 +78,9 @@ func IsUnreadableSnapshot(err error) bool {
 // Reader answers queries over one snapshot file. It holds no row: whatever a
 // view reads dies with the view.
 type Reader struct {
-	path              string
-	observeRowReading func()
+	path                string
+	observeRowReading   func()
+	observeYieldReading func()
 }
 
 // New returns a reader of the snapshot at path. It does not touch the file.
@@ -91,7 +92,18 @@ func New(path string) *Reader {
 // observe each time they read the clean list's rows from the file, which is
 // how a test counts the readings one unit of work makes.
 func (reader *Reader) ObservingRowReadings(observe func()) *Reader {
-	return &Reader{path: reader.path, observeRowReading: observe}
+	observed := *reader
+	observed.observeRowReading = observe
+	return &observed
+}
+
+// ObservingYieldReadings returns a reader of the same file whose views call
+// observe each time the yield history reads the ledger's transactions, which
+// is how a test counts the passes over them one unit of work makes.
+func (reader *Reader) ObservingYieldReadings(observe func()) *Reader {
+	observed := *reader
+	observed.observeYieldReading = observe
+	return &observed
 }
 
 // openReadOnly refuses writes twice, in the connection mode and in the session:

@@ -78,13 +78,25 @@ type YieldWalk struct {
 }
 
 // YieldHistory reads the yield statement's inputs for the whole ledger, in a
-// handful of statements that do not depend on the number of windows asked.
+// handful of statements that do not depend on the number of windows asked. One
+// of them reads the ledger's transactions, for the transfers, their removals
+// and the pending pairs at once.
 func (view *View) YieldHistory(ctx context.Context) (YieldHistory, error) {
+	return view.yieldHistoryIn(ctx, readYieldSightings, view.readYieldTransferHistory, readYieldWalks)
+}
+
+// YieldHistoryInThreeReadings is the history as YieldHistory read it before
+// the transfers, their removals and the pending pairs shared one statement:
+// three statements, each walking the ledger's transactions. It is kept so that
+// a test can compare the two readings over the invented ledgers.
+func (view *View) YieldHistoryInThreeReadings(ctx context.Context) (YieldHistory, error) {
+	return view.yieldHistoryIn(ctx,
+		readYieldSightings, readYieldTransfers, readYieldRemovals, readYieldWalks, readYieldUnresolved)
+}
+
+func (view *View) yieldHistoryIn(ctx context.Context, steps ...func(context.Context, *sql.Tx, *YieldHistory) error) (YieldHistory, error) {
 	var history YieldHistory
 	err := view.read(ctx, func(tx *sql.Tx) error {
-		steps := []func(context.Context, *sql.Tx, *YieldHistory) error{
-			readYieldSightings, readYieldTransfers, readYieldRemovals, readYieldWalks, readYieldUnresolved,
-		}
 		for _, step := range steps {
 			if err := step(ctx, tx, &history); err != nil {
 				return err
@@ -150,6 +162,69 @@ func readYieldEntries(ctx context.Context, tx *sql.Tx, history *YieldHistory, in
 		})
 	}
 	return rows.Err()
+}
+
+// readYieldTransferHistory is the one reading of the ledger's transactions the
+// history makes.
+func (view *View) readYieldTransferHistory(ctx context.Context, tx *sql.Tx, history *YieldHistory) error {
+	if view.observeYieldReading != nil {
+		view.observeYieldReading()
+	}
+	rows, err := tx.QueryContext(ctx, queryYieldTransferHistory)
+	if err != nil {
+		return fmt.Errorf("ledger: yield transfer history: %w", err)
+	}
+	defer rows.Close()
+	history.Unresolved = map[string]bool{}
+	for rows.Next() {
+		var row transferHistoryRow
+		if err := row.scan(rows); err != nil {
+			return fmt.Errorf("ledger: yield transfer history: %w", err)
+		}
+		if err := row.addTo(history); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
+}
+
+// transferHistoryRow is a row of any of the statement's three kinds; a column
+// a kind does not use is null.
+type transferHistoryRow struct {
+	kind                             string
+	documentID, observationID, runID sql.NullInt64
+	providerID, parent, day          sql.NullString
+	isReserve, notPosted, cents      sql.NullInt64
+	date, instant, name, fault       sql.NullString
+}
+
+func (row *transferHistoryRow) scan(rows *sql.Rows) error {
+	return rows.Scan(&row.kind, &row.documentID, &row.providerID, &row.observationID, &row.runID, &row.parent,
+		&row.day, &row.isReserve, &row.date, &row.instant, &row.notPosted, &row.name, &row.fault, &row.cents)
+}
+
+func (row transferHistoryRow) addTo(history *YieldHistory) error {
+	switch row.kind {
+	case "version":
+		history.Transfers = append(history.Transfers, YieldTransfer{
+			DocumentID: row.documentID.Int64, ProviderID: row.providerID.String, ObservationID: row.observationID.Int64,
+			RunID: row.runID.Int64, Parent: row.parent.String, Day: brday.Day(row.day.String),
+			IsReserve: row.isReserve.Int64 == 1, Date: row.date.String, Instant: row.instant.String,
+			NotPosted: row.notPosted.Int64 == 1, Name: stringPointer(row.name), Fault: stringPointer(row.fault),
+			Cents: centsPointer(row.cents),
+		})
+	case "removal":
+		history.Removals = append(history.Removals, YieldRemoval{
+			DocumentID: row.documentID.Int64, RunID: row.runID.Int64, Day: brday.Day(row.day.String),
+		})
+	case "pair":
+		if row.providerID.Valid {
+			history.Unresolved[row.providerID.String] = true
+		}
+	default:
+		return fmt.Errorf("ledger: yield transfer history: a row of unknown kind %q", row.kind)
+	}
+	return nil
 }
 
 func readYieldTransfers(ctx context.Context, tx *sql.Tx, history *YieldHistory) error {
