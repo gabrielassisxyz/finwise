@@ -137,7 +137,7 @@ describe('the contributions, the card bill and the subscriptions to review', () 
 
   it('follows a transfer marked as done on the payday tab', async () => {
     const api = createFakeApi();
-    await api.review.markTransferDone('Compras');
+    await api.review.markTransferDone(MONTH, 'line:compras');
     expect((await api.review.closing(MONTH)).contributions.find((item) => item.name === 'Compras')?.state).toBe('done');
   });
 

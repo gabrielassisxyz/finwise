@@ -51,12 +51,20 @@ describe('the payday view', () => {
     ]);
     expect(transfers.every((transfer) => !transfer.markedByHand)).toBe(true);
   });
+
+  it('gives every transfer a key of its own that stays the same from one call to the next', async () => {
+    const api = createFakeApi();
+    const keys = (await api.review.payday(MONTH)).transfers.map((transfer) => transfer.key);
+    expect(keys.every((key) => key !== '')).toBe(true);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect((await api.review.payday('2026-10')).transfers.map((transfer) => transfer.key)).toEqual(keys);
+  });
 });
 
 describe('marking a transfer as done', () => {
   it('dates it today and says it was marked by hand', async () => {
     const api = createFakeApi();
-    await api.review.markTransferDone('Compras');
+    await api.review.markTransferDone(MONTH, 'line:compras');
     const compras = (await api.review.payday(MONTH)).transfers.find((transfer) => transfer.name === 'Compras');
     expect(compras).toMatchObject({ state: 'done', doneOn: '2026-11-28', markedByHand: true });
   });
@@ -65,7 +73,7 @@ describe('marking a transfer as done', () => {
     const api = createFakeApi();
     const contribution = async () => (await api.savingsPots.detail('com'))?.contribution;
     const before = await contribution();
-    await api.review.markTransferDone('Compras');
+    await api.review.markTransferDone(MONTH, 'line:compras');
     const after = await contribution();
     expect(before).toEqual({ state: 'pending' });
     expect(after).toEqual({ state: 'done', doneOn: '2026-11-28' });
@@ -73,7 +81,7 @@ describe('marking a transfer as done', () => {
 
   it('is taken back by its change', async () => {
     const api = createFakeApi();
-    const marked = await api.review.markTransferDone('Viagens');
+    const marked = await api.review.markTransferDone(MONTH, 'line:viagens');
     await api.changes.undo(marked!.changeId);
     const viagens = (await api.review.payday(MONTH)).transfers.find((transfer) => transfer.name === 'Viagens');
     expect(viagens).toMatchObject({ state: 'pending', doneOn: null, markedByHand: false });
@@ -81,8 +89,14 @@ describe('marking a transfer as done', () => {
 
   it('does nothing for a transfer that is done, on target or unknown', async () => {
     const api = createFakeApi();
-    expect(await api.review.markTransferDone('Gás e IPTU')).toBeNull();
-    expect(await api.review.markTransferDone('RF Casa')).toBeNull();
-    expect(await api.review.markTransferDone('Nada')).toBeNull();
+    expect(await api.review.markTransferDone(MONTH, 'line:gas-e-iptu')).toBeNull();
+    expect(await api.review.markTransferDone(MONTH, 'pot:rf-casa')).toBeNull();
+    expect(await api.review.markTransferDone(MONTH, 'nada')).toBeNull();
+  });
+
+  it('finds the transfer by its key, never by its name', async () => {
+    const api = createFakeApi();
+    expect(await api.review.markTransferDone(MONTH, 'Compras')).toBeNull();
+    expect((await api.review.payday(MONTH)).transfers.find((transfer) => transfer.key === 'line:compras')?.state).toBe('pending');
   });
 });
