@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue';
 import { useApi } from '@/api/context';
 import type { BudgetLineOption, ReviewQueueItem, WeeklyReview, YearMonth } from '@/api/types';
+import { createLatestLoad, type IsLatest } from '@/lib/latestLoad';
 import { useMonthStore } from '@/stores/month';
 import { useRevisionStore } from '@/stores/revision';
 import ApprovalsCard from './ApprovalsCard.vue';
@@ -19,15 +20,15 @@ const linesByMonth = ref<Record<YearMonth, BudgetLineOption[]>>({});
 // The queue is not bound to the month on screen: each item's lines are those of its own transaction's month. What
 // was answered is kept per month until the next revision.
 let kept = { revision: -1, byMonth: new Map<YearMonth, BudgetLineOption[]>() };
-let latest = 0;
+const loads = createLatestLoad();
 
-async function menusOf(items: ReviewQueueItem[], at: number, request: number): Promise<Record<YearMonth, BudgetLineOption[]>> {
+async function menusOf(items: ReviewQueueItem[], at: number, isLatest: IsLatest): Promise<Record<YearMonth, BudgetLineOption[]>> {
   if (kept.revision !== at) kept = { revision: at, byMonth: new Map() };
   const { byMonth } = kept;
   const months = [...new Set(items.map((item) => item.day.slice(0, 7)))];
   const missing = months.filter((asked) => !byMonth.has(asked));
   const answers = await Promise.all(missing.map((asked) => api.transactions.filterOptions(asked)));
-  if (request !== latest) return {};
+  if (!isLatest()) return {};
   missing.forEach((asked, index) => byMonth.set(asked, answers[index]!.lines));
   return Object.fromEntries(months.map((asked) => [asked, byMonth.get(asked)!]));
 }
@@ -35,12 +36,12 @@ async function menusOf(items: ReviewQueueItem[], at: number, request: number): P
 watch(
   () => [month.selected, revision.current] as const,
   async ([selected, at]) => {
-    const request = ++latest;
+    const isLatest = loads.start();
     const loaded = await api.review.weekly(selected);
-    if (request !== latest || selected !== month.selected) return;
+    if (!isLatest() || selected !== month.selected) return;
     // The queue is drawn once its menus arrived, so "Escolher outra linha" never opens empty.
-    const menus = await menusOf(loaded.queue.items, at, request);
-    if (request !== latest || selected !== month.selected) return;
+    const menus = await menusOf(loaded.queue.items, at, isLatest);
+    if (!isLatest() || selected !== month.selected) return;
     weekly.value = loaded;
     linesByMonth.value = menus;
   },

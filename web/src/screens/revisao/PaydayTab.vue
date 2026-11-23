@@ -4,6 +4,7 @@ import { useApi } from '@/api/context';
 import type { PaydayTransfer, PaydayView, YearMonth } from '@/api/types';
 import EmptyBlock from '@/components/ui/EmptyBlock.vue';
 import { brl, orUnknown, shortDay, UNKNOWN } from '@/lib/format';
+import { createLatestLoad } from '@/lib/latestLoad';
 import { useMonthStore } from '@/stores/month';
 import { useRevisionStore } from '@/stores/revision';
 import { useReviewActions } from './useReviewActions';
@@ -18,13 +19,13 @@ const actions = useReviewActions();
 const shown = ref<{ month: YearMonth; view: PaydayView } | null>(null);
 const view = computed(() => shown.value?.view ?? null);
 
-let latest = 0;
+const loads = createLatestLoad();
 watch(
   () => [month.selected, revision.current] as const,
   async ([selected]) => {
-    const request = ++latest;
+    const isLatest = loads.start();
     const loaded = await api.review.payday(selected);
-    if (request === latest && selected === month.selected) shown.value = { month: selected, view: loaded };
+    if (isLatest() && selected === month.selected) shown.value = { month: selected, view: loaded };
   },
   { immediate: true },
 );

@@ -336,6 +336,26 @@ describe('the line menus ask for the month they are for', () => {
     expect(await m.defaultLineMenu()).toEqual([lineNamed(NOV, 2)]);
     expect(await m.menuOf('.panel .section:has(.nickname) .add')).toEqual([tagNamed(OCT, 2)]);
   });
+
+  it('drops an in-flight menu answer when the panel closes before it arrives', async () => {
+    const m = await mountPanel();
+    const releaseFirst = m.hold(OCT);
+    await m.open('t60');
+    expect(m.wrapper.find('.panel .line-button').exists()).toBe(false);
+
+    usePanelStore(m.pinia).close();
+    await m.settle();
+    releaseFirst();
+    await m.settle();
+
+    const releaseSecond = m.hold(OCT);
+    await m.open('t60');
+    expect(m.wrapper.find('.panel .line-button').exists()).toBe(false);
+
+    releaseSecond();
+    await m.settle();
+    expect(await m.menuOf('.panel .line-button')).toEqual([lineNamed(OCT, 2)]);
+  });
 });
 
 describe('TransactionDetail out-of-order loads', () => {

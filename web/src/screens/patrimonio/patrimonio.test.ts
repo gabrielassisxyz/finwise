@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { useRevisionStore } from '@/stores/revision';
 import { createFakeApi } from '@/api/fake';
 import type { NetWorthOverview } from '@/api/types';
+import { holdFirstCall } from '@/test/holdCall';
 import { mountAt } from '@/test/mount';
 import { axisLabels, columnHeight, stackShares } from './chartGeometry';
 import NetWorthChart from './NetWorthChart.vue';
@@ -150,18 +151,6 @@ describe('PlanBlocks', () => {
   });
 });
 
-/** Lets a read run now but hands its answer over only when released, so an answer can arrive late. */
-function holdNext<T>(read: () => Promise<T>) {
-  let release = () => {};
-  const held = read().then(
-    (answer) =>
-      new Promise<T>((resolve) => {
-        release = () => resolve(answer);
-      }),
-  );
-  return { held, release: () => release() };
-}
-
 describe('NetWorthChart', () => {
   async function overview(): Promise<NetWorthOverview> {
     return createFakeApi().netWorth.overview();
@@ -253,11 +242,9 @@ describe('Patrimônio screen after a change', () => {
 
   it('does not let an earlier answer replace a later one', async () => {
     const { wrapper, api } = await mountScreen();
-    const original = api.netWorth.overview.bind(api.netWorth);
-    const early = holdNext(original);
-    let calls = 0;
-    vi.spyOn(api.netWorth, 'overview').mockImplementation((...args: Parameters<typeof original>) => (++calls === 1 ? early.held : (original as (...a: typeof args) => ReturnType<typeof original>)(...args)));
+    const early = holdFirstCall(api.netWorth, 'overview');
     useRevisionStore().bump();
+    await flushPromises();
     await api.settings.setPotBucket('sn', 'Disponível');
     useRevisionStore().bump();
     await flushPromises();

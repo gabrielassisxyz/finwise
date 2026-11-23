@@ -6,6 +6,7 @@ import type { BudgetLineOption, SubscriptionDetail } from '@/api/types';
 import MarkBadge from '@/components/transactions/MarkBadge.vue';
 import TitledCard from '@/components/ui/TitledCard.vue';
 import { brl } from '@/lib/format';
+import { createLatestLoad } from '@/lib/latestLoad';
 import { useRevisionStore } from '@/stores/revision';
 import { useShellStore } from '@/stores/shell';
 import SubscriptionCharges from './SubscriptionCharges.vue';
@@ -23,14 +24,14 @@ const missing = ref(false);
 
 const id = computed(() => String(route.params.id));
 
-let latestDetail = 0;
+const detailLoads = createLatestLoad();
 watch(
   [id, () => revision.current],
   async ([requested], previous) => {
-    const request = ++latestDetail;
+    const isLatest = detailLoads.start();
     if (requested !== previous?.[0]) subscription.value = null;
     const loaded = await api.subscriptions.detail(requested);
-    if (request !== latestDetail || requested !== id.value) return;
+    if (!isLatest() || requested !== id.value) return;
     subscription.value = loaded;
     missing.value = loaded === null;
   },
@@ -39,14 +40,14 @@ watch(
 
 // A subscription's line belongs to no month, so it is resolved in the current one.
 const currentMonth = computed(() => shell.overview?.today.slice(0, 7) ?? null);
-let latestLines = 0;
+const lineLoads = createLatestLoad();
 watch(
   [currentMonth, () => revision.current],
   async ([current]) => {
     if (!current) return;
-    const request = ++latestLines;
+    const isLatest = lineLoads.start();
     const options = await api.transactions.filterOptions(current);
-    if (request === latestLines) lines.value = options.lines;
+    if (isLatest()) lines.value = options.lines;
   },
   { immediate: true },
 );

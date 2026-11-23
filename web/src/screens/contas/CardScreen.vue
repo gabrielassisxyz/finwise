@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import { useApi } from '@/api/context';
 import type { CardOverview } from '@/api/types';
 import EmptyBlock from '@/components/ui/EmptyBlock.vue';
+import { createLatestLoad } from '@/lib/latestLoad';
 import { useRevisionStore } from '@/stores/revision';
 import CardBills from './CardBills.vue';
 import CardFacts from './CardFacts.vue';
@@ -17,13 +18,13 @@ const revision = useRevisionStore();
 const card = ref<CardOverview | null | undefined>(undefined);
 
 // A write elsewhere (a nickname, the closing day) refetches in place.
-let latest = 0;
+const loads = createLatestLoad();
 watch(
   () => revision.current,
   async () => {
-    const request = ++latest;
+    const isLatest = loads.start();
     const loaded = await api.card.overview();
-    if (request === latest) card.value = loaded;
+    if (isLatest()) card.value = loaded;
   },
   { immediate: true },
 );

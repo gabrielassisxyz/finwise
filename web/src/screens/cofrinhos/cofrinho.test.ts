@@ -174,18 +174,6 @@ describe('moving between the list and a pot', () => {
   });
 });
 
-/** Lets a read run now but hands its answer over only when released, so an answer can arrive late. */
-function holdNext<T>(read: () => Promise<T>) {
-  let release = () => {};
-  const held = read().then(
-    (answer) =>
-      new Promise<T>((resolve) => {
-        release = () => resolve(answer);
-      }),
-  );
-  return { held, release: () => release() };
-}
-
 describe('Cofrinho page after a change', () => {
   it('shows the new bucket after a write and a bump, without a remount', async () => {
     const { wrapper, api } = await mountPot('rfp');
@@ -215,10 +203,7 @@ describe('Cofrinho page after a change', () => {
 
   it('does not show an answer for a pot the route has left', async () => {
     const { wrapper, api, router } = await mountPot('rfp');
-    const original = api.savingsPots.detail.bind(api.savingsPots);
-    const late = holdNext(() => original('rfp'));
-    let calls = 0;
-    vi.spyOn(api.savingsPots, 'detail').mockImplementation((...args: Parameters<typeof original>) => (++calls === 1 ? late.held : (original as (...a: typeof args) => ReturnType<typeof original>)(...args)));
+    const late = holdFirstCall(api.savingsPots, 'detail');
     useRevisionStore().bump();
     await flushPromises();
     await router.push('/cofrinhos/rfs');

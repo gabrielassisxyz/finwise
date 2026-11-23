@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useApi } from '@/api/context';
 import type { SavingsPotDetail } from '@/api/types';
 import { brl } from '@/lib/format';
+import { createLatestLoad } from '@/lib/latestLoad';
 import { useRevisionStore } from '@/stores/revision';
 import PotFacts from './PotFacts.vue';
 import PotMovements from './PotMovements.vue';
@@ -20,17 +21,17 @@ const missing = ref(false);
 
 const id = computed(() => String(route.params.id));
 
-let latest = 0;
+const loads = createLatestLoad();
 watch(
   [id, () => revision.current],
   async ([requested], previous) => {
-    const request = ++latest;
+    const isLatest = loads.start();
     if (requested !== previous?.[0]) {
       pot.value = null;
       missing.value = false;
     }
     const loaded = await api.savingsPots.detail(requested);
-    if (request !== latest || requested !== id.value) return;
+    if (!isLatest() || requested !== id.value) return;
     pot.value = loaded;
     missing.value = loaded === null;
   },

@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useApi } from '@/api/context';
 import type { Bucket, NetWorthOverview } from '@/api/types';
+import { createLatestLoad } from '@/lib/latestLoad';
 import { useRevisionStore } from '@/stores/revision';
 import { useSavingsViewStore } from '@/stores/savings-view';
 import BucketCards from './BucketCards.vue';
@@ -15,14 +16,14 @@ const view = useSavingsViewStore();
 const revision = useRevisionStore();
 
 const overview = ref<NetWorthOverview | null>(null);
-let latestRequest = 0;
+const loads = createLatestLoad();
 
 watch(
   () => revision.current,
   async () => {
-    const request = ++latestRequest;
+    const isLatest = loads.start();
     const loaded = await api.netWorth.overview();
-    if (request === latestRequest) overview.value = loaded;
+    if (isLatest()) overview.value = loaded;
   },
   { immediate: true },
 );

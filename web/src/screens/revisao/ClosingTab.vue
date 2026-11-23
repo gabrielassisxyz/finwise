@@ -3,6 +3,7 @@ import { ref, watch } from 'vue';
 import { useApi } from '@/api/context';
 import type { ClosingStep as ClosingStepModel, ClosingView } from '@/api/types';
 import { monthInSentence } from '@/lib/format';
+import { createLatestLoad } from '@/lib/latestLoad';
 import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
 import { useReviewViewStore } from '@/stores/review-view';
@@ -29,13 +30,13 @@ const actions = useClosingActions();
 
 const closing = ref<ClosingView | null>(null);
 
-let latest = 0;
+const loads = createLatestLoad();
 watch(
   () => [month.selected, revision.current] as const,
   async ([selected]) => {
-    const request = ++latest;
+    const isLatest = loads.start();
     const loaded = await api.review.closing(selected);
-    if (request === latest && selected === month.selected) closing.value = loaded;
+    if (isLatest() && selected === month.selected) closing.value = loaded;
   },
   { immediate: true },
 );
