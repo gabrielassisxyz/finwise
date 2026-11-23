@@ -78,12 +78,14 @@ type YieldWalk struct {
 }
 
 // YieldHistory reads the yield statement's inputs for the whole ledger, in a
-// handful of statements that do not depend on the number of windows asked.
+// handful of statements that do not depend on the number of windows asked. One
+// of them reads the ledger's transactions, for the transfers, their removals
+// and the pending pairs at once.
 func (view *View) YieldHistory(ctx context.Context) (YieldHistory, error) {
 	var history YieldHistory
 	err := view.read(ctx, func(tx *sql.Tx) error {
 		steps := []func(context.Context, *sql.Tx, *YieldHistory) error{
-			readYieldSightings, readYieldTransfers, readYieldRemovals, readYieldWalks, readYieldUnresolved,
+			readYieldSightings, view.readYieldTransferHistory, readYieldWalks,
 		}
 		for _, step := range steps {
 			if err := step(ctx, tx, &history); err != nil {
@@ -152,48 +154,67 @@ func readYieldEntries(ctx context.Context, tx *sql.Tx, history *YieldHistory, in
 	return rows.Err()
 }
 
-func readYieldTransfers(ctx context.Context, tx *sql.Tx, history *YieldHistory) error {
-	rows, err := tx.QueryContext(ctx, queryYieldTransfers)
+// readYieldTransferHistory is the one reading of the ledger's transactions the
+// history makes.
+func (view *View) readYieldTransferHistory(ctx context.Context, tx *sql.Tx, history *YieldHistory) error {
+	if view.observeYieldReading != nil {
+		view.observeYieldReading()
+	}
+	rows, err := tx.QueryContext(ctx, queryYieldTransferHistory)
 	if err != nil {
-		return fmt.Errorf("ledger: yield transfers: %w", err)
+		return fmt.Errorf("ledger: yield transfer history: %w", err)
 	}
 	defer rows.Close()
+	history.Unresolved = map[string]bool{}
 	for rows.Next() {
-		var (
-			transfer                   YieldTransfer
-			day                        string
-			isReserve, notPosted       sql.NullInt64
-			date, instant, name, fault sql.NullString
-			cents                      sql.NullInt64
-		)
-		if err := rows.Scan(&transfer.DocumentID, &transfer.ProviderID, &transfer.ObservationID, &transfer.RunID,
-			&transfer.Parent, &day, &isReserve, &date, &instant, &notPosted, &name, &fault, &cents); err != nil {
-			return fmt.Errorf("ledger: yield transfers: %w", err)
+		var row transferHistoryRow
+		if err := row.scan(rows); err != nil {
+			return fmt.Errorf("ledger: yield transfer history: %w", err)
 		}
-		transfer.Day, transfer.IsReserve, transfer.NotPosted = brday.Day(day), isReserve.Int64 == 1, notPosted.Int64 == 1
-		transfer.Date, transfer.Instant = date.String, instant.String
-		transfer.Name, transfer.Fault, transfer.Cents = stringPointer(name), stringPointer(fault), centsPointer(cents)
-		history.Transfers = append(history.Transfers, transfer)
+		if err := row.addTo(history); err != nil {
+			return err
+		}
 	}
 	return rows.Err()
 }
 
-func readYieldRemovals(ctx context.Context, tx *sql.Tx, history *YieldHistory) error {
-	rows, err := tx.QueryContext(ctx, queryYieldRemovals)
-	if err != nil {
-		return fmt.Errorf("ledger: yield removals: %w", err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var removal YieldRemoval
-		var day string
-		if err := rows.Scan(&removal.DocumentID, &removal.RunID, &day); err != nil {
-			return fmt.Errorf("ledger: yield removals: %w", err)
+// transferHistoryRow is a row of any of the statement's three kinds; a column
+// a kind does not use is null.
+type transferHistoryRow struct {
+	kind                             string
+	documentID, observationID, runID sql.NullInt64
+	providerID, parent, day          sql.NullString
+	isReserve, notPosted, cents      sql.NullInt64
+	date, instant, name, fault       sql.NullString
+}
+
+func (row *transferHistoryRow) scan(rows *sql.Rows) error {
+	return rows.Scan(&row.kind, &row.documentID, &row.providerID, &row.observationID, &row.runID, &row.parent,
+		&row.day, &row.isReserve, &row.date, &row.instant, &row.notPosted, &row.name, &row.fault, &row.cents)
+}
+
+func (row transferHistoryRow) addTo(history *YieldHistory) error {
+	switch row.kind {
+	case "version":
+		history.Transfers = append(history.Transfers, YieldTransfer{
+			DocumentID: row.documentID.Int64, ProviderID: row.providerID.String, ObservationID: row.observationID.Int64,
+			RunID: row.runID.Int64, Parent: row.parent.String, Day: brday.Day(row.day.String),
+			IsReserve: row.isReserve.Int64 == 1, Date: row.date.String, Instant: row.instant.String,
+			NotPosted: row.notPosted.Int64 == 1, Name: stringPointer(row.name), Fault: stringPointer(row.fault),
+			Cents: centsPointer(row.cents),
+		})
+	case "removal":
+		history.Removals = append(history.Removals, YieldRemoval{
+			DocumentID: row.documentID.Int64, RunID: row.runID.Int64, Day: brday.Day(row.day.String),
+		})
+	case "pair":
+		if row.providerID.Valid {
+			history.Unresolved[row.providerID.String] = true
 		}
-		removal.Day = brday.Day(day)
-		history.Removals = append(history.Removals, removal)
+	default:
+		return fmt.Errorf("ledger: yield transfer history: a row of unknown kind %q", row.kind)
 	}
-	return rows.Err()
+	return nil
 }
 
 func readYieldWalks(ctx context.Context, tx *sql.Tx, history *YieldHistory) error {
@@ -212,25 +233,6 @@ func readYieldWalks(ctx context.Context, tx *sql.Tx, history *YieldHistory) erro
 		if since.Valid {
 			walk.Since = since.String
 			history.Walks = append(history.Walks, walk)
-		}
-	}
-	return rows.Err()
-}
-
-func readYieldUnresolved(ctx context.Context, tx *sql.Tx, history *YieldHistory) error {
-	rows, err := tx.QueryContext(ctx, queryYieldUnresolved)
-	if err != nil {
-		return fmt.Errorf("ledger: yield unresolved: %w", err)
-	}
-	defer rows.Close()
-	history.Unresolved = map[string]bool{}
-	for rows.Next() {
-		var id sql.NullString
-		if err := rows.Scan(&id); err != nil {
-			return fmt.Errorf("ledger: yield unresolved: %w", err)
-		}
-		if id.Valid {
-			history.Unresolved[id.String] = true
 		}
 	}
 	return rows.Err()

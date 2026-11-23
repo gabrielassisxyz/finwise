@@ -1,6 +1,12 @@
 package ledger_test
 
 import (
+	"maps"
+	"reflect"
+	"regexp"
+	"slices"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
@@ -99,5 +105,197 @@ func TestYieldHistoryHoldsEveryVersionOfATransferAndOnlyTransfers(t *testing.T) 
 	}
 	if !older.IsReserve || older.NotPosted || older.Fault != nil || older.Name == nil || *older.Name != "Trip" {
 		t.Errorf("the transfer reads as %+v, want a posted one naming Trip with no fault", older)
+	}
+}
+
+// transferHistoryLedger holds a row of each kind the transfer history reads: a
+// transfer seen in two versions and later removed, a transfer the bank has not
+// settled beside its posted twin, which is orphaned with its parent, and a
+// purchase pending beside its posted twin.
+func transferHistoryLedger(t *testing.T) *ledgertest.Fixture {
+	t.Helper()
+	f := yieldLedger(t,
+		[]ledgertest.Reserve{{ID: "pot-a", Name: "Trip", Amount: 100, CDIRatio: 1}},
+		[]ledgertest.Reserve{{ID: "pot-a", Name: "Trip", Amount: 150, CDIRatio: 1}})
+	walkReachesBack(t, f)
+	addReserveTransfer(t, f, "tx-dep", "Dinheiro reservado Trip", -50)
+	f.ObserveTransaction("tx-dep", "2026-03-16", map[string]any{"amount": -40.0})
+	f.RecordEvent("transactions", "tx-dep", 1, "removed", "2026-03-17")
+	for _, twin := range []struct{ id, status, description, operation string }{
+		{"tx-twin-pending", "PENDING", "Dinheiro reservado Trip", "TRANSFERENCIA_SALDO_RESERVADO"},
+		{"tx-twin-posted", "POSTED", "Dinheiro reservado Trip", "TRANSFERENCIA_SALDO_RESERVADO"},
+		{"tx-coffee-pending", "PENDING", "Coffee", "CARTAO"},
+		{"tx-coffee-posted", "POSTED", "Coffee", "CARTAO"},
+	} {
+		f.AddTransaction(ledgertest.Transaction{ID: twin.id, AccountID: "acc-1", Date: instant(t, transferMoment),
+			Description: twin.description, Amount: -7, Currency: "BRL", Type: "DEBIT", Status: twin.status,
+			Raw: map[string]any{"operationType": twin.operation}})
+	}
+	f.RecordEvent("transactions", "tx-twin-posted", 1, "parent_gone", "2026-03-18")
+	return f
+}
+
+func TestYieldHistoryHoldsEveryRowOfTheThreeKindsTheTransfersNeed(t *testing.T) {
+	history, err := viewOf(t, transferHistoryLedger(t).Path).YieldHistory(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"tx-coffee-pending", "tx-coffee-posted", "tx-twin-pending", "tx-twin-posted"}
+	if got := slices.Sorted(maps.Keys(history.Unresolved)); !slices.Equal(got, want) {
+		t.Errorf("unresolved ids %v, want both of every pending pair, transfer or not: %v", got, want)
+	}
+	if len(history.Transfers) != 4 {
+		t.Errorf("%d transfer versions, want the two of tx-dep and one of each twin", len(history.Transfers))
+	}
+	if len(history.Removals) != 2 || history.Removals[0].Day != "2026-03-17" || history.Removals[1].Day != "2026-03-18" {
+		t.Errorf("removals %+v, want tx-dep's removal and the twin's lost parent", history.Removals)
+	}
+}
+
+func TestOneYieldHistoryReadsTheLedgersTransactionsOnce(t *testing.T) {
+	f := transferHistoryLedger(t)
+	var readings atomic.Int64
+	view := ledger.New(f.Path).ObservingYieldReadings(func() { readings.Add(1) }).View()
+	defer view.Close()
+
+	history, err := view.YieldHistory(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(history.Transfers) == 0 || len(history.Removals) == 0 || len(history.Unresolved) == 0 {
+		t.Fatalf("the history holds %d versions, %d removals and %d unresolved ids, want some of each",
+			len(history.Transfers), len(history.Removals), len(history.Unresolved))
+	}
+	if got := readings.Load(); got != 1 {
+		t.Errorf("one yield history read the ledger's transactions %d times, want once", got)
+	}
+}
+
+// planRow is a row of EXPLAIN QUERY PLAN.
+type planRow struct {
+	parent int
+	detail string
+}
+
+func queryPlan(t *testing.T, path, query string) map[int]planRow {
+	t.Helper()
+	database, err := ledger.OpenReadOnly(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	rows, err := database.QueryContext(t.Context(), "EXPLAIN QUERY PLAN "+query)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	plan := map[int]planRow{}
+	for rows.Next() {
+		var id, unused int
+		var row planRow
+		if err := rows.Scan(&id, &row.parent, &unused, &row.detail); err != nil {
+			t.Fatal(err)
+		}
+		plan[id] = row
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return plan
+}
+
+// materializedAround is the nearest materialization the plan row sits in, or
+// the empty text when it is in none.
+func materializedAround(plan map[int]planRow, id int) string {
+	for row, found := plan[id]; found; row, found = plan[row.parent] {
+		if strings.HasPrefix(row.detail, "MATERIALIZE ") {
+			return row.detail
+		}
+	}
+	return ""
+}
+
+// The statement reads only transaction documents, and every walk over all of
+// them goes through the documents' index by kind alone: one for the transfer
+// documents and one for the pending pairs, each inside a CTE evaluated once.
+// Any other walk would be another pass over the ledger's transactions.
+func TestTheTransferHistoryWalksTheTransactionsOnceForTheDocumentsAndOnceForThePairs(t *testing.T) {
+	plan := queryPlan(t, transferHistoryLedger(t).Path, ledger.AllQueries()["queryYieldTransferHistory"])
+	walks := map[string]int{}
+	materializations := map[string]int{}
+	for id, row := range plan {
+		if strings.Contains(row.detail, "sqlite_autoindex_documents_1 (kind=?)") {
+			walks[materializedAround(plan, id)]++
+		}
+		if strings.HasPrefix(row.detail, "MATERIALIZE ") {
+			materializations[row.detail]++
+		}
+	}
+	want := map[string]int{"MATERIALIZE reserve_transfer_documents": 1, "MATERIALIZE pairs": 1}
+	if !reflect.DeepEqual(walks, want) {
+		t.Errorf("the walks over the transaction documents sit in %v, want one in each CTE: %v", walks, want)
+	}
+	for name := range want {
+		if materializations[name] != 1 {
+			t.Errorf("%q appears %d times in the plan, want once", name, materializations[name])
+		}
+	}
+}
+
+// readsTheLedgersTransactions says whether a statement reads the ledger's
+// transactions: the current-state table, the documents of that kind with their
+// versions, or one of the collector's views over them.
+var readsTheLedgersTransactions = regexp.MustCompile(
+	`\b(FROM|JOIN) transactions\b|documents \w+ ON [^\n]*kind = 'transactions'|pending_posted_candidates|transaction_versions|document_coverage`)
+
+// Every statement of the package is a registered constant, and the yield
+// history's are the queryYield ones: one of them reads the ledger's
+// transactions, and a second would be a second pass over them that the count
+// of readings does not see.
+func TestOneStatementOfTheYieldHistoryReadsTheLedgersTransactions(t *testing.T) {
+	var reading []string
+	for name, query := range ledger.AllQueries() {
+		if strings.HasPrefix(name, "queryYield") && readsTheLedgersTransactions.MatchString(query) {
+			reading = append(reading, name)
+		}
+	}
+	slices.Sort(reading)
+	if want := []string{"queryYieldTransferHistory"}; !slices.Equal(reading, want) {
+		t.Errorf("the yield history's statements that read the ledger's transactions are %v, want %v", reading, want)
+	}
+}
+
+// The collector renames a new snapshot over the file: a view opened before
+// keeps its own, and a view opened after reads the new one, so nothing of the
+// history outlives the view that read it.
+func TestAViewOpenedAfterTheFileWasReplacedReadsTheNewTransferHistory(t *testing.T) {
+	f := transferHistoryLedger(t)
+	reader := ledger.New(f.Path)
+	first := reader.View()
+	defer first.Close()
+	before, err := first.YieldHistory(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	replacement := yieldLedger(t,
+		[]ledgertest.Reserve{{ID: "pot-a", Name: "Trip", Amount: 100, CDIRatio: 1}},
+		[]ledgertest.Reserve{{ID: "pot-a", Name: "Trip", Amount: 120, CDIRatio: 1}})
+	walkReachesBack(t, replacement)
+	addReserveTransfer(t, replacement, "tx-new", "Dinheiro reservado Trip", -20)
+	renameOver(t, replacement, f.Path)
+
+	if again, err := first.YieldHistory(t.Context()); err != nil || !reflect.DeepEqual(again, before) {
+		t.Errorf("the first view answered another history after the rename (%v)", err)
+	}
+	later := reader.View()
+	defer later.Close()
+	after, err := later.YieldHistory(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after.Transfers) != 1 || after.Transfers[0].ProviderID != "tx-new" || len(after.Removals) != 0 || len(after.Unresolved) != 0 {
+		t.Errorf("a view opened after the rename holds %d versions, %d removals and %d unresolved ids, want tx-new alone",
+			len(after.Transfers), len(after.Removals), len(after.Unresolved))
 	}
 }

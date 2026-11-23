@@ -258,12 +258,35 @@ SELECT account_id, day, reserve_id, reserve_name, stable_identity, currency IS '
 FROM reserved_balance_history
 ORDER BY account_id, day, position`
 
-// queryYieldTransfers is every unambiguous version of every document that was
-// ever a reserve transfer ("latest_tx", "transfers" and "judged" without the
-// parts that depend on the window), so the version a window sees is chosen from
-// them. fault is the first of "judged"'s reasons that depends on the row alone.
-const queryYieldTransfers = `
-SELECT document_id, provider_id, id, run_id, parent, observed_day,
+const reserveTransferDocuments = `
+  SELECT o.document_id FROM observations o
+  JOIN documents d ON d.id = o.document_id AND d.kind = 'transactions'
+  JOIN versions v ON v.sha256 = o.sha256
+  WHERE json_extract(v.body, '$.operationType') = 'TRANSFERENCIA_SALDO_RESERVADO'`
+
+// queryYieldWalks is "account_reason"'s scopes: the walks that went back far
+// enough to be trusted to hold every transfer, by the run they belong to.
+const queryYieldWalks = `
+SELECT parent, run_id, datetime(min_instant) FROM scopes
+WHERE kind = 'transactions' AND outcome = 'complete' AND infer_absence = 1 AND min_instant IS NOT NULL
+ORDER BY parent, run_id`
+
+// queryYieldTransferHistory is what "latest_tx", "transfers" and "judged" read
+// about the transfers (pluggy-sync README lines 433-478), as rows of three
+// kinds: 'version', every unambiguous version of every document that was ever
+// a reserve transfer, with the first of "judged"'s reasons that depends on the
+// row alone; 'removal', the events "transfers" counts as gone; and 'pair', both
+// ids of every row of pending_posted_candidates, which "judged" calls
+// unresolved (lines 466-467) and which the reader keeps as a set. The two CTEs
+// are each evaluated once, so the ledger's transactions are walked once for the
+// documents and once for the pairs, however many parts use them.
+const queryYieldTransferHistory = `
+WITH
+reserve_transfer_documents AS MATERIALIZED (
+  SELECT DISTINCT document_id FROM (` + reserveTransferDocuments + `)
+),
+pairs AS MATERIALIZED (SELECT pending_id, posted_id FROM pending_posted_candidates)
+SELECT 'version', document_id, provider_id, id, run_id, parent, observed_day,
        operation_type IS 'TRANSFERENCIA_SALDO_RESERVADO', date, datetime(date), status IS NOT 'POSTED',
        CASE WHEN description LIKE 'Dinheiro reservado %' THEN substr(description, 20)
             WHEN description LIKE 'Dinheiro retirado %' THEN substr(description, 19) END,
@@ -285,38 +308,26 @@ FROM (
          json_extract(v.body, '$.currencyCode') AS currency,
          json_extract(v.body, '$.description') AS description,
          json_extract(v.body, '$.status') AS status
-  FROM observations o
+  FROM reserve_transfer_documents r
+  -- CROSS JOIN keeps the documents found above as the outer loop, where the
+  -- planner would otherwise walk every transaction document again.
+  CROSS JOIN observations o ON o.document_id = r.document_id
   JOIN documents d ON d.id = o.document_id AND d.kind = 'transactions'
   JOIN versions v ON v.sha256 = o.sha256
-  WHERE o.document_id IN (` + reserveTransferDocuments + `)
-    AND NOT EXISTS (SELECT 1 FROM ambiguities am
+  WHERE NOT EXISTS (SELECT 1 FROM ambiguities am
                     WHERE am.run_id = o.run_id AND am.document_id = o.document_id)
 )
-ORDER BY document_id, id`
-
-const reserveTransferDocuments = `
-  SELECT o.document_id FROM observations o
-  JOIN documents d ON d.id = o.document_id AND d.kind = 'transactions'
-  JOIN versions v ON v.sha256 = o.sha256
-  WHERE json_extract(v.body, '$.operationType') = 'TRANSFERENCIA_SALDO_RESERVADO'`
-
-// queryYieldRemovals is the events "transfers" counts as gone.
-const queryYieldRemovals = `
-SELECT document_id, run_id, effective_day FROM events
-WHERE event IN ('removed', 'parent_gone') AND document_id IN (` + reserveTransferDocuments + `)
-ORDER BY document_id, run_id`
-
-// queryYieldWalks is "account_reason"'s scopes: the walks that went back far
-// enough to be trusted to hold every transfer, by the run they belong to.
-const queryYieldWalks = `
-SELECT parent, run_id, datetime(min_instant) FROM scopes
-WHERE kind = 'transactions' AND outcome = 'complete' AND infer_absence = 1 AND min_instant IS NOT NULL
-ORDER BY parent, run_id`
-
-// queryYieldUnresolved is the ids "judged" calls unresolved.
-const queryYieldUnresolved = `
-SELECT pending_id FROM pending_posted_candidates
-UNION SELECT posted_id FROM pending_posted_candidates`
+UNION ALL
+SELECT 'removal', document_id, NULL, NULL, run_id, NULL, effective_day,
+       NULL, NULL, NULL, NULL, NULL, NULL, NULL
+FROM events
+WHERE event IN ('removed', 'parent_gone')
+  AND document_id IN (SELECT document_id FROM reserve_transfer_documents)
+UNION ALL
+SELECT 'pair', NULL, pending_id, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL FROM pairs
+UNION ALL
+SELECT 'pair', NULL, posted_id, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL FROM pairs
+ORDER BY 1, 2, 4, 5`
 
 const queryInvestments = `
 SELECT id, item_id, type, subtype, name, balance, currency
@@ -393,10 +404,8 @@ var allQueries = map[string]string{
 	"queryPotYieldTransfers":    queryPotYieldTransfers,
 	"queryYieldSightings":       queryYieldSightings,
 	"queryYieldEntries":         queryYieldEntries,
-	"queryYieldTransfers":       queryYieldTransfers,
-	"queryYieldRemovals":        queryYieldRemovals,
 	"queryYieldWalks":           queryYieldWalks,
-	"queryYieldUnresolved":      queryYieldUnresolved,
+	"queryYieldTransferHistory": queryYieldTransferHistory,
 	"queryInvestments":          queryInvestments,
 	"queryInvestmentHistory":    queryInvestmentHistory,
 	"queryBalanceHistory":       queryBalanceHistory,
