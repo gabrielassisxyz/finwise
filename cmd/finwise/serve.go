@@ -32,6 +32,7 @@ type serveSettings struct {
 	pinHash        api.PINHash
 	sessionIdle    time.Duration
 	ingestInterval time.Duration
+	model          modelSettings
 }
 
 func runServe(ctx context.Context, args []string, env environment) int {
@@ -107,6 +108,12 @@ func completeServeSettings(settings serveSettings, env environment) (serveSettin
 		}
 		settings.sessionIdle = idle
 	}
+	model, err := readModelSettings(env.getenv)
+	if err != nil {
+		fmt.Fprintf(env.stderr, "finwise: %v\n", err)
+		return serveSettings{}, exitFailure
+	}
+	settings.model = model
 	return settings, 0
 }
 
@@ -142,7 +149,21 @@ func serve(ctx context.Context, settings serveSettings, env environment) (err er
 			return err
 		}
 	}
-	handler, err := api.NewHandler(apiConfig(settings, database, env, logger))
+	var suggester *serverSuggester
+	var ingests serverIngests
+	config := apiConfig(settings, database, env, logger)
+	if database != nil {
+		if settings.model.configured {
+			// Deferred after the database's close so in-flight model calls are
+			// cancelled and joined before the database closes.
+			suggester = newServerSuggester(ctx, settings, database, env, logger)
+			defer suggester.stop()
+		}
+		ingests = serverIngestsOf(settings, database, env, logger)
+		ingests.suggester = suggester
+		config.AfterBudgetSaved, config.TakeSnapshotIn = ingests.afterBudgetSaved, ingests.beforeWrite
+	}
+	handler, err := api.NewHandler(config)
 	if err != nil {
 		return err
 	}
@@ -161,10 +182,13 @@ func serve(ctx context.Context, settings serveSettings, env environment) (err er
 	if settings.insecureCookie {
 		logger.Warn("session cookie is not Secure: development only")
 	}
+	if !settings.model.configured {
+		logger.Info(noModelConfiguredMessage)
+	}
 	if database != nil {
-		// Deferred after the database's close, so it runs before it: the
-		// database is closed only once no run is in progress.
-		stop := serverIngestsOf(settings, database, env, logger).every(ctx, settings.ingestInterval)
+		// Deferred after the suggester's and database's stops, so it runs first:
+		// no ingest can trigger a suggestion or touch the database after this.
+		stop := ingests.every(ctx, settings.ingestInterval)
 		defer stop()
 	}
 	if env.listening != nil {
