@@ -84,6 +84,48 @@ func MonthPeriod(month Month) (Period, error) {
 	return Period{First: Day(first.Format(dayLayout)), Last: Day(last.Format(dayLayout))}, nil
 }
 
+// weekLength is how many days a week of a month holds, every week but the days
+// left after the fourth.
+const weekLength = 7
+
+// Weeks are the weeks of a month as the review and the home screen count them:
+// seven days from the 1st, four times, and then the days left, if any. They are
+// dates alone, the same whether or not the month has a budget.
+func Weeks(month Month) ([]Period, error) {
+	whole, err := MonthPeriod(month)
+	if err != nil {
+		return nil, err
+	}
+	first, _ := time.ParseInLocation(dayLayout, string(whole.First), zone)
+	last, _ := time.ParseInLocation(dayLayout, string(whole.Last), zone)
+	var weeks []Period
+	for start := first; !start.After(last); start = start.AddDate(0, 0, weekLength) {
+		end := start.AddDate(0, 0, weekLength-1)
+		if end.After(last) {
+			end = last
+		}
+		weeks = append(weeks, Period{First: Day(start.Format(dayLayout)), Last: Day(end.Format(dayLayout))})
+	}
+	return weeks, nil
+}
+
+// WeekOf is the week of its month that holds day.
+func WeekOf(day Day) (Period, error) {
+	if _, err := ParseDay(string(day)); err != nil {
+		return Period{}, err
+	}
+	weeks, err := Weeks(Month(day[:len(monthLayout)]))
+	if err != nil {
+		return Period{}, err
+	}
+	for _, week := range weeks {
+		if day >= week.First && day <= week.Last {
+			return week, nil
+		}
+	}
+	return Period{}, fmt.Errorf("brday: no week of its month holds %q", day)
+}
+
 // Bounds returns the UTC instants a period covers: start is the first
 // instant of First, end is the first instant after Last, so a row belongs
 // to the period when start <= instant < end.

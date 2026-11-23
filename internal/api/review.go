@@ -6,8 +6,8 @@ import (
 )
 
 // The weekly review is built on the budget's variable lines and on what the
-// person has been asked to confirm, and none of that exists on a fresh install:
-// the cap is zero, so nothing is spent against it, and nothing waits.
+// person has been asked to confirm. The cap is not worked out yet: it is zero,
+// so nothing is spent against it.
 
 type weeklyLimit struct {
 	Cap       Reais `json:"cap"`
@@ -18,8 +18,8 @@ type weeklyLimit struct {
 }
 
 type reviewQueue struct {
-	Items    []any `json:"items"`
-	Resolved int   `json:"resolved"`
+	Items    []reviewQueueItem `json:"items"`
+	Resolved int               `json:"resolved"`
 }
 
 type weeklyReview struct {
@@ -42,8 +42,12 @@ func readWeeklyReview(ctx context.Context, args []json.RawMessage, views Views) 
 	if err := requireReadableLedger(ctx, views.Ledger); err != nil {
 		return nil, err
 	}
+	queue, err := readQueue(ctx, views)
+	if err != nil {
+		return nil, err
+	}
 	return weeklyReview{
-		Queue:     reviewQueue{Items: []any{}},
+		Queue:     queue,
 		Approvals: []any{},
 		Warnings:  []any{},
 	}, nil

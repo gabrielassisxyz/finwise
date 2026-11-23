@@ -3,6 +3,7 @@ package authoredtest_test
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -82,7 +83,9 @@ func TestTheCanonicalDumpIsOneJSONDocumentWithEveryTableInNameOrder(t *testing.T
 		authoredtest.Children, authoredtest.Facts, authoredtest.Parents, authoredtest.Tags, authoredtest.Things,
 		"settings", "subscriptions",
 		"tx_split_parts", "tx_state", "tx_tags",
+		"closing_steps", "dismissed_warnings", "transfer_marks",
 	}
+	slices.Sort(names)
 	last := -1
 	for _, name := range names {
 		if _, listed := parsed[name]; !listed {

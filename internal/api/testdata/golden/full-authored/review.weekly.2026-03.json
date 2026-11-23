@@ -1,0 +1,77 @@
+{
+  "limit": {
+    "cap": 0.00,
+    "spent": 0.00,
+    "remaining": 0.00,
+    "over": false,
+    "fill": 0
+  },
+  "week": null,
+  "queue": {
+    "items": [
+      {
+        "transactionId": "tx-pix-out",
+        "day": "2026-03-12",
+        "name": "Maria Exemplo",
+        "rawDescription": "PIX ENVIADO MARIA EXEMPLO",
+        "amount": -80.00,
+        "accountLabel": "Itaú · Conta Corrente",
+        "person": true,
+        "pending": {
+          "reason": "PIX para pessoa sem apelido",
+          "suggestion": null,
+          "confidence": null,
+          "justification": null
+        }
+      },
+      {
+        "transactionId": "tx-foreign",
+        "day": "2026-03-10",
+        "name": "CLOUDSVC SUBSCRIPTION",
+        "rawDescription": "CLOUDSVC SUBSCRIPTION",
+        "amount": -113.85,
+        "accountLabel": "Platinum Visa · final 1234",
+        "person": false,
+        "pending": {
+          "reason": "Baixa confiança",
+          "suggestion": "Viagens",
+          "confidence": 58,
+          "justification": null
+        }
+      },
+      {
+        "transactionId": "tx-boleto",
+        "day": "2026-03-10",
+        "name": "Alvorada Telecom S.A.",
+        "rawDescription": "ALVORADA TELECOM S.A.",
+        "amount": -109.90,
+        "accountLabel": "Itaú · Conta Corrente",
+        "person": false,
+        "pending": {
+          "reason": "Confiança abaixo do limite",
+          "suggestion": "Contas da casa",
+          "confidence": 64,
+          "justification": null
+        }
+      },
+      {
+        "transactionId": "tx-instalment",
+        "day": "2026-03-06",
+        "name": "LIVRARIA EXEMPLO",
+        "rawDescription": "LIVRARIA EXEMPLO 1/3",
+        "amount": -129.00,
+        "accountLabel": "Platinum Visa · final 1234",
+        "person": false,
+        "pending": {
+          "reason": "Estabelecimento novo",
+          "suggestion": null,
+          "confidence": null,
+          "justification": null
+        }
+      }
+    ],
+    "resolved": 1
+  },
+  "approvals": [],
+  "warnings": []
+}

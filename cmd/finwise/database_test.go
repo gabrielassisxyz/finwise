@@ -148,6 +148,11 @@ func requireCreatedDatabase(t *testing.T, path string) {
 		t.Fatal(err)
 	}
 	transactionsSum := sha256.Sum256(transactions)
+	review, err := os.ReadFile(filepath.Join("..", "..", "internal", "authored", "migrations", "0007_review.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	reviewSum := sha256.Sum256(review)
 	database := inspectDatabase(t, path)
 	var id int64
 	var mode string
@@ -158,11 +163,13 @@ func requireCreatedDatabase(t *testing.T, path string) {
 		t.Errorf("journal_mode = %q (%v)", mode, err)
 	}
 	tables := columnValues(t, database, "SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name")
-	if want := []string{"budget_version_lines", "budget_versions", "change_effects", "changes", "closed_months", "establishment_tags", "establishments", "history_step_reasons", "history_steps", "lines", "meta", "pin", "pot_lines", "pot_settings", "scenarios", "schema_migrations", "settings", "sqlite_sequence", "subscriptions", "tx_ids", "tx_index", "tx_split_parts", "tx_state", "tx_tags"}; !slices.Equal(tables, want) {
+	if want := []string{"budget_version_lines", "budget_versions", "change_effects", "changes", "closed_months", "establishment_tags", "establishments", "history_step_reasons", "history_steps", "lines", "meta", "pin", "pot_lines", "pot_settings", "scenarios", "schema_migrations", "settings", "sqlite_sequence", "subscriptions", "tx_ids", "tx_index", "tx_split_parts", "tx_state", "tx_tags",
+		"closing_steps", "dismissed_warnings", "transfer_marks"}; !slices.Equal(tables, slices.Sorted(slices.Values(want))) {
 		t.Errorf("tables = %v, want %v", tables, want)
 	}
 	recorded := columnValues(t, database, "SELECT name || '=' || sha256 FROM schema_migrations ORDER BY name")
-	if want := []string{"0001_journal=" + hex.EncodeToString(sum[:]), "0002_budget=" + hex.EncodeToString(budgetSum[:]), "0003_transactions=" + hex.EncodeToString(transactionsSum[:]), "0004_settings=" + hex.EncodeToString(settingsSum[:]), "0005_pots=" + hex.EncodeToString(potsSum[:]), "0006_subscriptions=" + hex.EncodeToString(subscriptionsSum[:]), "0008_session=" + hex.EncodeToString(sessionSum[:])}; !slices.Equal(recorded, want) {
+	if want := []string{"0001_journal=" + hex.EncodeToString(sum[:]), "0002_budget=" + hex.EncodeToString(budgetSum[:]), "0003_transactions=" + hex.EncodeToString(transactionsSum[:]), "0004_settings=" + hex.EncodeToString(settingsSum[:]), "0005_pots=" + hex.EncodeToString(potsSum[:]), "0006_subscriptions=" + hex.EncodeToString(subscriptionsSum[:]), "0008_session=" + hex.EncodeToString(sessionSum[:]),
+		"0007_review=" + hex.EncodeToString(reviewSum[:])}; !slices.Equal(recorded, slices.Sorted(slices.Values(want))) {
 		t.Errorf("schema_migrations = %v, want %v", recorded, want)
 	}
 	month := columnValues(t, database, "SELECT value FROM meta WHERE key = 'tracking_start_month'")
