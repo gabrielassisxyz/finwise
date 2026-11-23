@@ -72,9 +72,9 @@ func SaveScenario(t testing.TB, database *authored.Database, at time.Time, name 
 	})
 }
 
-// CloseMonth writes a closed month and a version that starts at it holding what
-// was in force for it, as closing a month will: nothing here closes a month yet,
-// so a fixture is the only way one exists.
+// CloseMonth writes the closed month's row and nothing else: a month closed
+// with no version of its own, which the store's Recorder.CloseMonth never
+// leaves, for the rules that must still hold over one.
 func CloseMonth(t testing.TB, database *authored.Database, at time.Time, month brday.Month, closedOn string) authored.ChangeID {
 	t.Helper()
 	return recordBudgetChange(t, database, at, "scratch.closeMonth", func(recorder *authored.Recorder) error {
