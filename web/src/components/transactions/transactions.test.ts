@@ -518,4 +518,35 @@ describe('TransactionList out-of-order loads', () => {
     expect(postoPill()).toBe('Lazer');
     expect(await lineLabels()).toContain('Linha nova');
   });
+
+  it('keeps the skeleton until the latest load answers when an earlier one answers first', async () => {
+    const { wrapper, month, api } = await mountList();
+    const original = api.transactions.list.bind(api.transactions);
+    const held: { month: string; answer: (rows: Awaited<ReturnType<typeof original>>) => void }[] = [];
+    vi.spyOn(api.transactions, 'list').mockImplementation(
+      (query) =>
+        new Promise((resolve) => {
+          held.push({ month: query.month, answer: resolve });
+        }),
+    );
+    const rowsOf = async (query: Parameters<typeof original>[0], name: string) =>
+      (await original({ ...query, month: '2026-11' })).slice(0, 2).map((row) => ({ ...row, name }));
+
+    month.selected = '2026-10';
+    await flushPromises();
+    month.selected = '2026-09';
+    await flushPromises();
+    expect(held.map((call) => call.month)).toEqual(['2026-10', '2026-09']);
+    expect(wrapper.find('.skeleton').exists()).toBe(true);
+
+    held[0]!.answer(await rowsOf({ month: '2026-10', period: 'month' }, 'Só de outubro'));
+    await flushPromises();
+    expect(wrapper.find('.skeleton').exists()).toBe(true);
+    expect(rowNames(wrapper)).not.toContain('Só de outubro');
+
+    held[1]!.answer(await rowsOf({ month: '2026-09', period: 'month' }, 'Só de setembro'));
+    await flushPromises();
+    expect(wrapper.find('.skeleton').exists()).toBe(false);
+    expect(rowNames(wrapper)).toEqual(['Só de setembro', 'Só de setembro']);
+  });
 });
