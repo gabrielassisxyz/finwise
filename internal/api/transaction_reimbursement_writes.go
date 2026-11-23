@@ -29,7 +29,7 @@ func setReimbursable(ctx context.Context, args []json.RawMessage, writes Writes)
 	if err != nil {
 		return nil, err
 	}
-	target, err := countedTarget(ctx, writes, id)
+	target, err := targetNamedBy(ctx, writes, id)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func setExpectedReimbursement(ctx context.Context, args []json.RawMessage, write
 	if amount != nil && *amount < 0 {
 		return nil, &badArgumentsError{}
 	}
-	target, err := countedTarget(ctx, writes, id)
+	target, err := targetNamedBy(ctx, writes, id)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func linkReimbursement(ctx context.Context, args []json.RawMessage, writes Write
 	if err != nil {
 		return nil, err
 	}
-	target, err := countedTarget(ctx, writes, id)
+	target, err := targetNamedBy(ctx, writes, id)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func unlinkReimbursement(ctx context.Context, args []json.RawMessage, writes Wri
 	if err != nil {
 		return nil, err
 	}
-	target, err := countedTarget(ctx, writes, id)
+	target, err := targetNamedBy(ctx, writes, id)
 	if err != nil {
 		return nil, err
 	}

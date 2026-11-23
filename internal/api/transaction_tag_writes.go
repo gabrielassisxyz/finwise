@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/gabrielassisxyz/finwise/internal/authored"
+	"github.com/gabrielassisxyz/finwise/internal/brday"
+	"github.com/gabrielassisxyz/finwise/internal/ledger"
 	"github.com/gabrielassisxyz/finwise/internal/txrules"
 )
 
@@ -67,12 +70,20 @@ func addTagToTransactions(ctx context.Context, args []json.RawMessage, writes Wr
 	if err != nil {
 		return nil, err
 	}
-	targets, err := targetsNamedBy(ctx, writes, ids)
+	rows, err := listedSelection(ctx, writes.Ledger, ids)
 	if err != nil {
 		return nil, err
 	}
-	for _, target := range targets {
-		if err := writes.Recorder.AddTag(ctx, target.key, tag); err != nil {
+	keys := make([]authored.TxKey, 0, len(rows))
+	for _, row := range rows {
+		key, err := indexListed(ctx, writes.Ledger, writes.Recorder, row.listed)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+	for _, key := range keys {
+		if err := writes.Recorder.AddTag(ctx, key, tag); err != nil {
 			return nil, err
 		}
 	}
@@ -125,38 +136,79 @@ func targetNamedBy(ctx context.Context, writes Writes, id string) (transactionTa
 	return target, nil
 }
 
-// targetsNamedBy is targetNamedBy for a selection, resolved against one reading
-// of the whole ledger. The ids are all found before the first is indexed, each
-// once, in the order they were named.
-func targetsNamedBy(ctx context.Context, writes Writes, ids []string) ([]transactionTarget, error) {
-	view, around, err := listedLedger(ctx, writes.Ledger)
+// listedSelection is the listed transaction of each id of a selection, each
+// once, in the order first named, found as findListed finds one. An id the list
+// does not show refuses the whole selection. Nothing is indexed: every id is
+// found before the caller indexes or writes any of them, and the index is not
+// journaled, so a row indexed before a later id failed would outlive the
+// refusal.
+func listedSelection(ctx context.Context, snapshot *ledger.View, ids []string) ([]listedRow, error) {
+	return selectionAmong(ctx, snapshot, ids, func() ([]ledger.Transaction, error) {
+		return snapshot.CleanTransactions(ctx, wholeLedger)
+	})
+}
+
+// selectionAmong is listedSelection over the rows readRows answers. It reads
+// them once and interprets each month once, however many ids the selection
+// holds.
+func selectionAmong(ctx context.Context, snapshot *ledger.View, ids []string, readRows func() ([]ledger.Transaction, error)) ([]listedRow, error) {
+	all, err := readRows()
 	if err != nil {
 		return nil, err
 	}
-	shown := make(map[string]txrules.Transaction, len(view.listed))
-	for _, listed := range view.listed {
-		shown[listed.ID] = listed
+	around, err := loadContext(ctx, snapshot)
+	if err != nil {
+		return nil, err
 	}
-	var rows []listedRow
+	months := monthListings{all: all, around: around, read: map[brday.Month]map[string]txrules.Transaction{}}
+	rows := make([]listedRow, 0, len(ids))
 	named := map[string]bool{}
 	for _, id := range ids {
 		if named[id] {
 			continue
 		}
 		named[id] = true
-		listed, found := shown[id]
-		if !found {
-			return nil, refuse(reasonNotFound)
-		}
-		rows = append(rows, listedRow{listed: listed, source: view.rows[id], around: around})
-	}
-	targets := make([]transactionTarget, 0, len(rows))
-	for _, row := range rows {
-		key, err := indexListed(ctx, writes.Ledger, writes.Recorder, row.listed)
+		row, found, err := months.find(id)
 		if err != nil {
 			return nil, err
 		}
-		targets = append(targets, transactionTarget{listedRow: row, key: key})
+		if !found {
+			return nil, refuse(reasonNotFound)
+		}
+		rows = append(rows, row)
 	}
-	return targets, nil
+	return rows, nil
+}
+
+// monthListings is one reading of the ledger's rows with the months already
+// interpreted from it.
+type monthListings struct {
+	all    []ledger.Transaction
+	around ledgerContext
+	read   map[brday.Month]map[string]txrules.Transaction
+}
+
+func (months monthListings) find(id string) (listedRow, bool, error) {
+	source, found := rowWithID(months.all, id)
+	if !found {
+		return listedRow{}, false, nil
+	}
+	month := brday.MonthOf(source.Date)
+	listed, read := months.read[month]
+	if !read {
+		view, err := interpretMonthOf(months.all, source, months.around)
+		if err != nil {
+			return listedRow{}, false, err
+		}
+		listed = make(map[string]txrules.Transaction, len(view.listed))
+		for _, transaction := range view.listed {
+			listed[transaction.ID] = transaction
+		}
+		months.read[month] = listed
+	}
+	transaction, found := listed[id]
+	if !found {
+		return listedRow{}, false, nil
+	}
+	return listedRow{listed: transaction, source: source, around: months.around}, true, nil
 }

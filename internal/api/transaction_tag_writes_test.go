@@ -412,9 +412,14 @@ func TestTheSelectionFindsAndIndexesWhatTheSingleLookupDoes(t *testing.T) {
 		}
 	}
 	err := inChange(t, byBulk, full, func(writes Writes) error {
-		targets, err := targetsNamedBy(t.Context(), writes, ids)
-		if err == nil && len(targets) != len(ids) {
+		rows, err := listedSelection(t.Context(), writes.Ledger, ids)
+		if err == nil && len(rows) != len(ids) {
 			err = errors.New("the selection found fewer transactions than the list shows")
+		}
+		for _, row := range rows {
+			if err == nil {
+				_, err = indexListed(t.Context(), writes.Ledger, writes.Recorder, row.listed)
+			}
 		}
 		return err
 	})

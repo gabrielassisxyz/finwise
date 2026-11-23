@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
-	"github.com/gabrielassisxyz/finwise/internal/ledger"
 	"github.com/gabrielassisxyz/finwise/internal/money"
 )
 
@@ -54,7 +53,7 @@ func setSplit(ctx context.Context, args []json.RawMessage, writes Writes) (any, 
 			return nil, &badArgumentsError{}
 		}
 	}
-	target, err := countedTarget(ctx, writes, id)
+	target, err := targetNamedBy(ctx, writes, id)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +99,7 @@ func setExcluded(ctx context.Context, args []json.RawMessage, writes Writes) (an
 	if err != nil {
 		return nil, err
 	}
-	target, err := countedTarget(ctx, writes, id)
+	target, err := targetNamedBy(ctx, writes, id)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +125,7 @@ func setExclusionReason(ctx context.Context, args []json.RawMessage, writes Writ
 	if err != nil {
 		return nil, err
 	}
-	target, err := countedTarget(ctx, writes, id)
+	target, err := targetNamedBy(ctx, writes, id)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +151,7 @@ func excludeMany(ctx context.Context, args []json.RawMessage, writes Writes) (an
 	if err != nil {
 		return nil, err
 	}
-	rows, err := everyListed(ctx, writes.Ledger, ids)
+	rows, err := listedSelection(ctx, writes.Ledger, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -168,28 +167,6 @@ func excludeMany(ctx context.Context, args []json.RawMessage, writes Writes) (an
 	return changeResultOf(ctx, writes.Recorder)
 }
 
-// everyListed is the listed transaction of each id, each once, in the order
-// given; an id the list does not show refuses them all.
-func everyListed(ctx context.Context, snapshot *ledger.View, ids []string) ([]listedRow, error) {
-	rows := make([]listedRow, 0, len(ids))
-	seen := map[string]bool{}
-	for _, id := range ids {
-		if seen[id] {
-			continue
-		}
-		seen[id] = true
-		row, found, err := findListed(ctx, snapshot, id)
-		if err != nil {
-			return nil, err
-		}
-		if !found {
-			return nil, refuse(reasonNotFound)
-		}
-		rows = append(rows, row)
-	}
-	return rows, nil
-}
-
 // setRefund keeps the person's word on whether a credit is a refund, which
 // then decides over the ledger's rule. Unmarking it keeps the line chosen for
 // it.
@@ -198,7 +175,7 @@ func setRefund(ctx context.Context, args []json.RawMessage, writes Writes) (any,
 	if err != nil {
 		return nil, err
 	}
-	target, err := countedTarget(ctx, writes, id)
+	target, err := targetNamedBy(ctx, writes, id)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +197,7 @@ func setRefundLine(ctx context.Context, args []json.RawMessage, writes Writes) (
 	if err != nil {
 		return nil, err
 	}
-	target, err := countedTarget(ctx, writes, id)
+	target, err := targetNamedBy(ctx, writes, id)
 	if err != nil {
 		return nil, err
 	}
@@ -237,19 +214,6 @@ func setRefundLine(ctx context.Context, args []json.RawMessage, writes Writes) (
 		return nil, err
 	}
 	return answerWithStep(ctx, writes, target.key, refundLineStep(name), changed)
-}
-
-// countedTarget is the transaction a write names, and a refusal for an id the
-// list does not show.
-func countedTarget(ctx context.Context, writes Writes, id string) (transactionTarget, error) {
-	target, found, err := lookupTarget(ctx, writes, id)
-	if err != nil {
-		return transactionTarget{}, err
-	}
-	if !found {
-		return transactionTarget{}, refuse(reasonNotFound)
-	}
-	return target, nil
 }
 
 // answerWithStep writes the step that says what the change did, when it did

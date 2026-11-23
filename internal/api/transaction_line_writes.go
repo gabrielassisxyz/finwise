@@ -47,7 +47,7 @@ type establishmentLineResult struct {
 // name its month lacks is refused whatever the transaction holds. The panel
 // asks why only when the line corrected was the model's or settled a review.
 func setLine(ctx context.Context, args []json.RawMessage, writes Writes) (any, error) {
-	id, name, err := twoTextArguments(args)
+	id, name, err := idAndText(args)
 	if err != nil {
 		return nil, err
 	}
@@ -137,12 +137,9 @@ func setLineForMany(ctx context.Context, args []json.RawMessage, writes Writes) 
 	if err != nil {
 		return nil, err
 	}
-	rows, found, err := findManyListed(ctx, writes.Ledger, distinct(ids))
+	rows, err := listedSelection(ctx, writes.Ledger, ids)
 	if err != nil {
 		return nil, err
-	}
-	if !found {
-		return nil, refuse(reasonNotFound)
 	}
 	lines := make([]authored.LineID, len(rows))
 	for i, row := range rows {
@@ -397,75 +394,6 @@ func keptAbout(ctx context.Context, view *authored.View, key authored.TxKey) (au
 		return authored.AuthoredTransaction{}, err
 	}
 	return kept[key], nil
-}
-
-// findManyListed resolves each id as findListed does, reading the ledger once
-// and interpreting each month once, so a selection costs one read however many
-// rows it holds. found is false when any of them is not listed.
-func findManyListed(ctx context.Context, snapshot *ledger.View, ids []string) ([]listedRow, bool, error) {
-	all, err := snapshot.CleanTransactions(ctx, wholeLedger)
-	if err != nil {
-		return nil, false, err
-	}
-	around, err := loadContext(ctx, snapshot)
-	if err != nil {
-		return nil, false, err
-	}
-	byID := make(map[string]ledger.Transaction, len(all))
-	for _, row := range all {
-		byID[row.ID] = row
-	}
-	months := map[brday.Month]map[string]txrules.Transaction{}
-	rows := make([]listedRow, 0, len(ids))
-	for _, id := range ids {
-		source, found := byID[id]
-		if !found {
-			return nil, false, nil
-		}
-		month := brday.MonthOf(source.Date)
-		listed, read := months[month]
-		if !read {
-			view, err := interpretMonthOf(all, source, around)
-			if err != nil {
-				return nil, false, err
-			}
-			listed = map[string]txrules.Transaction{}
-			for _, transaction := range view.listed {
-				listed[transaction.ID] = transaction
-			}
-			months[month] = listed
-		}
-		transaction, found := listed[id]
-		if !found {
-			return nil, false, nil
-		}
-		rows = append(rows, listedRow{listed: transaction, source: source, around: around})
-	}
-	return rows, true, nil
-}
-
-func distinct(ids []string) []string {
-	seen := map[string]bool{}
-	kept := make([]string, 0, len(ids))
-	for _, id := range ids {
-		if !seen[id] {
-			seen[id] = true
-			kept = append(kept, id)
-		}
-	}
-	return kept
-}
-
-func twoTextArguments(args []json.RawMessage) (string, string, error) {
-	if len(args) != 2 {
-		return "", "", &badArgumentsError{}
-	}
-	first, err := textArgument(args[0])
-	if err != nil {
-		return "", "", err
-	}
-	second, err := textArgument(args[1])
-	return first, second, err
 }
 
 func idsAndText(args []json.RawMessage) ([]string, string, error) {

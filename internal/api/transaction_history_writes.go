@@ -21,16 +21,13 @@ func registerTransactionHistoryWrites(registry *Registry) {
 // the step's change undoable and extendable. A transaction with no step has
 // nowhere to keep it, and the change is empty.
 func setReason(ctx context.Context, args []json.RawMessage, writes Writes) (any, error) {
-	id, reason, err := twoTextArguments(args)
+	id, reason, err := idAndText(args)
 	if err != nil {
 		return nil, err
 	}
-	target, found, err := lookupTarget(ctx, writes, id)
+	target, err := targetNamedBy(ctx, writes, id)
 	if err != nil {
 		return nil, err
-	}
-	if !found {
-		return nil, refuse(reasonNotFound)
 	}
 	kept, err := keptAbout(ctx, writes.Authored, target.key)
 	if err != nil {
@@ -50,7 +47,7 @@ func setReason(ctx context.Context, args []json.RawMessage, writes Writes) (any,
 // for a step that is not one of its own and for a note, which records that
 // something happened and has nothing to restore.
 func undoHistoryStep(ctx context.Context, args []json.RawMessage, writes Writes) (any, error) {
-	id, stepText, err := twoTextArguments(args)
+	id, stepText, err := idAndText(args)
 	if err != nil {
 		return nil, err
 	}

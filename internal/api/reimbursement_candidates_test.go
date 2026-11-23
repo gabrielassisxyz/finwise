@@ -174,11 +174,11 @@ func (env *countEnv) linkThroughTheStore(purchase, credit string, expected money
 	env.t.Helper()
 	err := inChange(env.t, env.scratch, env.ledger, func(writes Writes) error {
 		ctx := env.t.Context()
-		bought, err := countedTarget(ctx, writes, purchase)
+		bought, err := targetNamedBy(ctx, writes, purchase)
 		if err != nil {
 			return err
 		}
-		paid, err := countedTarget(ctx, writes, credit)
+		paid, err := targetNamedBy(ctx, writes, credit)
 		if err != nil {
 			return err
 		}
