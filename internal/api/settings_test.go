@@ -533,9 +533,9 @@ func TestARenamedLineShowsItsNewNameAndARemovedOneIsHiddenWhileItsLinkStays(t *t
 	}
 }
 
-// The fees line has no row in any version, so its id is the one fact of the
-// budget's migration the API states itself: it is a line that exists and that
-// no document may carry, which is what the built-in line is.
+// The fees line has no row in any version, so its id is a fact of the budget's
+// migration that the store states for the API to read: it is a line that exists
+// and that no document may carry, which is what the built-in line is.
 func TestTheFeesLineIDIsTheBuiltInLineOfTheStore(t *testing.T) {
 	database := authoredtest.Fresh(t, fixtureClock)
 	authoredtest.SaveBudget(t, database, fixtureNow, "2026-02", authoredtest.InventedBudget())
