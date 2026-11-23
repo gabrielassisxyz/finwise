@@ -162,3 +162,46 @@ const unlinkedReimbursementStep = "Você desfez a ligação com o PIX"
 func linkedReimbursementStep(name string, cents money.Cents) string {
 	return "Você ligou ao PIX de " + name + " · R$\u00a0" + brazilianDecimal(cents)
 }
+
+// The kinds of the review's warnings, which name each warning's id.
+const (
+	warningKindPrice              = "price"
+	warningKindRenewal            = "renewal"
+	warningKindChargedAfterCancel = "charged-after-cancel"
+)
+
+// reaisText writes an amount as the review's sentences do, with a plain space
+// after the symbol: the stand-in's own texts, which the interface shows as they
+// come, and not its no-break one.
+func reaisText(cents money.Cents) string {
+	return "R$ " + brazilianDecimal(cents)
+}
+
+func priceRoseText(name string, previous, amount money.Cents) string {
+	return "Preço subiu: " + name + " de " + reaisText(previous) + " para " + reaisText(amount)
+}
+
+// renewalWarning follows the cycle's word, and the marks' own wording for the
+// day of the renewal and the day before it.
+func renewalText(cycleWord string, days int, name string, amount money.Cents) string {
+	var when string
+	switch days {
+	case 0:
+		when = "hoje"
+	case 1:
+		when = "em 1 dia"
+	default:
+		when = fmt.Sprintf("em %d dias", days)
+	}
+	return "Renovação " + cycleWord + " " + when + ": " + name + " · " + reaisText(amount)
+}
+
+func chargedAfterCancelText(name string) string {
+	return "Marcada para cancelar e cobrou de novo: " + name
+}
+
+// The word after "Renovação" for the two cycles that renew.
+const (
+	renewalWordYearly   = "anual"
+	renewalWordBiennial = "bienal"
+)
