@@ -25,8 +25,8 @@ type Counts struct {
 	Left                    int
 	NothingToStore          int
 	// AlreadyDecided is the transactions the person or a rule had put on a line
-	// or in the queue before the rules met them, which the rules leave as they
-	// are.
+	// or in the queue, or the person had split or left out with a reason, before
+	// the rules met them, which the rules leave as they are.
 	AlreadyDecided int
 }
 
