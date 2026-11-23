@@ -258,53 +258,11 @@ SELECT account_id, day, reserve_id, reserve_name, stable_identity, currency IS '
 FROM reserved_balance_history
 ORDER BY account_id, day, position`
 
-// queryYieldTransfers is every unambiguous version of every document that was
-// ever a reserve transfer ("latest_tx", "transfers" and "judged" without the
-// parts that depend on the window), so the version a window sees is chosen from
-// them. fault is the first of "judged"'s reasons that depends on the row alone.
-const queryYieldTransfers = `
-SELECT document_id, provider_id, id, run_id, parent, observed_day,
-       operation_type IS 'TRANSFERENCIA_SALDO_RESERVADO', date, datetime(date), status IS NOT 'POSTED',
-       CASE WHEN description LIKE 'Dinheiro reservado %' THEN substr(description, 20)
-            WHEN description LIKE 'Dinheiro retirado %' THEN substr(description, 19) END,
-       CASE
-         WHEN description NOT LIKE 'Dinheiro reservado %' AND description NOT LIKE 'Dinheiro retirado %'
-           THEN 'unmatched transfer'
-         WHEN (description LIKE 'Dinheiro reservado %' AND NOT amount < 0)
-           OR (description LIKE 'Dinheiro retirado %' AND NOT amount > 0) THEN 'transfer sign'
-         WHEN currency IS NOT 'BRL' THEN 'currency'
-         WHEN typeof(amount) NOT IN ('integer', 'real') OR abs(amount) >= 1e12
-           OR abs(amount * 100 - round(amount * 100)) > 1e-7 THEN 'amount'
-       END,
-       CAST(round(amount * 100) AS INTEGER)
-FROM (
-  SELECT o.document_id, d.provider_id, o.id, o.run_id, o.parent, o.observed_day,
-         json_extract(v.body, '$.operationType') AS operation_type,
-         json_extract(v.body, '$.date') AS date,
-         json_extract(v.body, '$.amount') AS amount,
-         json_extract(v.body, '$.currencyCode') AS currency,
-         json_extract(v.body, '$.description') AS description,
-         json_extract(v.body, '$.status') AS status
-  FROM observations o
-  JOIN documents d ON d.id = o.document_id AND d.kind = 'transactions'
-  JOIN versions v ON v.sha256 = o.sha256
-  WHERE o.document_id IN (` + reserveTransferDocuments + `)
-    AND NOT EXISTS (SELECT 1 FROM ambiguities am
-                    WHERE am.run_id = o.run_id AND am.document_id = o.document_id)
-)
-ORDER BY document_id, id`
-
 const reserveTransferDocuments = `
   SELECT o.document_id FROM observations o
   JOIN documents d ON d.id = o.document_id AND d.kind = 'transactions'
   JOIN versions v ON v.sha256 = o.sha256
   WHERE json_extract(v.body, '$.operationType') = 'TRANSFERENCIA_SALDO_RESERVADO'`
-
-// queryYieldRemovals is the events "transfers" counts as gone.
-const queryYieldRemovals = `
-SELECT document_id, run_id, effective_day FROM events
-WHERE event IN ('removed', 'parent_gone') AND document_id IN (` + reserveTransferDocuments + `)
-ORDER BY document_id, run_id`
 
 // queryYieldWalks is "account_reason"'s scopes: the walks that went back far
 // enough to be trusted to hold every transfer, by the run they belong to.
@@ -312,11 +270,6 @@ const queryYieldWalks = `
 SELECT parent, run_id, datetime(min_instant) FROM scopes
 WHERE kind = 'transactions' AND outcome = 'complete' AND infer_absence = 1 AND min_instant IS NOT NULL
 ORDER BY parent, run_id`
-
-// queryYieldUnresolved is the ids "judged" calls unresolved.
-const queryYieldUnresolved = `
-SELECT pending_id FROM pending_posted_candidates
-UNION SELECT posted_id FROM pending_posted_candidates`
 
 // queryYieldTransferHistory is what "latest_tx", "transfers" and "judged" read
 // about the transfers (pluggy-sync README lines 433-478), as rows of three
@@ -451,10 +404,7 @@ var allQueries = map[string]string{
 	"queryPotYieldTransfers":    queryPotYieldTransfers,
 	"queryYieldSightings":       queryYieldSightings,
 	"queryYieldEntries":         queryYieldEntries,
-	"queryYieldTransfers":       queryYieldTransfers,
-	"queryYieldRemovals":        queryYieldRemovals,
 	"queryYieldWalks":           queryYieldWalks,
-	"queryYieldUnresolved":      queryYieldUnresolved,
 	"queryYieldTransferHistory": queryYieldTransferHistory,
 	"queryInvestments":          queryInvestments,
 	"queryInvestmentHistory":    queryInvestmentHistory,

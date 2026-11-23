@@ -82,21 +82,11 @@ type YieldWalk struct {
 // of them reads the ledger's transactions, for the transfers, their removals
 // and the pending pairs at once.
 func (view *View) YieldHistory(ctx context.Context) (YieldHistory, error) {
-	return view.yieldHistoryIn(ctx, readYieldSightings, view.readYieldTransferHistory, readYieldWalks)
-}
-
-// YieldHistoryInThreeReadings is the history as YieldHistory read it before
-// the transfers, their removals and the pending pairs shared one statement:
-// three statements, each walking the ledger's transactions. It is kept so that
-// a test can compare the two readings over the invented ledgers.
-func (view *View) YieldHistoryInThreeReadings(ctx context.Context) (YieldHistory, error) {
-	return view.yieldHistoryIn(ctx,
-		readYieldSightings, readYieldTransfers, readYieldRemovals, readYieldWalks, readYieldUnresolved)
-}
-
-func (view *View) yieldHistoryIn(ctx context.Context, steps ...func(context.Context, *sql.Tx, *YieldHistory) error) (YieldHistory, error) {
 	var history YieldHistory
 	err := view.read(ctx, func(tx *sql.Tx) error {
+		steps := []func(context.Context, *sql.Tx, *YieldHistory) error{
+			readYieldSightings, view.readYieldTransferHistory, readYieldWalks,
+		}
 		for _, step := range steps {
 			if err := step(ctx, tx, &history); err != nil {
 				return err
@@ -227,50 +217,6 @@ func (row transferHistoryRow) addTo(history *YieldHistory) error {
 	return nil
 }
 
-func readYieldTransfers(ctx context.Context, tx *sql.Tx, history *YieldHistory) error {
-	rows, err := tx.QueryContext(ctx, queryYieldTransfers)
-	if err != nil {
-		return fmt.Errorf("ledger: yield transfers: %w", err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var (
-			transfer                   YieldTransfer
-			day                        string
-			isReserve, notPosted       sql.NullInt64
-			date, instant, name, fault sql.NullString
-			cents                      sql.NullInt64
-		)
-		if err := rows.Scan(&transfer.DocumentID, &transfer.ProviderID, &transfer.ObservationID, &transfer.RunID,
-			&transfer.Parent, &day, &isReserve, &date, &instant, &notPosted, &name, &fault, &cents); err != nil {
-			return fmt.Errorf("ledger: yield transfers: %w", err)
-		}
-		transfer.Day, transfer.IsReserve, transfer.NotPosted = brday.Day(day), isReserve.Int64 == 1, notPosted.Int64 == 1
-		transfer.Date, transfer.Instant = date.String, instant.String
-		transfer.Name, transfer.Fault, transfer.Cents = stringPointer(name), stringPointer(fault), centsPointer(cents)
-		history.Transfers = append(history.Transfers, transfer)
-	}
-	return rows.Err()
-}
-
-func readYieldRemovals(ctx context.Context, tx *sql.Tx, history *YieldHistory) error {
-	rows, err := tx.QueryContext(ctx, queryYieldRemovals)
-	if err != nil {
-		return fmt.Errorf("ledger: yield removals: %w", err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var removal YieldRemoval
-		var day string
-		if err := rows.Scan(&removal.DocumentID, &removal.RunID, &day); err != nil {
-			return fmt.Errorf("ledger: yield removals: %w", err)
-		}
-		removal.Day = brday.Day(day)
-		history.Removals = append(history.Removals, removal)
-	}
-	return rows.Err()
-}
-
 func readYieldWalks(ctx context.Context, tx *sql.Tx, history *YieldHistory) error {
 	rows, err := tx.QueryContext(ctx, queryYieldWalks)
 	if err != nil {
@@ -287,25 +233,6 @@ func readYieldWalks(ctx context.Context, tx *sql.Tx, history *YieldHistory) erro
 		if since.Valid {
 			walk.Since = since.String
 			history.Walks = append(history.Walks, walk)
-		}
-	}
-	return rows.Err()
-}
-
-func readYieldUnresolved(ctx context.Context, tx *sql.Tx, history *YieldHistory) error {
-	rows, err := tx.QueryContext(ctx, queryYieldUnresolved)
-	if err != nil {
-		return fmt.Errorf("ledger: yield unresolved: %w", err)
-	}
-	defer rows.Close()
-	history.Unresolved = map[string]bool{}
-	for rows.Next() {
-		var id sql.NullString
-		if err := rows.Scan(&id); err != nil {
-			return fmt.Errorf("ledger: yield unresolved: %w", err)
-		}
-		if id.Valid {
-			history.Unresolved[id.String] = true
 		}
 	}
 	return rows.Err()
