@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/url"
 	"strings"
 	"time"
@@ -71,14 +70,6 @@ func allowedModelURL(raw string) bool {
 	default:
 		return false
 	}
-}
-
-func isLoopbackHost(host string) bool {
-	if strings.EqualFold(host, "localhost") {
-		return true
-	}
-	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
 }
 
 func effectiveSuggest(env environment) suggestFunc {

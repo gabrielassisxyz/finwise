@@ -33,6 +33,9 @@ type serveSettings struct {
 	sessionIdle    time.Duration
 	ingestInterval time.Duration
 	model          modelSettings
+	// agentToken is nil when no FINWISE_AGENT_TOKEN_HASH is set, and then no
+	// request is answered as the agent's.
+	agentToken *api.AgentTokenHash
 }
 
 func runServe(ctx context.Context, args []string, env environment) int {
@@ -114,6 +117,22 @@ func completeServeSettings(settings serveSettings, env environment) (serveSettin
 		return serveSettings{}, exitFailure
 	}
 	settings.model = model
+	return completeAgentToken(settings, env)
+}
+
+// completeAgentToken reads the optional hash of the agent's token. Its error
+// names the variable and never the value, which is one step from the token.
+func completeAgentToken(settings serveSettings, env environment) (serveSettings, int) {
+	stored := env.getenv(agentTokenHashVariable)
+	if stored == "" {
+		return settings, 0
+	}
+	hash, err := api.ParseAgentTokenHash(stored)
+	if err != nil {
+		fmt.Fprintf(env.stderr, "finwise: %s: %v\n", agentTokenHashVariable, err)
+		return serveSettings{}, exitFailure
+	}
+	settings.agentToken = &hash
 	return settings, 0
 }
 
@@ -179,6 +198,9 @@ func serve(ctx context.Context, settings serveSettings, env environment) (err er
 		IdleTimeout:       2 * time.Minute,
 	}
 	logger.Info("listening", "address", listener.Addr().String())
+	if settings.agentToken != nil {
+		logger.Info("an agent token opens the reads")
+	}
 	if settings.insecureCookie {
 		logger.Warn("session cookie is not Secure: development only")
 	}
@@ -234,6 +256,9 @@ func apiConfig(settings serveSettings, database *authored.Database, env environm
 	if database != nil {
 		ingests := serverIngestsOf(settings, database, env, logger)
 		config.AfterBudgetSaved, config.TakeSnapshotIn = ingests.afterBudgetSaved, ingests.beforeWrite
+	}
+	if settings.agentToken != nil {
+		config.VerifyAgentToken = settings.agentToken.Verify
 	}
 	return config
 }

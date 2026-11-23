@@ -19,7 +19,7 @@ const (
 	exitUsage   = 2
 )
 
-const usage = "usage: finwise serve | hash-pin | backup | ingest | suggest"
+const usage = "usage: finwise serve | hash-pin | backup | ingest | suggest | agent-token | agent read <method> [<json-arguments>]"
 
 // environment is everything the commands take from the process, so a test can
 // run them without touching the real standard streams or variables.
@@ -63,6 +63,10 @@ func run(ctx context.Context, args []string, env environment) int {
 		return runIngest(ctx, args[1:], env)
 	case "suggest":
 		return runSuggestCommand(ctx, args[1:], env)
+	case "agent-token":
+		return runAgentToken(args[1:], env)
+	case "agent":
+		return runAgent(ctx, args[1:], env)
 	default:
 		fmt.Fprintln(env.stderr, usage)
 		return exitUsage

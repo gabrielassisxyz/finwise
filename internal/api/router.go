@@ -53,6 +53,11 @@ type Config struct {
 	// lookup found the snapshot not taken in, and is then tried once more.
 	// Without it, or when it fails, such a write answers `internal`.
 	TakeSnapshotIn func(ctx context.Context, at time.Time) error
+	// VerifyAgentToken, when set, says whether a token presented as
+	// `Authorization: Bearer <token>` is the agent's, which opens every method of
+	// class `read` and no other. Without it a request that carries the header is
+	// `locked`.
+	VerifyAgentToken func(token string) bool
 }
 
 // router carries what the per-route functions share.
@@ -65,6 +70,7 @@ type router struct {
 	now              func() time.Time
 	afterBudgetSaved func(ctx context.Context, at time.Time)
 	takeSnapshotIn   func(ctx context.Context, at time.Time) error
+	verifyAgent      func(token string) bool
 }
 
 // NewHandler builds the router from the manifest. A write or an evaluation is
@@ -91,6 +97,7 @@ func NewHandler(config Config) (http.Handler, error) {
 		now:              config.Now,
 		afterBudgetSaved: config.AfterBudgetSaved,
 		takeSnapshotIn:   config.TakeSnapshotIn,
+		verifyAgent:      config.VerifyAgentToken,
 	}
 	mux := http.NewServeMux()
 	known := map[string]bool{"/healthz": true}
@@ -182,11 +189,17 @@ func standardHeaders(next http.Handler) http.Handler {
 // The session comes before the class so that a person without one learns
 // nothing but `locked`; the class comes before the body so that a write with
 // no store to keep it in, or no handler, is refused without its body being read.
+// A request that carries an Authorization header skips the session and is
+// answered by serveAgent: it is judged by the header alone.
 func (found *router) serve(method contract.Method) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", http.MethodPost)
 			writeError(w, r, kindBadRequest)
+			return
+		}
+		if carriesAuthorization(r) {
+			found.serveAgent(w, r, method)
 			return
 		}
 		live := found.sessions.recognise(w, r)
@@ -210,12 +223,18 @@ func (found *router) serve(method contract.Method) http.HandlerFunc {
 			found.sessions.dispatch(w, r, method, arguments, live)
 			return
 		}
-		if validatedBySchema(method) && !argumentsMatch(found.schemas[method.Qualified()], body) {
-			writeError(w, r, kindBadRequest)
-			return
-		}
-		found.serveRead(w, r, method, arguments)
+		found.serveCheckedRead(w, r, method, arguments, body)
 	}
+}
+
+// serveCheckedRead answers a read whose arguments have been counted, checking
+// them against the manifest's schema first where the method is one that is.
+func (found *router) serveCheckedRead(w http.ResponseWriter, r *http.Request, method contract.Method, arguments []json.RawMessage, body []byte) {
+	if validatedBySchema(method) && !argumentsMatch(found.schemas[method.Qualified()], body) {
+		writeError(w, r, kindBadRequest)
+		return
+	}
+	found.serveRead(w, r, method, arguments)
 }
 
 // schemaValidatedRead is the one read whose arguments the manifest's schema
