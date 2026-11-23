@@ -243,6 +243,7 @@ var floatFreePackages = []string{
 	"internal/budgetrules",
 	"internal/classrules",
 	"internal/subrules",
+	"internal/suggest",
 }
 
 // The guard that keeps the rule from rotting: a handler that went through a
