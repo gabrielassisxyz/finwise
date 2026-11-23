@@ -27,6 +27,8 @@ const (
 	FailureMigration
 	// FailureOpen: the file could not be read, stamped or opened.
 	FailureOpen
+	// FailureMissing: the file does not exist or is empty and MustExist was set.
+	FailureMissing
 )
 
 // OpenError is every failure of Open. Its text is a fixed sentence about the
@@ -54,6 +56,8 @@ func (err *OpenError) Error() string {
 		return fmt.Sprintf("authored: %s: the copy before migrating could not be written, so nothing was migrated", err.Path)
 	case FailureMigration:
 		return fmt.Sprintf("authored: %s: migration %s failed and was rolled back", err.Path, err.Migration)
+	case FailureMissing:
+		return fmt.Sprintf("authored: %s does not exist or is empty; it was not created", err.Path)
 	default:
 		return fmt.Sprintf("authored: %s could not be opened", err.Path)
 	}

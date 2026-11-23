@@ -3,6 +3,7 @@ package authored
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"strconv"
 	"time"
@@ -83,4 +84,65 @@ func (recorder *Recorder) RecordIngestedRun(ctx context.Context, run int64) erro
 		return recorder.fail(err)
 	}
 	return nil
+}
+
+// The last run of the model suggestion step that made at least one request:
+// its instant (UTC with milliseconds, as the journal writes them) and whether
+// every request was answered, stored as one JSON object under last_model_run.
+const (
+	statementLastModelRun   = `SELECT value FROM meta WHERE key = 'last_model_run'`
+	statementRecordModelRun = `
+INSERT INTO meta (key, value) VALUES ('last_model_run', ?)
+ON CONFLICT (key) DO UPDATE SET value = excluded.value`
+)
+
+// ModelRun is the recorded outcome of the last model suggestion run that made
+// at least one request.
+type ModelRun struct {
+	At time.Time
+	OK bool
+}
+
+type storedModelRun struct {
+	At string `json:"at"`
+	OK bool   `json:"ok"`
+}
+
+// LastModelRun is the outcome of the last model suggestion run that made at
+// least one request. found is false until one has run, and on the empty view.
+func (view *View) LastModelRun(ctx context.Context) (run ModelRun, found bool, err error) {
+	var raw string
+	read, err := view.read(ctx, func(tx *sql.Tx) error {
+		scanned := tx.QueryRowContext(ctx, statementLastModelRun).Scan(&raw)
+		if errors.Is(scanned, sql.ErrNoRows) {
+			return nil
+		}
+		found = scanned == nil
+		return scanned
+	})
+	if err != nil || !read || !found {
+		return ModelRun{}, false, err
+	}
+	var stored storedModelRun
+	if err := json.Unmarshal([]byte(raw), &stored); err != nil {
+		return ModelRun{}, false, &TransactionError{cause: err}
+	}
+	at, err := time.Parse(instantLayout, stored.At)
+	if err != nil {
+		return ModelRun{}, false, &TransactionError{cause: err}
+	}
+	return ModelRun{At: at, OK: stored.OK}, true, nil
+}
+
+// RecordModelRun records the instant and outcome of a model suggestion run in
+// meta. Nothing is written to the journal.
+func (database *Database) RecordModelRun(ctx context.Context, at time.Time, ok bool) error {
+	encoded, err := json.Marshal(storedModelRun{At: formatInstant(at), OK: ok})
+	if err != nil {
+		return &TransactionError{cause: err}
+	}
+	return database.write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, statementRecordModelRun, string(encoded))
+		return err
+	})
 }
