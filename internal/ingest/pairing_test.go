@@ -286,3 +286,48 @@ func TestAKeyListedUnderBothItsIDsKeepsThePostedRowsFacts(t *testing.T) {
 		t.Errorf("the index row went back to the pending row's facts: %+v", row)
 	}
 }
+
+// Only a posted row replaces a pending one: a charge the bank still reports
+// pending is a new transaction of its own, never the continuation of another
+// pending charge that vanished. The rows are a card fee, which the rules store
+// nothing for, so what a row holds is only what was carried to it.
+func TestAPendingRowNeverTakesTheKeyOfAVanishedPendingRow(t *testing.T) {
+	w := newWorld(t, createdOn)
+	w.saveBudget("2026-03", marketBudget())
+	fee := func(id string, day int, status string) ledgertest.Transaction {
+		row := cardRow(id, at(2026, time.March, day), "ANUIDADE EXEMPLO", 25, "DEBIT", "TARIFA")
+		row.Status = status
+		return row
+	}
+	w.night("complete", fee("tx-first", 10, "PENDING"))
+	wantCounts(t, "the night the first charge appears", w.run(ingest.TriggerTick), ingest.Counts{Indexed: 1, NothingToStore: 1})
+	w.note("tx-first", "contestar a anuidade")
+	said := w.kept("tx-first")
+
+	w.night("complete", fee("tx-second", 11, "PENDING"))
+	wantCounts(t, "the night a second pending charge appears", w.run(ingest.TriggerTick),
+		ingest.Counts{Indexed: 1, Unpaired: 1, NothingToStore: 1})
+	if w.mustKey("tx-second") == w.mustKey("tx-first") {
+		t.Fatal("the new pending row took the key of the vanished one")
+	}
+	if kept := w.kept("tx-second"); !reflect.DeepEqual(kept, authored.AuthoredTransaction{}) {
+		t.Errorf("the new pending row holds %+v, want nothing", kept)
+	}
+	if !reflect.DeepEqual(w.kept("tx-first"), said) {
+		t.Errorf("the vanished row holds %+v, want what the person said", w.kept("tx-first"))
+	}
+
+	// The second charge posts under a third id. Both vanished pending rows are
+	// within five days of it, so the match is not one to one and the rules pair
+	// nothing: the posted row is a new transaction, and only the second pending
+	// row is counted unpaired, the first having been counted the night before.
+	w.night("complete", fee("tx-posted", 12, "POSTED"))
+	wantCounts(t, "the night it posts", w.run(ingest.TriggerTick), ingest.Counts{Indexed: 1, Unpaired: 1, NothingToStore: 1})
+	posted := w.mustKey("tx-posted")
+	if posted == w.mustKey("tx-first") || posted == w.mustKey("tx-second") {
+		t.Error("the posted row was paired although two vanished pending rows match it")
+	}
+	if !reflect.DeepEqual(w.kept("tx-first"), said) {
+		t.Errorf("the first row holds %+v, want what the person said", w.kept("tx-first"))
+	}
+}
