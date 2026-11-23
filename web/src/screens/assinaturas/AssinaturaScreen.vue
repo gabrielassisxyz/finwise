@@ -23,12 +23,14 @@ const missing = ref(false);
 
 const id = computed(() => String(route.params.id));
 
+let latestDetail = 0;
 watch(
   [id, () => revision.current],
   async ([requested], previous) => {
+    const request = ++latestDetail;
     if (requested !== previous?.[0]) subscription.value = null;
     const loaded = await api.subscriptions.detail(requested);
-    if (requested !== id.value) return;
+    if (request !== latestDetail || requested !== id.value) return;
     subscription.value = loaded;
     missing.value = loaded === null;
   },

@@ -21,10 +21,13 @@ const revision = useRevisionStore();
 const settings = ref<SettingsOverview | null>(null);
 
 // Every write refetches, so a bound the backend applied shows as it was kept.
+let latest = 0;
 watch(
   () => revision.current,
   async () => {
-    settings.value = await api.settings.overview();
+    const request = ++latest;
+    const loaded = await api.settings.overview();
+    if (request === latest) settings.value = loaded;
   },
   { immediate: true },
 );
