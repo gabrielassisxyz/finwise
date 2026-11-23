@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
+	"github.com/gabrielassisxyz/finwise/internal/ingest"
 )
 
 const testPIN = "123456"
@@ -31,6 +32,11 @@ type outcome struct {
 }
 
 func runCommand(ctx context.Context, args []string, stdin string, vars map[string]string, listening func(string)) outcome {
+	return runCommandWith(ctx, args, stdin, vars, listening, ingest.Run)
+}
+
+// runCommandWith is runCommand with the ingest the command runs.
+func runCommandWith(ctx context.Context, args []string, stdin string, vars map[string]string, listening func(string), runIngest ingestFunc) outcome {
 	var stdout, stderr bytes.Buffer
 	code := run(ctx, args, environment{
 		stdin:     strings.NewReader(stdin),
@@ -39,6 +45,7 @@ func runCommand(ctx context.Context, args []string, stdin string, vars map[strin
 		getenv:    func(name string) string { return vars[name] },
 		now:       func() time.Time { return testNow },
 		listening: listening,
+		runIngest: runIngest,
 	})
 	return outcome{code: code, stdout: stdout.String(), stderr: stderr.String()}
 }
@@ -151,11 +158,17 @@ type runningServer struct {
 
 func startServer(t *testing.T, args []string, vars map[string]string) *runningServer {
 	t.Helper()
+	return startServerWith(t, args, vars, ingest.Run)
+}
+
+// startServerWith is startServer with the ingest the server runs.
+func startServerWith(t *testing.T, args []string, vars map[string]string, runIngest ingestFunc) *runningServer {
+	t.Helper()
 	ctx, stop := context.WithCancel(context.Background())
 	server := &runningServer{done: make(chan outcome, 1), stop: stop}
 	ready := make(chan string, 1)
 	go func() {
-		server.done <- runCommand(ctx, args, "", vars, func(address string) { ready <- address })
+		server.done <- runCommandWith(ctx, args, "", vars, func(address string) { ready <- address }, runIngest)
 	}()
 	select {
 	case server.address = <-ready:

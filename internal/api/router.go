@@ -41,16 +41,23 @@ type Config struct {
 	Logger         *slog.Logger
 	// PINStore keeps a PIN changed in the app; it defaults to Database.
 	PINStore PINStore
+	// AfterBudgetSaved, when set, is called with the request's instant once a
+	// budget.save or a budget.applyScenario has committed, before it answers:
+	// the server takes the ledger in there, so the pending count the interface
+	// refetches right after a save already holds the month that just got its
+	// first line. Whatever it does, the save answers as it would have.
+	AfterBudgetSaved func(ctx context.Context, at time.Time)
 }
 
 // router carries what the per-route functions share.
 type router struct {
-	handlers *Registry
-	schemas  map[string]*jsonschema.Schema
-	reader   *ledger.Reader
-	database *authored.Database
-	sessions *sessionService
-	now      func() time.Time
+	handlers         *Registry
+	schemas          map[string]*jsonschema.Schema
+	reader           *ledger.Reader
+	database         *authored.Database
+	sessions         *sessionService
+	now              func() time.Time
+	afterBudgetSaved func(ctx context.Context, at time.Time)
 }
 
 // NewHandler builds the router from the manifest. A write or an evaluation is
@@ -69,12 +76,13 @@ func NewHandler(config Config) (http.Handler, error) {
 		return nil, err
 	}
 	found := &router{
-		handlers: config.Reads,
-		schemas:  schemas,
-		reader:   config.Ledger,
-		database: config.Database,
-		sessions: newSessionService(config),
-		now:      config.Now,
+		handlers:         config.Reads,
+		schemas:          schemas,
+		reader:           config.Ledger,
+		database:         config.Database,
+		sessions:         newSessionService(config),
+		now:              config.Now,
+		afterBudgetSaved: config.AfterBudgetSaved,
 	}
 	mux := http.NewServeMux()
 	known := map[string]bool{"/healthz": true}

@@ -12,12 +12,14 @@ import (
 
 	"github.com/gabrielassisxyz/finwise/internal/api"
 	"github.com/gabrielassisxyz/finwise/internal/authored"
+	"github.com/gabrielassisxyz/finwise/internal/ingest"
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
 const (
-	defaultListen   = "127.0.0.1:8080"
-	shutdownTimeout = 10 * time.Second
+	defaultListen         = "127.0.0.1:8080"
+	shutdownTimeout       = 10 * time.Second
+	defaultIngestInterval = 10 * time.Minute
 )
 
 // serveSettings is what `finwise serve` was told, from flags first, then the
@@ -29,6 +31,7 @@ type serveSettings struct {
 	insecureCookie bool
 	pinHash        api.PINHash
 	sessionIdle    time.Duration
+	ingestInterval time.Duration
 }
 
 func runServe(ctx context.Context, args []string, env environment) int {
@@ -50,6 +53,7 @@ func readServeSettings(args []string, env environment) (serveSettings, int) {
 	ledgerPath := flags.String("ledger", "", "path of the ledger snapshot (FINWISE_LEDGER)")
 	databasePath := flags.String("db", "", "path of the app's own database, created if missing (FINWISE_DB; without it the server is read-only)")
 	insecure := flags.Bool("dev-insecure-cookie", false, "development only: session cookie without Secure and the __Host- prefix")
+	interval := flags.String("ingest-interval", "", "time between two runs of the ingest with --db (FINWISE_INGEST_INTERVAL, default 10m)")
 	if err := flags.Parse(args); err != nil {
 		return serveSettings{}, exitUsage
 	}
@@ -63,7 +67,22 @@ func readServeSettings(args []string, env environment) (serveSettings, int) {
 		fmt.Fprintln(env.stderr, "finwise: the ledger path is missing: pass --ledger or set FINWISE_LEDGER")
 		return serveSettings{}, exitUsage
 	}
+	var valid bool
+	if settings.ingestInterval, valid = ingestInterval(firstNonEmpty(*interval, env.getenv("FINWISE_INGEST_INTERVAL"))); !valid {
+		fmt.Fprintln(env.stderr, "finwise: the ingest interval (--ingest-interval or FINWISE_INGEST_INTERVAL) is not a positive duration such as 10m")
+		return serveSettings{}, exitFailure
+	}
 	return completeServeSettings(settings, env)
+}
+
+// ingestInterval reads the time between two runs of the ingest's timer, ten
+// minutes when nothing says otherwise.
+func ingestInterval(raw string) (time.Duration, bool) {
+	if raw == "" {
+		return defaultIngestInterval, true
+	}
+	interval, err := time.ParseDuration(raw)
+	return interval, err == nil && interval > 0
 }
 
 // completeServeSettings reads the two values that come only from the
@@ -142,6 +161,12 @@ func serve(ctx context.Context, settings serveSettings, env environment) (err er
 	if settings.insecureCookie {
 		logger.Warn("session cookie is not Secure: development only")
 	}
+	if database != nil {
+		// Deferred after the database's close, so it runs before it: the
+		// database is closed only once no run is in progress.
+		stop := serverIngestsOf(settings, database, env, logger).every(ctx, settings.ingestInterval)
+		defer stop()
+	}
 	if env.listening != nil {
 		env.listening(listener.Addr().String())
 	}
@@ -169,9 +194,10 @@ func storedPINHash(ctx context.Context, database *authored.Database, settings se
 }
 
 // apiConfig hands the API the one clock of the process and the app's database,
-// nil when serve was given none.
+// nil when serve was given none. With a database, a budget save takes the
+// ledger in before it answers.
 func apiConfig(settings serveSettings, database *authored.Database, env environment, logger *slog.Logger) api.Config {
-	return api.Config{
+	config := api.Config{
 		Ledger:         ledger.New(settings.ledgerPath),
 		Database:       database,
 		VerifyPIN:      settings.pinHash.Verify,
@@ -180,6 +206,17 @@ func apiConfig(settings serveSettings, database *authored.Database, env environm
 		InsecureCookie: settings.insecureCookie,
 		Logger:         logger,
 	}
+	if database != nil {
+		config.AfterBudgetSaved = serverIngestsOf(settings, database, env, logger).afterBudgetSaved
+	}
+	return config
+}
+
+// serverIngestsOf is the ingest of the ledger serve reads into its database,
+// logged on its log.
+func serverIngestsOf(settings serveSettings, database *authored.Database, env environment, logger *slog.Logger) serverIngests {
+	sources := ingest.Sources{Ledger: ledger.New(settings.ledgerPath), Database: database}
+	return serverIngests{in: ingester{sources: sources, run: env.runIngest}, logger: logger, now: env.now}
 }
 
 func serveUntilDone(ctx context.Context, server *http.Server, listener net.Listener) error {
