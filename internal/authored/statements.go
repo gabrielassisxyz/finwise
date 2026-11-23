@@ -165,4 +165,6 @@ var allStatements = map[string]string{
 	"statementDismissedWarningDelete": statementDismissedWarningDelete,
 	"statementPendingTxKeys":          statementPendingTxKeys,
 	"statementTransactionsSettledBy":  statementTransactionsSettledBy,
+
+	"statementTransferMarksOfMonth": statementTransferMarksOfMonth,
 }
