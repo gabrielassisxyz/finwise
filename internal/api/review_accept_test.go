@@ -328,6 +328,12 @@ func TestTheAcceptAnswersAMissingSnapshotABadAnswerAndNoDatabaseAsEveryWriteDoes
 	if after := env.scratch.Everything(t); after != before {
 		t.Errorf("a failed accept changed the file:\n%s", differences(before, after))
 	}
+	// With no review kept, the definition of what waits never reads the ledger.
+	nothingWaits := authoredtest.Open(t, fixtureClock)
+	savedReviewBudget(t, nothingWaits)
+	expectError(t, "a missing snapshot with nothing waiting",
+		newReviewEnv(t, filepath.Join(t.TempDir(), "absent.db"), nothingWaits, fixtureNow).accept(reviewP1, pendingAnswer{Line: "Restaurantes"}),
+		http.StatusServiceUnavailable, "ledger_unavailable")
 	readOnly := newTestEnv(t, withLedger(newReviewLedger(t).Path, fixtureNow))
 	if reads, status := readsOfBody(readOnly, "/api/review/acceptPending", readOnly.unlock()); reads != 0 || status != http.StatusForbidden {
 		t.Errorf("without the database the accept answered %d after %d reads of its body, want 403 after none", status, reads)
