@@ -159,23 +159,21 @@ func TestTheLookupFindsNothingAndWritesNothingForAnIDTheListDoesNotShow(t *testi
 	}
 }
 
-// A method of the manifest that takes two strings and has no handler of its own,
-// which these tests lend a handler of theirs over the real registry.
+// A method of the manifest that takes a month and has no handler of its own,
+// which these tests lend a handler of theirs over the real registry. The
+// handler looks up the one transaction it is lent, whatever the month.
 const (
-	unhandledMethod    = "review.runWarningAction"
-	unhandledRoute     = "/api/review/runWarningAction"
-	unhandledArguments = `["tx-month-end","silence-pair"]`
+	unhandledMethod    = "review.closeMonth"
+	unhandledRoute     = "/api/review/closeMonth"
+	unhandledArguments = `["2026-03"]`
+	lentTransaction    = "tx-month-end"
 )
 
-// lookingUpThenFailing is a write handler that finds the transaction its first
-// argument names, and then fails as a write can after its lookup.
+// lookingUpThenFailing is a write handler that finds the transaction it is lent,
+// and then fails as a write can after its lookup.
 func lookingUpThenFailing(looked *bool) WriteHandler {
 	return func(ctx context.Context, args []json.RawMessage, writes Writes) (any, error) {
-		id, _, err := twoStrings(args)
-		if err != nil {
-			return nil, err
-		}
-		if _, found, err := lookupTarget(ctx, writes, id); err != nil || !found {
+		if _, found, err := lookupTarget(ctx, writes, lentTransaction); err != nil || !found {
 			return nil, err
 		}
 		*looked = true

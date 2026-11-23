@@ -1,0 +1,19 @@
+{
+  "answer": {
+    "changeId": "6"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "dismissed_warnings",
+      "key": [
+        "charged-after-cancel:2:2026-03-10"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "id": "charged-after-cancel:2:2026-03-10"
+      }
+    }
+  ]
+}
