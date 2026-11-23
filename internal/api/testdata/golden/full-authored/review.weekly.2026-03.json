@@ -1,12 +1,16 @@
 {
   "limit": {
-    "cap": 0.00,
+    "cap": 600.00,
     "spent": 0.00,
-    "remaining": 0.00,
+    "remaining": 600.00,
     "over": false,
     "fill": 0
   },
-  "week": null,
+  "week": {
+    "guide": 247.06,
+    "spent": 0.00,
+    "fill": 0
+  },
   "queue": {
     "items": [
       {

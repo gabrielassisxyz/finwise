@@ -1,0 +1,11 @@
+{
+  "today": "2026-03-20",
+  "pendingCount": 1,
+  "sync": {
+    "state": "warning",
+    "message": "C6: problema na conexão"
+  },
+  "firstMonth": "2026-01",
+  "lastMonth": "2026-03",
+  "closedMonths": []
+}
