@@ -23,24 +23,35 @@ var ErrViewClosed = errors.New("ledger: view is closed")
 // snapshot or from none. Close releases the handle; a view is meant to live for
 // one unit of work, such as a request, and not beyond it.
 type View struct {
-	path string
+	path              string
+	observeRowReading func()
 
 	mu       sync.Mutex
 	database *sql.DB
 	tx       *sql.Tx
 	openErr  error
 	closed   bool
+
+	// rowsMu is held across the one reading of the clean list, so that a
+	// second caller waits for the first one's rows instead of reading again.
+	// It is taken before mu.
+	rowsMu    sync.Mutex
+	cleanRows []Transaction
+	rowsRead  bool
 }
 
 // View returns a view of the snapshot at the reader's path. It does not touch
 // the file.
 func (reader *Reader) View() *View {
-	return &View{path: reader.path}
+	return &View{path: reader.path, observeRowReading: reader.observeRowReading}
 }
 
-// Close releases the view's handle. It may be called more than once, and on a
-// view that never opened the file.
+// Close releases the view's handle and drops the rows it read. It may be
+// called more than once, and on a view that never opened the file.
 func (view *View) Close() error {
+	view.rowsMu.Lock()
+	defer view.rowsMu.Unlock()
+	view.cleanRows, view.rowsRead = nil, false
 	view.mu.Lock()
 	defer view.mu.Unlock()
 	if view.closed {

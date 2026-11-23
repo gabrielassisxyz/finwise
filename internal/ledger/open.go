@@ -75,14 +75,23 @@ func IsUnreadableSnapshot(err error) bool {
 	return errors.As(err, &target)
 }
 
-// Reader answers queries over one snapshot file.
+// Reader answers queries over one snapshot file. It holds no row: whatever a
+// view reads dies with the view.
 type Reader struct {
-	path string
+	path              string
+	observeRowReading func()
 }
 
 // New returns a reader of the snapshot at path. It does not touch the file.
 func New(path string) *Reader {
 	return &Reader{path: path}
+}
+
+// ObservingRowReadings returns a reader of the same file whose views call
+// observe each time they read the clean list's rows from the file, which is
+// how a test counts the readings one unit of work makes.
+func (reader *Reader) ObservingRowReadings(observe func()) *Reader {
+	return &Reader{path: reader.path, observeRowReading: observe}
 }
 
 // openReadOnly refuses writes twice, in the connection mode and in the session:
