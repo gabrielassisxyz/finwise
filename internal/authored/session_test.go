@@ -16,8 +16,12 @@ const (
 func TestTheSessionMigrationIsRecorded(t *testing.T) {
 	path := databasePath(t)
 	openAndClose(t, path, creationInstant, nil)
-	if got := namesOf(t, path); !equalStrings(got, slices.Sorted(slices.Values([]string{"0001_journal", "0002_budget", "0003_transactions", "0004_settings", "0005_pots", "0006_subscriptions", "0008_session", "0007_review"}))) {
-		t.Errorf("recorded = %v, want 0001_journal, 0002_budget, 0003_transactions, 0004_settings, 0005_pots, 0006_subscriptions, 0007_review and 0008_session", got)
+	want := embeddedMigrationNames(t)
+	if !slices.Contains(want, "0008_session") {
+		t.Fatalf("the embedded set lacks 0008_session: %v", want)
+	}
+	if got := namesOf(t, path); !equalStrings(got, want) {
+		t.Errorf("recorded = %v, want %v", got, want)
 	}
 }
 
