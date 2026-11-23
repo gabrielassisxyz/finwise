@@ -519,12 +519,14 @@ func TestTheWeekCountedIsTheOneOfItsMonthThatHoldsToday(t *testing.T) {
 }
 
 // queueOverTheThirdState adds to the third state a review of each reason the
-// rules give, beside the boleto's of an earlier wording: one on a row no
-// snapshot lists, one in January, whose budget is left with no line, and two
-// answers, one of them in this week.
+// rules give, beside the boleto's of an earlier wording. Waiting in the queue
+// are the PIX to an unnamed person, the new establishment, the low confidence
+// on the foreign purchase and the PIX of January: January is closed and keeps
+// its own version of the budget, whose lines it still has, so its review
+// counts. Out of it are the review on a row no snapshot lists, and the two
+// answered, one of them in this week.
 func queueOverTheThirdState(t *testing.T, scratch *authoredtest.Scratch, full *ledgertest.Fixture) {
 	t.Helper()
-	authoredtest.PutVersion(t, scratch.Database, utc(2026, time.March, 1, 9, 0), "2026-01")
 	rulesLeave(t, scratch, full.Path,
 		waitingReview{txPixOut, string(classrules.ReasonUnnamedPerson), "", nil},
 		waitingReview{txInstalment, string(classrules.ReasonNewEstablishment), "", nil},
