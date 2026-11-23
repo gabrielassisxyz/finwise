@@ -3,9 +3,14 @@ package authored_test
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"maps"
+	"slices"
 	"testing"
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
+	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
+	"github.com/gabrielassisxyz/finwise/internal/brday"
 )
 
 func TestUndoRestoresTheDumpFromBeforeTheChange(t *testing.T) {
@@ -461,6 +466,227 @@ func TestOwnedRowsFollowTheirOwner(t *testing.T) {
 		undo(t, database, removal)
 		assertDump(t, database, before)
 	})
+	t.Run("the restore of a part takes the step back with a reason a later change wrote", func(t *testing.T) {
+		database := openScratch(t, "")
+		before := dump(t, database)
+		created := change(t, database, put("steps", step(1, "t1", "line")))
+		change(t, database, put("step_reasons", reason(1, "wrong shop")))
+		reasoned := dump(t, database)
+		if can, err := database.CanRestorePart(t.Context(), created, everyUnit); err != nil || !can {
+			t.Fatalf("the read-only check answered %v, %v for the step's own change", can, err)
+		}
+		restore := change(t, database, func(recorder *authored.Recorder) error {
+			return recorder.RestorePart(t.Context(), created, everyUnit)
+		})
+		assertDump(t, database, before)
+		undo(t, database, restore)
+		assertDump(t, database, reasoned)
+	})
+}
+
+func everyUnit(authored.Unit) bool { return true }
+
+func TestOwnedRowsThatHoldTheirOwnerKeepItsCreationFromBeingUndone(t *testing.T) {
+	created := all(put("lists", list(1, "casa")), put("entries", entry(1, "pão")))
+	t.Run("a row a later change wrote refuses the undo until that change is undone", func(t *testing.T) {
+		database := openScratch(t, "")
+		before := dump(t, database)
+		creation := change(t, database, created)
+		added := change(t, database, put("entries", entry(1, "leite")))
+		state := everything(t, database)
+		refusedAs(t, database, creation, authored.CauseOwnedRowHeld)
+		assertUnchanged(t, database, state)
+		undo(t, database, added)
+		undo(t, database, creation)
+		assertDump(t, database, before)
+	})
+	t.Run("a row written around the journal refuses it too", func(t *testing.T) {
+		database := openScratch(t, "")
+		creation := change(t, database, created)
+		around(t, database, "INSERT INTO entries (list_id, item) VALUES (1, 'sal')")
+		state := everything(t, database)
+		refusedAs(t, database, creation, authored.CauseOwnedRowHeld)
+		assertUnchanged(t, database, state)
+	})
+	t.Run("rows the undo restores itself do not refuse it, written before the owner or after", func(t *testing.T) {
+		database := openScratch(t, "")
+		before := dump(t, database)
+		creation := change(t, database, all(put("entries", entry(1, "sal")), created, put("entries", entry(1, "leite"))))
+		undo(t, database, creation)
+		assertDump(t, database, before)
+	})
+	t.Run("the restore of a part is refused, changes nothing and the read-only check says so first", func(t *testing.T) {
+		database := openScratch(t, "")
+		creation := change(t, database, created)
+		change(t, database, put("entries", entry(1, "leite")))
+		if can, err := database.CanRestorePart(t.Context(), creation, everyUnit); err != nil || can {
+			t.Errorf("the read-only check answered %v, %v, want false", can, err)
+		}
+		state := everything(t, database)
+		err := database.Change(t.Context(), facts("test.restorePart"), func(recorder *authored.Recorder) error {
+			assertStale(t, recorder.RestorePart(t.Context(), creation, everyUnit), authored.CauseOwnedRowHeld)
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("the change around the refused restore: %v", err)
+		}
+		assertUnchanged(t, database, state)
+	})
+}
+
+func TestAnOwnedTableThatDeclaresNeitherThatItsRowsFollowNorHoldTheirOwnerIsRefused(t *testing.T) {
+	if _, err := authored.NewRegistry(scratchTables()); err != nil {
+		t.Fatalf("the scratch tables, every owned one declared, were refused: %v", err)
+	}
+	for i, table := range scratchTables() {
+		if table.OwnedBy == nil {
+			continue
+		}
+		for _, onUndo := range []authored.OwnedRows{0, authored.RowsHoldTheirOwner + 1} {
+			tables := scratchTables()
+			declared := *tables[i].OwnedBy
+			declared.OnUndo = onUndo
+			tables[i].OwnedBy = &declared
+			if _, err := authored.NewRegistry(tables); err == nil {
+				t.Errorf("a registry accepted %s declaring %d", table.Name, onUndo)
+			}
+		}
+	}
+}
+
+func TestTheAppsOwnedTablesSayWhetherTheirRowsFollowOrHoldTheirOwner(t *testing.T) {
+	want := map[string]authored.OwnedRows{
+		"budget_version_lines": authored.RowsHoldTheirOwner,
+		"history_step_reasons": authored.RowsFollowTheirOwner,
+	}
+	got := map[string]authored.OwnedRows{}
+	for _, table := range authored.AppTables() {
+		if table.OwnedBy != nil {
+			got[table.Name] = table.OwnedBy.OnUndo
+		}
+	}
+	if !maps.Equal(got, want) {
+		t.Errorf("the owned tables declare %v, want %v", got, want)
+	}
+}
+
+// addingLine is the document with one new line at the end of a group, so the
+// lines it already had keep their places and are put back unchanged.
+func addingLine(group, name string) func(authored.Document) authored.Document {
+	return func(document authored.Document) authored.Document {
+		for i := range document {
+			if document[i].Key == group {
+				document[i].Lines = append(document[i].Lines, authoredtest.Line(name, 7_000))
+			}
+		}
+		return document
+	}
+}
+
+// saveAdding saves month again with the budget in force for it and one new
+// line, and checks that the save recorded that line's row and nothing else.
+func (env *budgetEnv) saveAdding(month brday.Month, group, name string) authored.ChangeID {
+	env.t.Helper()
+	added := env.save(month, addingLine(group, name)(authoredtest.DocumentOf(env.budget(month))))
+	if effects := env.scratch.EffectsOf(env.t, int64(added)); len(effects) != 1 || effects[0].Table != "budget_version_lines" {
+		env.t.Fatalf("the save that adds %s recorded %+v, want the new line's row alone", name, effects)
+	}
+	return added
+}
+
+// expectHeld undoes change and wants it refused as stale with nothing changed:
+// the tables, the journal and the change, which stays in force.
+func (env *budgetEnv) expectHeld(label string, change authored.ChangeID) {
+	env.t.Helper()
+	state, changes, effects := env.scratch.State(env.t), len(env.scratch.Changes(env.t)), env.scratch.EffectCount(env.t)
+	var stale *authored.StaleChangeError
+	if err := env.undo(change); !errors.As(err, &stale) || stale.Cause != authored.CauseOwnedRowHeld {
+		env.t.Errorf("%s: the undo answered %v, want a refusal for a line it does not restore", label, err)
+	}
+	if env.scratch.State(env.t) != state || len(env.scratch.Changes(env.t)) != changes || env.scratch.EffectCount(env.t) != effects {
+		env.t.Errorf("%s: the refused undo changed the database or the journal", label)
+	}
+	for _, recorded := range env.scratch.Changes(env.t) {
+		if recorded.ID == int64(change) && recorded.UndoneAt != "" {
+			env.t.Errorf("%s: change %d is marked undone", label, change)
+		}
+	}
+}
+
+func (env *budgetEnv) mustUndo(label string, change authored.ChangeID) {
+	env.t.Helper()
+	if err := env.undo(change); err != nil {
+		env.t.Fatalf("%s: %v", label, err)
+	}
+}
+
+func lineNames(budget authored.Budget) []string {
+	var names []string
+	for _, line := range budget.Lines {
+		names = append(names, line.Name)
+	}
+	slices.Sort(names)
+	return names
+}
+
+// The second save sends the first one's lines back as they were and adds one,
+// so its one effect is a row that is no unit of the first save. Removing the
+// version the first save created would take that row along.
+func TestTheUndoOfTheSaveThatCreatedAVersionIsRefusedWhileALineALaterSaveAddedStands(t *testing.T) {
+	env := newBudgetEnvWithNothing(t)
+	before := env.scratch.Canonical(t)
+	created := env.save("2026-03", authoredtest.InventedBudget())
+	added := env.saveAdding("2026-03", "var", "Farmácia")
+	both := env.budget("2026-03")
+	if len(both.Lines) != 9 {
+		t.Fatalf("the two saves left %d lines, want 9", len(both.Lines))
+	}
+	env.expectHeld("the undo of the first save", created)
+	if got := env.budget("2026-03"); !slices.Equal(got.Lines, both.Lines) {
+		t.Errorf("after the refusal 2026-03 reads %v, want %v", lineNames(got), lineNames(both))
+	}
+	for _, recorded := range env.scratch.Changes(t) {
+		if recorded.UndoneAt != "" {
+			t.Errorf("after the refusal change %d is marked undone", recorded.ID)
+		}
+	}
+	env.mustUndo("the undo of the second save", added)
+	env.mustUndo("the undo of the first save once the second is undone", created)
+	if got := env.scratch.Canonical(t); got != before {
+		t.Errorf("the two undos left another state than the one before both saves:\n%s", got)
+	}
+}
+
+func TestOfTwoSavesThatEachAddALineTheEarlierIsUndoneAloneAndTheFirstSaveWaitsForBoth(t *testing.T) {
+	for _, earlierFirst := range []bool{true, false} {
+		env := newBudgetEnvWithNothing(t)
+		before := env.scratch.Canonical(t)
+		created := env.save("2026-03", authoredtest.InventedBudget())
+		pharmacy := env.saveAdding("2026-03", "var", "Farmácia")
+		cinema := env.saveAdding("2026-03", "res", "Cinema")
+		env.expectHeld("the undo of the first save while both stand", created)
+		first, second, other := pharmacy, cinema, "Cinema"
+		if !earlierFirst {
+			first, second, other = cinema, pharmacy, "Farmácia"
+		}
+		env.mustUndo("the undo of one added line", first)
+		want := []string{other}
+		for _, group := range authoredtest.InventedBudget() {
+			for _, line := range group.Lines {
+				want = append(want, line.Name)
+			}
+		}
+		slices.Sort(want)
+		if got := lineNames(env.budget("2026-03")); !slices.Equal(got, want) {
+			t.Errorf("earlier first %v: after the undo 2026-03 has %v, want %v", earlierFirst, got, want)
+		}
+		env.expectHeld("the undo of the first save while one added line stands", created)
+		env.mustUndo("the undo of the other added line", second)
+		env.mustUndo("the undo of the first save once both are undone", created)
+		if got := env.scratch.Canonical(t); got != before {
+			t.Errorf("earlier first %v: the undos left another state than the one before the saves:\n%s", earlierFirst, got)
+		}
+	}
 }
 
 func TestATextOfEveryKindSurvivesWriteChangeAndUndo(t *testing.T) {
