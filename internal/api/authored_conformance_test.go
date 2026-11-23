@@ -87,9 +87,10 @@ var authoredReadCases = []authoredReadCase{
 	authoredReadOver("review.weekly", `["2026-03"]`, queueOverTheThirdState),
 	// The home's limit and weekly guides under each version of the invented
 	// budget: 2026-02, a past month, and 2026-03, the current one, above. The
-	// frame counts what waits for review, as both homes do.
+	// frame counts what waits for review, as both homes do, and lists the
+	// closed months, a second one beside January.
 	authoredRead("home.summary", `["2026-02"]`),
-	authoredRead("shell.overview", `[]`),
+	authoredReadOver("shell.overview", `[]`, aSecondClosedMonth),
 
 	authoredRead("review.payday", `["2026-03"]`),
 	authoredRead("review.payday", `["2026-04"]`),
