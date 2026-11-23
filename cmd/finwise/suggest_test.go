@@ -147,8 +147,8 @@ func TestServeSuggestsAfterIngestReplacesSnapshotKeepsPendingToPostedAndNeverRea
 	inventedNight(t, files.ledgerPath, 1, nightOneRows, nil)
 
 	var (
-		mu             sync.Mutex
-		askedPerCall   []int
+		mu              sync.Mutex
+		askedPerCall    []int
 		allDescriptions []string
 	)
 	fakeModel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -142,15 +142,15 @@ func TestParseResponseValidatesEveryFieldIndependently(t *testing.T) {
 	req := suggest.Request{
 		Month: "2026-03",
 		Purchases: []suggest.RequestPurchase{
-			{N: 1, Key: 101}, // valid
-			{N: 2, Key: 102}, // line the month lacks
-			{N: 3, Key: 103}, // confidence 101
-			{N: 4, Key: 104}, // confidence -1
-			{N: 5, Key: 105}, // confidence 82.5
-			{N: 6, Key: 106}, // blank justification
-			{N: 7, Key: 107}, // 201-rune justification
-			{N: 8, Key: 108}, // repeated n
-			{N: 9, Key: 109}, // omitted
+			{N: 1, Key: 101},  // valid
+			{N: 2, Key: 102},  // line the month lacks
+			{N: 3, Key: 103},  // confidence 101
+			{N: 4, Key: 104},  // confidence -1
+			{N: 5, Key: 105},  // confidence 82.5
+			{N: 6, Key: 106},  // blank justification
+			{N: 7, Key: 107},  // 201-rune justification
+			{N: 8, Key: 108},  // repeated n
+			{N: 9, Key: 109},  // omitted
 			{N: 10, Key: 110}, // valid with exact 200-rune Portuguese justification and confidence 0
 		},
 		LineIDs: map[string]authored.LineID{
