@@ -381,3 +381,56 @@ func writeBelowTheRouter(t *testing.T, database *authored.Database, handler Writ
 		return err
 	})
 }
+
+// Each classifier setting's handler holds values to the rules package's bounds;
+// those bounds must be the exact ones the settings table accepts, with the next
+// value outside each bound refused by the table.
+func TestTheClassifierSettingsBoundsMatchWhatTheTableAcceptsAndRefuses(t *testing.T) {
+	cases := []struct {
+		name    string
+		handler WriteHandler
+		read    func(*authored.View) int64
+		write   func(context.Context, *authored.Recorder, int64) error
+	}{
+		{
+			name:    "confidence threshold",
+			handler: setThreshold,
+			read:    func(view *authored.View) int64 { return mustRead(t, view.ConfidenceThreshold) },
+			write: func(ctx context.Context, r *authored.Recorder, v int64) error {
+				return r.SetConfidenceThreshold(ctx, v)
+			},
+		},
+		{
+			name:    "minimum of examples",
+			handler: setMinExamples,
+			read:    func(view *authored.View) int64 { return mustRead(t, view.MinExamples) },
+			write:   func(ctx context.Context, r *authored.Recorder, v int64) error { return r.SetMinExamples(ctx, v) },
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			held := func(arguments string) int64 {
+				t.Helper()
+				database := authoredtest.Fresh(t, fixtureClock)
+				if err := writeBelowTheRouter(t, database, c.handler, arguments); err != nil {
+					t.Fatalf("the table refused what the handler held %s to: %v", arguments, err)
+				}
+				view := database.View()
+				defer view.Close()
+				return c.read(view)
+			}
+			lowest := held(`[-1000]`)
+			highest := held(`[1000]`)
+			for _, outside := range []int64{lowest - 1, highest + 1} {
+				database := authoredtest.Fresh(t, fixtureClock)
+				facts := authored.ChangeFacts{Author: authored.AuthorPerson, Method: "settings.bounds", At: fixtureNow}
+				err := database.Change(t.Context(), facts, func(recorder *authored.Recorder) error {
+					return c.write(t.Context(), recorder, outside)
+				})
+				if err == nil {
+					t.Errorf("the table accepted %d, outside the handler's %d..%d", outside, lowest, highest)
+				}
+			}
+		})
+	}
+}
