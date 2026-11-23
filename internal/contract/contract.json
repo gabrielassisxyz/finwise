@@ -5068,7 +5068,11 @@
           "type": "number"
         },
         "line": {
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The line's name in the current month's budget; null when it has none or that budget lacks it."
         },
         "status": {
           "$ref": "#/definitions/SubscriptionStatus"
@@ -5224,7 +5228,11 @@
           "description": "The amount spread over the months of its cycle, to the cent."
         },
         "line": {
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The line's name in the current month's budget; null when it has none or that budget lacks it."
         },
         "status": {
           "$ref": "#/definitions/SubscriptionStatus"

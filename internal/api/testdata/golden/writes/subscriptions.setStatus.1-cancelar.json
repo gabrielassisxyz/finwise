@@ -1,0 +1,27 @@
+{
+  "answer": {
+    "changeId": "2"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "subscriptions",
+      "key": [
+        1
+      ],
+      "column": "status",
+      "before": "Manter",
+      "after": "Cancelar"
+    },
+    {
+      "seq": 2,
+      "table": "subscriptions",
+      "key": [
+        1
+      ],
+      "column": "status_day",
+      "before": "2026-02-10",
+      "after": "2026-03-20"
+    }
+  ]
+}

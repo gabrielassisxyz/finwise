@@ -1,8 +1,11 @@
 import { flushPromises } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { useOverlayStore } from '@/stores/overlay';
+import { prototypeState } from '@/api/fake/prototype-data';
+import type { SubscriptionRow } from '@/api/types';
 import { mountRouted } from '@/test/mountRouted';
 import AssinaturasScreen from './AssinaturasScreen.vue';
+import { rowSubtitle } from './subscriptionText';
 
 const Blank = { template: '<div />' };
 const routes = [
@@ -270,5 +273,50 @@ describe('Assinaturas, Recorrentes', () => {
       'Próxima esperada',
       'Valor médio',
     ]);
+  });
+});
+
+describe('Assinaturas, a subscription with no budget line', () => {
+  async function mountWithoutLine() {
+    const state = prototypeState();
+    state.subscriptions.find((subscription) => subscription.id === 'ho')!.line = null;
+    const mounted = await mountRouted(AssinaturasScreen, routes, '/assinaturas', { state });
+    await flushPromises();
+    return mounted;
+  }
+
+  it('shows a dash in the line cell', async () => {
+    const { wrapper } = await mountWithoutLine();
+    const cell = rowOf(wrapper, 'Hospedagem').find('[data-label="Linha do budget"]');
+    expect(`${cell.attributes('data-label')}=${plain(cell.text())}`).toBe('Linha do budget=—');
+  });
+
+  it('leaves the line out of the subtitle, with no trailing separator', async () => {
+    const { wrapper } = await mountWithoutLine();
+    expect(plain(rowOf(wrapper, 'Hospedagem').find('.subtitle.narrow-only').text())).toBe('Trimestral · R$ 20,00 por mês');
+  });
+});
+
+describe('rowSubtitle', () => {
+  const row = (line: string | null): SubscriptionRow => ({
+    id: 'x',
+    name: 'Hospedagem',
+    amount: 60,
+    cycle: 'Trimestral',
+    nextCharge: '2027-01-10',
+    monthlyEquivalent: 20,
+    line,
+    status: 'Manter',
+    reviewOn: '2027-06-01',
+    reviewOverdue: false,
+    marks: [],
+  });
+
+  it('reads the cycle, the equivalent and the line', () => {
+    expect(rowSubtitle(row('Ferramentas de trabalho')).replace(/\u00a0/g, ' ')).toBe('Trimestral · R$ 20,00 por mês · Ferramentas de trabalho');
+  });
+
+  it('reads the cycle and the equivalent alone when there is no line', () => {
+    expect(rowSubtitle(row(null)).replace(/\u00a0/g, ' ')).toBe('Trimestral · R$ 20,00 por mês');
   });
 });

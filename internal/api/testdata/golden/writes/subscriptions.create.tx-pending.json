@@ -1,0 +1,30 @@
+{
+  "answer": {
+    "changeId": "2",
+    "name": "PADARIA EXEMPLO"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "subscriptions",
+      "key": [
+        2
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "id": 2,
+        "establishment_key": "text:PADARIA EXEMPLO",
+        "created_from_tx_key": 11,
+        "created_day": "2026-03-19",
+        "created_cents": 1850,
+        "name": "PADARIA EXEMPLO",
+        "line_id": null,
+        "status": "Analisar",
+        "status_day": "2026-03-20",
+        "review_on": "2026-06-20",
+        "note": ""
+      }
+    }
+  ]
+}

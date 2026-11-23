@@ -23,9 +23,7 @@ const changePin = "session.changePin"
 var writesWithoutHandler = []string{
 	"transactions.setReimbursable", "transactions.setExpectedReimbursement",
 	"transactions.linkReimbursement", "transactions.unlinkReimbursement",
-	"subscriptions.create", "subscriptions.acceptSuggestion",
-	"subscriptions.rejectSuggestion", "subscriptions.setStatus", "subscriptions.setLine",
-	"subscriptions.setReviewDate", "subscriptions.setNote", "review.acceptPending", "review.approve",
+	"review.acceptPending", "review.approve",
 	"review.refuse", "review.propose", "review.dismissWarning", "review.runWarningAction",
 	"review.markStepDone", "review.keepSubscription", "review.cancelSubscription",
 	"review.closeMonth", "review.markTransferDone",
@@ -126,6 +124,8 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 		"budget.applyScenario", "budget.evaluateScenario", "budget.save", "budget.saveScenario", "changes.undo",
 		"settings.setCardLabel", "settings.setClosing", "settings.setDefaultLine", "settings.setMinExamples",
 		"settings.setNickname", "settings.setPotBucket", "settings.setThreshold", "settings.toggleLinkedLine",
+		"subscriptions.acceptSuggestion", "subscriptions.create", "subscriptions.rejectSuggestion",
+		"subscriptions.setLine", "subscriptions.setNote", "subscriptions.setReviewDate", "subscriptions.setStatus",
 		"transactions.addFixedTag", "transactions.addTag", "transactions.addTagToMany", "transactions.applyLineToEstablishment",
 		"transactions.confirmLine", "transactions.excludeMany", "transactions.removeFixedTag", "transactions.removeTag",
 		"transactions.setDefaultLine", "transactions.setExcluded", "transactions.setExclusionReason", "transactions.setLine",
@@ -135,8 +135,8 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 	if !slices.Equal(registered, implemented) {
 		t.Errorf("the registry implements %v, want %v", registered, implemented)
 	}
-	if len(writesWithoutHandler) != 22 || slices.Contains(writesWithoutHandler, changePin) {
-		t.Errorf("the list holds %d names, want 22 without %s", len(writesWithoutHandler), changePin)
+	if len(writesWithoutHandler) != 15 || slices.Contains(writesWithoutHandler, changePin) {
+		t.Errorf("the list holds %d names, want 15 without %s", len(writesWithoutHandler), changePin)
 	}
 }
 

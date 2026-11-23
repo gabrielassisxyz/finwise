@@ -136,6 +136,7 @@ var domainRegistrations = []func(*Registry){
 	registerTransactionLineWrites,
 	registerTransactionHistoryWrites,
 	registerSettingsCounterpartWrites,
+	registerSubscriptionWrites,
 }
 
 // NewReadRegistry returns the registry every domain's handlers are in.

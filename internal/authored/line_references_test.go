@@ -174,8 +174,9 @@ func (env *lineEnv) expectOnlyTheSavesTables(change authored.ChangeID) {
 	}
 }
 
-// expectMonthlessLinesKept checks the two references to Delivery that belong
-// to no month: the establishment's default line and the pot's link.
+// expectMonthlessLinesKept checks the three references to Delivery that belong
+// to no month: the establishment's default line, the pot's link and the
+// subscription's line.
 func (env *lineEnv) expectMonthlessLinesKept() {
 	env.t.Helper()
 	view := env.scratch.Database.View()
@@ -193,6 +194,17 @@ func (env *lineEnv) expectMonthlessLinesKept() {
 	}
 	if !slices.Equal(linked, []authored.LineID{env.examples.Delivery}) {
 		env.t.Errorf("the pot's lines are %v, want Delivery's", linked)
+	}
+	subscription, found, err := view.Subscription(env.t.Context(), env.examples.Subscription)
+	if err != nil {
+		env.t.Fatal(err)
+	}
+	if !found || subscription.Line == nil || *subscription.Line != env.examples.Delivery {
+		line := "no line"
+		if subscription.Line != nil {
+			line = fmt.Sprint(*subscription.Line)
+		}
+		env.t.Errorf("the subscription (found %t) is on %s, want Delivery's %d", found, line, env.examples.Delivery)
 	}
 }
 

@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "changeId": "2"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "subscriptions",
+      "key": [
+        1
+      ],
+      "column": "note",
+      "before": "Cesta do mês, revisar o plano",
+      "after": "Trocar pelo plano família"
+    }
+  ]
+}
