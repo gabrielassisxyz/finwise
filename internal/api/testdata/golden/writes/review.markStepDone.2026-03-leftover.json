@@ -1,0 +1,21 @@
+{
+  "answer": {
+    "changeId": "2"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "closing_steps",
+      "key": [
+        "2026-03",
+        "leftover"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "month": "2026-03",
+        "step": "leftover"
+      }
+    }
+  ]
+}

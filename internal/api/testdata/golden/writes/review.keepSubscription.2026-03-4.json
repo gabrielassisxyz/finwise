@@ -1,0 +1,39 @@
+{
+  "answer": {
+    "changeId": "6",
+    "name": "MERCADO EXEMPLO",
+    "nextReview": "2026-09-30"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "subscriptions",
+      "key": [
+        4
+      ],
+      "column": "status",
+      "before": "Analisar",
+      "after": "Manter"
+    },
+    {
+      "seq": 2,
+      "table": "subscriptions",
+      "key": [
+        4
+      ],
+      "column": "status_day",
+      "before": "2026-03-09",
+      "after": "2026-03-20"
+    },
+    {
+      "seq": 3,
+      "table": "subscriptions",
+      "key": [
+        4
+      ],
+      "column": "review_on",
+      "before": "2026-03-01",
+      "after": "2026-09-30"
+    }
+  ]
+}

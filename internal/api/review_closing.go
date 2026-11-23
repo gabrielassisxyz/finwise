@@ -104,6 +104,7 @@ type closingViewWire struct {
 
 func registerClosing(registry *Registry) {
 	registry.Register("review.closing", readClosing)
+	registerClosingWrites(registry)
 }
 
 // readClosing reads the card first: it is what stops an unreadable ledger from
