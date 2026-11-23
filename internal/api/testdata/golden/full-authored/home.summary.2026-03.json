@@ -1,14 +1,45 @@
 {
   "limit": {
-    "cap": 0.00,
+    "cap": 600.00,
     "spent": 0.00
   },
-  "weeks": [],
+  "weeks": [
+    {
+      "label": "01–07",
+      "guide": 135.48,
+      "spent": 0.00,
+      "current": false
+    },
+    {
+      "label": "08–14",
+      "guide": 175.00,
+      "spent": 0.00,
+      "current": false
+    },
+    {
+      "label": "15–21",
+      "guide": 247.06,
+      "spent": 0.00,
+      "current": true
+    },
+    {
+      "label": "22–28",
+      "guide": 420.00,
+      "spent": null,
+      "current": false
+    },
+    {
+      "label": "29–31",
+      "guide": 600.00,
+      "spent": null,
+      "current": false
+    }
+  ],
   "netWorth": {
     "available": 2859.66,
     "reserved": 8275.80,
     "invested": 3000.00
   },
-  "pendingCount": 0,
+  "pendingCount": 1,
   "payAhead": null
 }

@@ -29,8 +29,9 @@ func registerShell(registry *Registry) {
 	registry.Register("shell.overview", readShellOverview)
 }
 
-// readShellOverview answers what the ledger knows of the frame. Nobody has
-// reviewed or closed anything yet, so those figures are the fresh install's.
+// readShellOverview answers what the ledger knows of the frame and how many
+// transactions wait for review. Nobody has closed a month yet, so that list is
+// the fresh install's.
 func readShellOverview(ctx context.Context, _ []json.RawMessage, views Views) (any, error) {
 	accounts, err := views.Ledger.Accounts(ctx)
 	if err != nil {
@@ -44,10 +45,15 @@ func readShellOverview(ctx context.Context, _ []json.RawMessage, views Views) (a
 	if err != nil {
 		return nil, err
 	}
+	pending, err := pendingCount(ctx, views)
+	if err != nil {
+		return nil, err
+	}
 	now := nowOf(ctx)
 	current := string(brday.MonthOf(now))
 	return shellOverview{
 		Today:        string(brday.DayOf(now)),
+		PendingCount: pending,
 		Sync:         syncStatusOf(state, now, itemBankLabels(accounts, bankLabels(accounts))),
 		FirstMonth:   firstMonthOf(rows, current),
 		LastMonth:    current,

@@ -88,3 +88,11 @@ func (months monthsWithLines) has(ctx context.Context, month brday.Month) (bool,
 	months.known[month] = len(lines) > 0
 	return len(lines) > 0, nil
 }
+
+// pendingCount is how many transactions wait for review in every month: the
+// length of the weekly queue, so a badge never counts what the queue does not
+// show.
+func pendingCount(ctx context.Context, views Views) (int, error) {
+	pending, err := pendingTransactions(ctx, views, wholeLedger.Last)
+	return len(pending), err
+}
