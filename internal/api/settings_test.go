@@ -463,7 +463,7 @@ func TestTheLinesOfAPotAreNamedInTheCurrentMonthsBudgetInTheBudgetsOrder(t *test
 	// Linked in an order that is neither the budget's nor the lines' ids.
 	for _, line := range []authored.LineID{
 		budgetLineID(t, scratch.Database, "2026-03", "Viagens"), budgetLineID(t, scratch.Database, "2026-03", "Salário"),
-		feesLineID, budgetLineID(t, scratch.Database, "2026-03", "Remédios"),
+		authored.FeesLineID, budgetLineID(t, scratch.Database, "2026-03", "Remédios"),
 	} {
 		authoredtest.ToggleLink(t, scratch.Database, fixtureNow, line, potCaixinha)
 	}
@@ -533,9 +533,9 @@ func TestARenamedLineShowsItsNewNameAndARemovedOneIsHiddenWhileItsLinkStays(t *t
 	}
 }
 
-// The fees line has no row in any version, so its id is the one fact of the
-// budget's migration the API states itself: it is a line that exists and that
-// no document may carry, which is what the built-in line is.
+// The fees line has no row in any version, so its id is a fact of the budget's
+// migration that the store states for the API to read: it is a line that exists
+// and that no document may carry, which is what the built-in line is.
 func TestTheFeesLineIDIsTheBuiltInLineOfTheStore(t *testing.T) {
 	database := authoredtest.Fresh(t, fixtureClock)
 	authoredtest.SaveBudget(t, database, fixtureNow, "2026-02", authoredtest.InventedBudget())
@@ -547,12 +547,12 @@ func TestTheFeesLineIDIsTheBuiltInLineOfTheStore(t *testing.T) {
 			authored.DocumentLine{ID: &text, Name: "Outra", Cents: 100})})
 	}
 	var invalid *authored.InvalidBudgetError
-	if err := carrying(feesLineID); !errors.As(err, &invalid) {
-		t.Errorf("a document may carry the line %s: %v", feesLineID, err)
+	if err := carrying(authored.FeesLineID); !errors.As(err, &invalid) {
+		t.Errorf("a document may carry the line %s: %v", authored.FeesLineID, err)
 	}
 	if err := carrying(budgetLineID(t, database, "2026-02", "Salário")); err != nil {
 		t.Fatalf("a document may not carry a line of the budget either, so the check says nothing: %v", err)
 	}
 	view.Close()
-	authoredtest.ToggleLink(t, database, fixtureNow, feesLineID, potCaixinha)
+	authoredtest.ToggleLink(t, database, fixtureNow, authored.FeesLineID, potCaixinha)
 }

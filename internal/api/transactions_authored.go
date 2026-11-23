@@ -29,8 +29,8 @@ type transactionLines struct {
 
 func transactionLinesOf(budget authored.Budget) transactionLines {
 	lines := transactionLines{
-		names:  map[authored.LineID]string{feesLineID: authored.FeesLineName},
-		budget: budgetrules.Budget{Lines: map[budgetrules.LineID]budgetrules.Group{}, FeesLine: budgetrules.LineID(feesLineID)},
+		names:  map[authored.LineID]string{authored.FeesLineID: authored.FeesLineName},
+		budget: budgetrules.Budget{Lines: map[budgetrules.LineID]budgetrules.Group{}, FeesLine: budgetrules.LineID(authored.FeesLineID)},
 	}
 	for _, line := range budget.Lines {
 		lines.names[line.ID] = line.Name

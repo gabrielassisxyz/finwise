@@ -12,8 +12,12 @@ import (
 	"github.com/gabrielassisxyz/finwise/internal/money"
 )
 
-// FeesLineName is the built-in line that belongs to no group and no document.
-const FeesLineName = "Tarifas e juros"
+// FeesLineName and FeesLineID are the built-in fees line, which belongs to no
+// group and no document; migration 0002_budget seeds it under this id.
+const (
+	FeesLineName        = "Tarifas e juros"
+	FeesLineID   LineID = 1
+)
 
 // GroupKeys are the five groups a budget document has, in the order every
 // answer lists them.

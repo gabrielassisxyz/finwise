@@ -7,6 +7,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/brday"
 	"github.com/gabrielassisxyz/finwise/internal/budgetrules"
 	"github.com/gabrielassisxyz/finwise/internal/money"
@@ -114,7 +115,7 @@ func TestAFeeARulePutOnTheFeesLineIsAFeeOnThatLine(t *testing.T) {
 			continue
 		}
 		outcome := disposed.outcomes[i]
-		want := []budgetrules.LineAmount{{Line: budgetrules.LineID(feesLineID), Effect: budgetrules.Adds, Amount: 2_500}}
+		want := []budgetrules.LineAmount{{Line: budgetrules.LineID(authored.FeesLineID), Effect: budgetrules.Adds, Amount: 2_500}}
 		if outcome.Disposition != budgetrules.Fee || !reflect.DeepEqual(outcome.Lines, want) {
 			t.Errorf("the fee is %v on %v, want a fee adding 25.00 to the fees line", outcome.Disposition, outcome.Lines)
 		}
