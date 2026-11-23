@@ -6,8 +6,11 @@ import (
 	"time"
 
 	"github.com/gabrielassisxyz/finwise/internal/authored"
+	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
+	"github.com/gabrielassisxyz/finwise/internal/brday"
 	"github.com/gabrielassisxyz/finwise/internal/ingest"
 	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
+	"github.com/gabrielassisxyz/finwise/internal/money"
 )
 
 // The establishments of the outcome ledger, by the key the rules give them.
@@ -306,5 +309,161 @@ func TestARunThatAuthorsNothingWritesNoChangeAndStillRecordsItsRun(t *testing.T)
 	}
 	if run, found := w.lastRun(); !found || run != 1 {
 		t.Errorf("the run taken in is %d (%t), want 1", run, found)
+	}
+}
+
+// The person can divide a purchase or leave it out with a reason before the
+// rules ever look at it: in a month with no budget nothing is evaluated, so
+// what the person does there meets the rules the day the month gets its first
+// line, right after that budget is saved.
+func TestASplitOrAnExclusionWithAReasonMadeBeforeTheFirstBudgetIsLeftAlone(t *testing.T) {
+	w := newWorld(t, createdOn)
+	rows := []ledgertest.Transaction{
+		purchase("tx-divided", at(2026, time.March, 10), "LOJA DIVIDIDA EXEMPLO", 90),
+		purchase("tx-left-out", at(2026, time.March, 11), "LOJA DE FORA EXEMPLO", 40),
+	}
+	w.night("complete", rows...)
+	wantCounts(t, "the run before any budget", w.run(ingest.TriggerTick), ingest.Counts{})
+	w.asPerson(func(recorder *authored.Recorder) error {
+		divided, err := recorder.IndexTransaction(t.Context(), listedSeen(rows[0], -9_000))
+		if err != nil {
+			return err
+		}
+		parts := []authored.SplitPart{{Position: 0, Cents: 5_000}, {Position: 1, Cents: 4_000}}
+		if err := recorder.SetSplit(t.Context(), divided, parts); err != nil {
+			return err
+		}
+		leftOut, err := recorder.IndexTransaction(t.Context(), listedSeen(rows[1], -4_000))
+		if err != nil {
+			return err
+		}
+		_, err = recorder.SetExclusion(t.Context(), leftOut, someText("Pago pela empresa"))
+		return err
+	})
+	w.saveBudget("2026-03", marketBudget())
+
+	counts := w.run(ingest.TriggerBudgetChange)
+	wantCounts(t, "the run after the first budget", counts, ingest.Counts{Indexed: 2, AlreadyDecided: 2})
+	if counts.Outcomes() != counts.Indexed {
+		t.Errorf("%d transactions were evaluated and %d outcomes counted", counts.Indexed, counts.Outcomes())
+	}
+	for _, row := range rows {
+		kept := w.kept(row.ID)
+		if kept.State.PendingReason != "" || kept.State.Line != nil || len(kept.History) != 0 {
+			t.Errorf("%s holds %+v with history %+v, want no review, no line and no step", row.ID, kept.State, kept.History)
+		}
+		if !w.indexRow(row.ID).Evaluated {
+			t.Errorf("%s is not marked evaluated", row.ID)
+		}
+	}
+	if len(w.ruleChanges()) != 0 {
+		t.Error("the rule wrote a change over transactions the person had decided")
+	}
+}
+
+// What is kept about a new purchase at a shop with five examples on Mercado,
+// which the rules put on Mercado when nothing settles it. Each case is written
+// by the person before the run; a decided one comes out of the run as it went
+// in, any other gets the rules' line.
+func TestWhatIsKeptAboutATransactionDecidesWhetherTheRulesLookAtIt(t *testing.T) {
+	cases := []struct {
+		name    string
+		write   func(w *world, recorder *authored.Recorder, key authored.TxKey) error
+		decided bool
+	}{
+		{"nothing kept", func(*world, *authored.Recorder, authored.TxKey) error { return nil }, false},
+		{"a line", func(w *world, recorder *authored.Recorder, key authored.TxKey) error {
+			return recorder.SettleLine(w.t.Context(), key, w.line("2026-03", "Delivery"), authored.AuthorPerson)
+		}, true},
+		{"a review waiting", func(w *world, recorder *authored.Recorder, key authored.TxKey) error {
+			return recorder.SetPendingReview(w.t.Context(), key, "Estabelecimento novo", nil, nil)
+		}, true},
+		{"two parts", func(w *world, recorder *authored.Recorder, key authored.TxKey) error {
+			mercado, delivery := w.line("2026-03", "Mercado"), w.line("2026-03", "Delivery")
+			return recorder.SetSplit(w.t.Context(), key, []authored.SplitPart{
+				{Position: 0, Line: &mercado, Cents: 4_000}, {Position: 1, Line: &delivery, Cents: 2_000},
+			})
+		}, true},
+		{"one part", func(w *world, recorder *authored.Recorder, key authored.TxKey) error {
+			mercado := w.line("2026-03", "Mercado")
+			return authoredtest.WriteSplit(w.t.Context(), recorder, key, []authored.SplitPart{{Position: 0, Line: &mercado, Cents: 6_000}})
+		}, false},
+		{"an exclusion with a reason", func(w *world, recorder *authored.Recorder, key authored.TxKey) error {
+			_, err := recorder.SetExclusion(w.t.Context(), key, someText("Era um presente"))
+			return err
+		}, true},
+		{"an exclusion switched on without a reason", func(w *world, recorder *authored.Recorder, key authored.TxKey) error {
+			_, err := recorder.SetExclusion(w.t.Context(), key, someText(""))
+			return err
+		}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			w := newWorld(t, createdOn)
+			w.saveBudget("2026-03", marketBudget())
+			mercado := w.line("2026-03", "Mercado")
+			w.examples(contestedShop, mercado, 5, "feira-")
+			row := purchase("tx-new", at(2026, time.March, 20), "FEIRA EXEMPLO", 60)
+			w.night("complete", row)
+			w.asPerson(func(recorder *authored.Recorder) error {
+				key, err := recorder.IndexTransaction(t.Context(), listedSeen(row, -6_000))
+				if err != nil {
+					return err
+				}
+				return c.write(w, recorder, key)
+			})
+			if stored := w.kept("tx-new"); c.name == "one part" && len(stored.Split) != 1 {
+				t.Fatalf("the case holds %d parts, want the one part it stores", len(stored.Split))
+			}
+			before := w.kept("tx-new")
+
+			counts := w.run(ingest.TriggerTick)
+			if counts.Outcomes() != counts.Indexed {
+				t.Errorf("%d transactions were evaluated and %d outcomes counted", counts.Indexed, counts.Outcomes())
+			}
+			if !w.indexRow("tx-new").Evaluated {
+				t.Error("the purchase is not marked evaluated")
+			}
+			if !c.decided {
+				wantCounts(t, c.name, counts, ingest.Counts{Indexed: 1, Applied: 1})
+				w.wantApplied("tx-new", mercado, "Mercado")
+				return
+			}
+			wantCounts(t, c.name, counts, ingest.Counts{Indexed: 1, AlreadyDecided: 1})
+			if after := w.kept("tx-new"); !reflect.DeepEqual(after, before) {
+				t.Errorf("the run changed what is kept from %+v to %+v", before, after)
+			}
+			if len(w.ruleChanges()) != 0 {
+				t.Error("the rule wrote a change over a transaction already decided")
+			}
+		})
+	}
+}
+
+// An exclusion switched on without a reason, over a purchase of a shop the rules
+// never met, is asked about as any new purchase is.
+func TestAnExclusionWithoutAReasonIsStillAskedAbout(t *testing.T) {
+	w := newWorld(t, createdOn)
+	row := purchase("tx-switched", at(2026, time.March, 10), "LOJA SEM MOTIVO EXEMPLO", 40)
+	w.night("complete", row)
+	w.asPerson(func(recorder *authored.Recorder) error {
+		key, err := recorder.IndexTransaction(t.Context(), listedSeen(row, -4_000))
+		if err != nil {
+			return err
+		}
+		_, err = recorder.SetExclusion(t.Context(), key, someText(""))
+		return err
+	})
+	w.saveBudget("2026-03", marketBudget())
+	wantCounts(t, "the run", w.run(ingest.TriggerBudgetChange), ingest.Counts{Indexed: 1, PendingNewEstablishment: 1})
+	w.wantPending("tx-switched", "Estabelecimento novo", nil, 0)
+}
+
+// listedSeen is a card purchase as a write's lookup indexes it, on the day the
+// ledger lists it, with the amount in cents it lists.
+func listedSeen(row ledgertest.Transaction, cents money.Cents) authored.SeenTransaction {
+	return authored.SeenTransaction{
+		ProviderID: row.ID, AccountID: row.AccountID, Day: brday.DayOf(row.Date),
+		Cents: cents, EstablishmentKey: "text:" + row.Description,
 	}
 }
