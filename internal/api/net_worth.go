@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/gabrielassisxyz/finwise/internal/brday"
+	"github.com/gabrielassisxyz/finwise/internal/budgetrules"
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
 	"github.com/gabrielassisxyz/finwise/internal/money"
 	"github.com/gabrielassisxyz/finwise/internal/potrules"
@@ -106,7 +107,11 @@ func readNetWorthOverview(ctx context.Context, _ []json.RawMessage, views Views)
 	if err != nil {
 		return nil, err
 	}
-	return view.netWorth(), nil
+	current, err := view.currentTransfers(ctx, views.Authored)
+	if err != nil {
+		return nil, err
+	}
+	return view.netWorth(current), nil
 }
 
 // partsOf adds up the bank accounts' balances as available, and each pot where
@@ -124,15 +129,27 @@ func (view *potsView) partsOf() netWorthParts {
 	return parts
 }
 
-func (view *potsView) netWorth() netWorthOverviewWire {
+func (view *potsView) netWorth(current monthTransfers) netWorthOverviewWire {
 	parts := view.partsOf()
 	chart, historyStart := view.chart()
+	contribution := budgetrules.ContributionOf(current.transfers)
+	planned, actual := budgetrules.InvestmentRates(current.plan, current.transfers)
 	return netWorthOverviewWire{
 		Total: Reais(parts.total()), Buckets: view.bucketsOf(parts), Chart: chart, HistoryStart: string(historyStart),
-		Contribution:   monthContributionWire{},
-		InvestmentRate: investmentRateWire{Month: string(view.month)},
+		Contribution: monthContributionWire{
+			Planned: Reais(contribution.Planned), Done: Reais(contribution.Done), Progress: int(contribution.Progress),
+		},
+		InvestmentRate: investmentRateWire{Month: string(view.month), Planned: wholePercent(planned), Actual: wholePercent(actual)},
 		Yields:         view.yields(),
 	}
+}
+
+func wholePercent(percent *int64) *int {
+	if percent == nil {
+		return nil
+	}
+	whole := int(*percent)
+	return &whole
 }
 
 // bucketsOf lists what makes each bucket up. An item with nothing in it that is

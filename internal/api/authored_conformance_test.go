@@ -88,6 +88,8 @@ var authoredReadCases = []authoredReadCase{
 
 	authoredRead("review.payday", `["2026-03"]`),
 	authoredRead("review.payday", `["2026-04"]`),
+	authoredRead("savingsPots.detail", `["investment:inv-it-1"]`),
+	authoredRead("savingsPots.detail", `["investment:inv-nu-1"]`),
 }
 
 // newAuthoredReadEnv is the third state: both stores, the database holding the

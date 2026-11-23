@@ -103,14 +103,14 @@
   },
   "historyStart": "2026-01",
   "contribution": {
-    "planned": 0.00,
-    "done": 0.00,
-    "progress": 0
+    "planned": 8000.00,
+    "done": 7400.00,
+    "progress": 93
   },
   "investmentRate": {
     "month": "2026-03",
-    "planned": null,
-    "actual": null
+    "planned": 63,
+    "actual": 63
   },
   "yields": {
     "pots": [

@@ -139,9 +139,9 @@ func planOfDocument(document authored.Document) budgetrules.Plan {
 }
 
 // monthFactsOf is what the plan is weighed against in the month: what the
-// month's transactions add to each line, the balance of each counted pot, and
-// whether the month is closed. The investment made follows the payday's
-// transfer, which nothing marks yet, so it is nothing made.
+// month's transactions add to each line, the balance of each counted pot,
+// whether the month is closed, and the investment made, which follows the
+// payday's investment transfer of the plan and the month's marks.
 func monthFactsOf(ctx context.Context, views Views, month brday.Month, plan budgetrules.Plan, disposed monthDispositions) (budgetrules.MonthFacts, error) {
 	balances, err := countedPotBalances(ctx, views, plan)
 	if err != nil {
@@ -151,9 +151,13 @@ func monthFactsOf(ctx context.Context, views Views, month brday.Month, plan budg
 	if err != nil {
 		return budgetrules.MonthFacts{}, err
 	}
+	marks, err := views.Authored.TransferMarks(ctx, month)
+	if err != nil {
+		return budgetrules.MonthFacts{}, err
+	}
 	return budgetrules.MonthFacts{
 		Figures: budgetrules.LineFigures(disposed.outcomes), PotBalances: balances,
-		FeesLine: budgetrules.LineID(feesLineID), Closed: closed,
+		FeesLine: budgetrules.LineID(feesLineID), Closed: closed, Made: budgetrules.MadeInvestment(plan, marks, closed),
 	}, nil
 }
 

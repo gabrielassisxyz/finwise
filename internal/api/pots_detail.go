@@ -4,16 +4,22 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/gabrielassisxyz/finwise/internal/budgetrules"
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
 )
 
 const (
 	contributionClosed      = "closed"
 	contributionNonePlanned = "none-planned"
+	contributionPending     = "pending"
+	contributionDone        = "done"
 )
 
+// potContributionWire is the contract's PotContribution, a union whose only
+// member with a day is done: the others have no doneOn at all.
 type potContributionWire struct {
-	State string `json:"state"`
+	State  string  `json:"state"`
+	DoneOn *string `json:"doneOn,omitempty"`
 }
 
 type potInvestmentWire struct {
@@ -42,9 +48,8 @@ type potYieldWire struct {
 	Days  []potYieldDayWire `json:"days"`
 }
 
-// potDetailWire is the contract's SavingsPotDetail. A target and a planned
-// contribution are the person's to author and nothing stores them yet, so they
-// are the contract's empty value.
+// potDetailWire is the contract's SavingsPotDetail. A target is the person's to
+// author and nothing stores one yet, so it is the contract's empty value.
 type potDetailWire struct {
 	ID           string              `json:"id"`
 	Name         *string             `json:"name"`
@@ -73,17 +78,22 @@ func readPotDetail(ctx context.Context, args []json.RawMessage, views Views) (an
 		return nil, err
 	}
 	for _, entry := range view.entries {
-		if entry.id == id {
-			return view.detailOf(entry), nil
+		if entry.id != id {
+			continue
 		}
+		current, err := view.currentTransfers(ctx, views.Authored)
+		if err != nil {
+			return nil, err
+		}
+		return view.detailOf(entry, current.transfers), nil
 	}
 	return view.accountSideDetail(id), nil
 }
 
-func (view *potsView) detailOf(entry potEntry) potDetailWire {
+func (view *potsView) detailOf(entry potEntry, transfers []budgetrules.MarkedTransfer) potDetailWire {
 	detail := potDetailWire{
 		ID: entry.id, Name: entry.name, Bank: entry.bank, Bucket: textPointer(entry.bucket),
-		CDIPercent: entry.cdiPercent, Balance: Reais(entry.balance), Contribution: contributionOf(entry),
+		CDIPercent: entry.cdiPercent, Balance: Reais(entry.balance), Contribution: contributionOf(entry, transfers),
 		LinkedLines: linkedLinesOf(entry), Movements: movementsOrEmpty(entry.movements),
 		Yield:        potYieldWire{Month: string(view.month), Total: reaisPointer(monthlyYieldOf(entry)), Days: yieldDaysOf(entry)},
 		HistoryStart: string(entry.historyStart),
@@ -122,11 +132,22 @@ func linkedLinesOf(entry potEntry) []potLinkedLineWire {
 	return lines
 }
 
-func contributionOf(entry potEntry) potContributionWire {
+// contributionOf follows the current month's transfers, whatever month the rest
+// of the app is looking at: the pot's own transfer, else, for an investment, the
+// one every investment shares. A mark is the person's word that the transfer
+// was made, so it adds no movement to the page.
+func contributionOf(entry potEntry, transfers []budgetrules.MarkedTransfer) potContributionWire {
 	if entry.closed {
 		return potContributionWire{State: contributionClosed}
 	}
-	return potContributionWire{State: contributionNonePlanned}
+	transfer, planned := budgetrules.TransferOfPot(transfers, entry.id, entry.investment != nil)
+	switch {
+	case !planned:
+		return potContributionWire{State: contributionNonePlanned}
+	case transfer.Done():
+		return potContributionWire{State: contributionDone, DoneOn: textPointer(string(transfer.DoneOn))}
+	}
+	return potContributionWire{State: contributionPending}
 }
 
 func movementsOrEmpty(movements []potMovementWire) []potMovementWire {

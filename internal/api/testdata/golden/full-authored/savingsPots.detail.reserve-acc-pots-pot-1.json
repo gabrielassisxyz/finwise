@@ -7,7 +7,8 @@
   "balance": 800.00,
   "belowTarget": null,
   "contribution": {
-    "state": "none-planned"
+    "state": "done",
+    "doneOn": "2026-03-18"
   },
   "linkedLines": [
     {
