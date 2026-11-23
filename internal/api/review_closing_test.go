@@ -189,3 +189,67 @@ func TestTheClosingHasNoCardBillWhenTheNextBillAmountIsUnknown(t *testing.T) {
 		t.Errorf("cardBill = %v for a card whose next-bill amount is unknown, want null and never a bill of zero", bill)
 	}
 }
+
+func answerBody(t *testing.T, env *readEnv, method, arguments string) string {
+	t.Helper()
+	status, body := env.answer(method, arguments)
+	if status != http.StatusOK {
+		t.Fatalf("%s %s answered %d %s", method, arguments, status, body)
+	}
+	return string(body)
+}
+
+// c6FebruaryLedger is c6BillLedger with four purchases of February around the
+// closing of 2026-02-04: one before the two days that can slip, one of the
+// closed bill, one that slipped and one after.
+func c6FebruaryLedger(t *testing.T) *ledgertest.Fixture {
+	t.Helper()
+	f := c6BillLedger(t)
+	addCardPurchase(f, "tx-feb-early", utc(2026, time.February, 1, 15, 0), 30, "")
+	addCardPurchase(f, "tx-feb-closed", utc(2026, time.February, 3, 15, 0), 12, "bill-jan")
+	addCardPurchase(f, "tx-feb-slipped", utc(2026, time.February, 3, 16, 0), 7, "")
+	addCardPurchase(f, "tx-feb-later", utc(2026, time.February, 15, 15, 0), 40, "")
+	return f
+}
+
+type billSeen struct {
+	Amount    float64 `json:"amount"`
+	CardLabel string  `json:"cardLabel"`
+	Purchases []struct {
+		Name   string  `json:"name"`
+		Day    string  `json:"day"`
+		Amount float64 `json:"amount"`
+	} `json:"purchases"`
+}
+
+func closingBillOf(t *testing.T, env *readEnv, month string) *billSeen {
+	t.Helper()
+	var view struct {
+		CardBill *billSeen `json:"cardBill"`
+	}
+	if err := json.Unmarshal([]byte(answerBody(t, env, "review.closing", `["`+month+`"]`)), &view); err != nil {
+		t.Fatal(err)
+	}
+	return view.CardBill
+}
+
+func TestTheClosingsCardBillIsTheBillOfTheMonthAsked(t *testing.T) {
+	env := envAt(t, c6FebruaryLedger(t), 2026, time.March, 20)
+	february := closingBillOf(t, env, "2026-02")
+	if february == nil || february.Amount != 47 || len(february.Purchases) != 2 {
+		t.Fatalf("February's bill is %+v, want 47.00 over two purchases", february)
+	}
+	if first, second := february.Purchases[0], february.Purchases[1]; first.Day != "2026-02-15" || first.Amount != 40 ||
+		second.Day != "2026-02-03" || second.Amount != 7 {
+		t.Errorf("February's purchases are %+v", february.Purchases)
+	}
+	if march := closingBillOf(t, env, "2026-03"); march == nil || march.Amount != 80.74 || len(march.Purchases) != 3 {
+		t.Errorf("March's bill is %+v, want 80.74 over three purchases", march)
+	}
+	if april := closingBillOf(t, env, "2026-04"); april == nil || april.Amount != 0 || len(april.Purchases) != 0 {
+		t.Errorf("April's bill is %+v, want 0.00 with no purchase before its closing has come", april)
+	}
+	if january := closingBillOf(t, env, "2026-01"); january != nil {
+		t.Errorf("January, in which no closing of the card falls, has the bill %+v", january)
+	}
+}

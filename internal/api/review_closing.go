@@ -90,7 +90,7 @@ func readClosing(ctx context.Context, args []json.RawMessage, views Views) (any,
 		Steps:                 freshClosingSteps(),
 		PlannedActual:         emptyPlannedActual(),
 		Contributions:         []any{},
-		CardBill:              closingCardBillOf(card),
+		CardBill:              closingCardBillOf(card, month),
 		SubscriptionsToReview: []any{},
 		Report:                []any{},
 		ClosedMonths:          []any{},
@@ -122,22 +122,22 @@ func emptyPlannedActual() []plannedActualGroupWire {
 	return groups
 }
 
-// closingCardBillOf is the card page's pay-ahead, worked out once there: what
-// this month's purchases will charge on the next bill. A purchase is money out
-// on the card page and an amount owed here. A card whose next-bill amount is
-// unknown has no bill to show: a zero would read as nothing to set aside.
-func closingCardBillOf(card *cardView) *closingCardBillWire {
+// closingCardBillOf is what the month's purchases charge on the bill after the
+// closing that falls in the month, as the card page's pay-ahead works it out
+// for the current month. A purchase is money out on the card page and an amount
+// owed here. A card whose closing in the month is not known has no bill to
+// show: a zero would read as nothing to set aside.
+func closingCardBillOf(card *cardView, month brday.Month) *closingCardBillWire {
 	if card == nil {
 		return nil
 	}
-	overview := card.overview()
-	if overview.PayAhead.Amount == nil {
+	next := card.nextBill(month)
+	if !next.Known {
 		return nil
 	}
-	bill := &closingCardBillWire{
-		Amount: *overview.PayAhead.Amount, CardLabel: overview.Title, Purchases: []closingPurchaseWire{},
-	}
-	for _, purchase := range overview.PayAhead.Purchases {
+	payAhead := card.payAheadOf(next)
+	bill := &closingCardBillWire{Amount: *payAhead.Amount, CardLabel: card.title(), Purchases: []closingPurchaseWire{}}
+	for _, purchase := range payAhead.Purchases {
 		bill.Purchases = append(bill.Purchases, closingPurchaseWire{Name: purchase.Name, Day: purchase.Day, Amount: -purchase.Amount})
 	}
 	return bill
