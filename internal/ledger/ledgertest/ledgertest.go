@@ -139,19 +139,41 @@ func (f *Fixture) AddRun(run Run) int64 {
 }
 
 // ProjectTo records run as the one that produced the current rows. The
-// fixture's scopes all belong to run 1, and a document is covered only while
-// its scope's run is the projected one, so projecting a later run leaves every
-// document the fixture added uncovered.
+// fixture's scopes belong to run 1 unless CoverInRun gave run its own, and a
+// document is covered only while its scope's run is the projected one, so
+// projecting a later run without them leaves every document the fixture added
+// uncovered.
 func (f *Fixture) ProjectTo(run int64) {
+	f.t.Helper()
+	f.requireRun(run)
+	f.exec("UPDATE projection_state SET projected_run = ? WHERE id = 1", run)
+}
+
+// CoverInRun gives run a complete scope that absence may be inferred from for
+// every kind and parent the fixture has scoped, with the same lower bound, as
+// a collector run that walked every account again would. Once run is
+// projected, the documents added so far are covered as they were under run 1;
+// a document added later under a parent run has no scope for needs another
+// call. Until run is projected its scopes uncover them, as the collector's
+// coverage reads only the latest such scope, so cover the run you project.
+func (f *Fixture) CoverInRun(run int64) {
+	f.t.Helper()
+	f.requireRun(run)
+	f.exec(`INSERT OR IGNORE INTO scopes (run_id, kind, parent, expected, outcome, infer_absence,
+	        status, rows, min_date, closed_at, closed_day)
+	        SELECT ?, kind, parent, 1, 'complete', 1, 200, 0, min_date, closed_at, closed_day
+	        FROM scopes WHERE run_id = 1`, run)
+}
+
+func (f *Fixture) requireRun(run int64) {
 	f.t.Helper()
 	var exists bool
 	if err := f.db.QueryRow("SELECT EXISTS (SELECT 1 FROM runs WHERE id = ?)", run).Scan(&exists); err != nil {
 		f.t.Fatalf("ledgertest: run lookup: %v", err)
 	}
 	if !exists {
-		f.t.Fatalf("ledgertest: cannot project run %d: the ledger has no such run", run)
+		f.t.Fatalf("ledgertest: cannot project or cover run %d: the ledger has no such run", run)
 	}
-	f.exec("UPDATE projection_state SET projected_run = ? WHERE id = 1", run)
 }
 
 func (f *Fixture) exec(query string, args ...any) sql.Result {

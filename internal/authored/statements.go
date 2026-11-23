@@ -141,4 +141,12 @@ var allStatements = map[string]string{
 	"statementSubscriptionOfEstablishment": statementSubscriptionOfEstablishment,
 	"statementNextSubscriptionID":          statementNextSubscriptionID,
 	"statementCreditLinks":                 statementCreditLinks,
+	"statementLastIngestedRun":             statementLastIngestedRun,
+	"statementRecordIngestedRun":           statementRecordIngestedRun,
+	"statementIndexedTransactions":         statementIndexedTransactions,
+	"statementIndexedProviderIDs":          statementIndexedProviderIDs,
+	"statementMarkListed":                  statementMarkListed,
+	"statementMarkMetUnlisted":             statementMarkMetUnlisted,
+	"statementMarkEvaluated":               statementMarkEvaluated,
+	"statementLineExamples":                statementLineExamples,
 }
