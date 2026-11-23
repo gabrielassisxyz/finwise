@@ -72,9 +72,9 @@ func SaveScenario(t testing.TB, database *authored.Database, at time.Time, name 
 	})
 }
 
-// CloseMonth writes a closed month and a version that starts at it holding what
-// was in force for it, as closing a month will: nothing here closes a month yet,
-// so a fixture is the only way one exists.
+// CloseMonth writes the closed month's row and nothing else: a month closed
+// with no version of its own, which the store's Recorder.CloseMonth never
+// leaves, for the rules that must still hold over one.
 func CloseMonth(t testing.TB, database *authored.Database, at time.Time, month brday.Month, closedOn string) authored.ChangeID {
 	t.Helper()
 	return recordBudgetChange(t, database, at, "scratch.closeMonth", func(recorder *authored.Recorder) error {
@@ -145,8 +145,8 @@ func DocumentOf(budget authored.Budget) authored.Document {
 // SeedBudget writes into recorder's change what a person who has kept a budget
 // for a while would have: the invented budget from 2026-02, a second version
 // from 2026-03 in which Mercado has been renamed Feira and Saúde raised, a
-// scenario, and 2026-01 closed. All five groups, a flag and a renamed line are
-// among it.
+// scenario, and 2026-01 closed as the app closes a month, with a version of its
+// own. All five groups, a flag and a renamed line are among it.
 func SeedBudget(recorder *authored.Recorder) error {
 	ctx := context.Background()
 	if err := recorder.SaveBudget(ctx, "2026-02", InventedBudget()); err != nil {
@@ -175,7 +175,7 @@ func SeedBudget(recorder *authored.Recorder) error {
 	if err := recorder.SaveScenario(ctx, "Sem viagem", withoutGroup(DocumentOf(first), "res")); err != nil {
 		return err
 	}
-	return recorder.Put(ctx, "closed_months", authored.Row{"month": authored.Text("2026-01"), "closed_on": authored.Text("2026-02-03")})
+	return recorder.CloseMonth(ctx, "2026-01", "2026-02-03")
 }
 
 func withoutGroup(document authored.Document, key string) authored.Document {

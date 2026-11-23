@@ -20,9 +20,7 @@ const changePin = "session.changePin"
 // writesWithoutHandler lists the writes and evaluations nothing implements yet.
 // Each piece of work that implements one removes its name here, and the list is
 // empty when every write of the contract is implemented.
-var writesWithoutHandler = []string{
-	"review.closeMonth",
-}
+var writesWithoutHandler = []string{}
 
 // sessionServiceWrites are the writes the session service answers itself. It
 // holds changePin, and only that.
@@ -130,13 +128,14 @@ func TestEveryWriteAndEvaluationHasExactlyOneImplementation(t *testing.T) {
 		"review.acceptPending", "review.approve", "review.dismissWarning", "review.propose", "review.refuse",
 		"review.runWarningAction", "review.markTransferDone",
 		"review.markStepDone", "review.keepSubscription", "review.cancelSubscription",
+		"review.closeMonth",
 	}
 	slices.Sort(implemented)
 	if !slices.Equal(registered, implemented) {
 		t.Errorf("the registry implements %v, want %v", registered, implemented)
 	}
-	if len(writesWithoutHandler) != 1 || slices.Contains(writesWithoutHandler, changePin) {
-		t.Errorf("the list holds %d names, want 1 without %s", len(writesWithoutHandler), changePin)
+	if len(writesWithoutHandler) != 0 {
+		t.Errorf("the list holds %d names, want none", len(writesWithoutHandler))
 	}
 }
 
@@ -200,12 +199,17 @@ func TestWithoutADatabaseEveryWriteAndEvaluationIsRefusedBeforeItsBodyIsRead(t *
 	}
 }
 
+// Every write of the manifest has a handler, so the close's own is taken out of
+// the server's registry to show what a write without one answers.
 func TestWithADatabaseAWriteWithNoHandlerIsRefusedBeforeItsBodyIsRead(t *testing.T) {
 	scratch := authoredtest.Open(t, newFakeClock().Now)
-	env := newTestEnv(t, withDatabase(scratch.Database), func(config *Config) { config.Reads = NewReadRegistry() })
+	env := newTestEnv(t, withDatabase(scratch.Database), func(config *Config) {
+		config.Reads = NewReadRegistry()
+		delete(config.Reads.writes, closeMonthMethod)
+	})
 	cookie := env.unlock()
 	before := scratch.State(t)
-	for _, name := range writesWithoutHandler {
+	for _, name := range append(slices.Clone(writesWithoutHandler), closeMonthMethod) {
 		domain, method := splitMethod(t, name)
 		route := "/api/" + domain + "/" + method
 		for _, body := range postBodies {

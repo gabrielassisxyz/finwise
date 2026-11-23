@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gabrielassisxyz/finwise/internal/authored"
+	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
 	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 )
@@ -154,5 +156,59 @@ func TestAConnectionOfNoKnownBankIsNotAttributedToOne(t *testing.T) {
 	got := syncStatusOf(ledger.SyncState{Connections: []ledger.Connection{broken}}, now, map[string]string{})
 	if message := got.(syncWarning).Message; message != "Banco não identificado: problema na conexão" {
 		t.Errorf("message %q", message)
+	}
+}
+
+// Two months closed on two days, the later month first, as two requests of
+// their own days close them.
+func closedTwiceInTheOtherOrder(t *testing.T) *readEnv {
+	t.Helper()
+	f := newFullLedger(t)
+	scratch := authoredtest.Open(t, fixtureClock)
+	for _, closing := range []struct {
+		month string
+		at    time.Time
+	}{{"2026-02", utc(2026, time.March, 2, 15, 0)}, {"2025-12", fixtureNow}} {
+		env := newTestEnv(t, withLedger(f.Path, closing.at), withDatabase(scratch.Database))
+		changeIDOfAnswer(t, env.call("/api/review/closeMonth", `["`+closing.month+`"]`, env.unlock()))
+	}
+	return newReadEnvOver(t, f, scratch.Database)
+}
+
+func TestTheShellListsTheClosedMonthsOldestFirstAndTheClosingNewestFirst(t *testing.T) {
+	env := closedTwiceInTheOtherOrder(t)
+	status, body := env.answer("shell.overview", `[]`)
+	var overview struct {
+		ClosedMonths json.RawMessage `json:"closedMonths"`
+	}
+	if err := json.Unmarshal(body, &overview); status != http.StatusOK || err != nil {
+		t.Fatalf("shell.overview answered %d %s", status, body)
+	}
+	oldestFirst := `[{"month":"2025-12","closedOn":"2026-03-20"},{"month":"2026-02","closedOn":"2026-03-02"}]`
+	if string(overview.ClosedMonths) != oldestFirst {
+		t.Errorf("the shell lists %s, want %s", overview.ClosedMonths, oldestFirst)
+	}
+	status, body = env.answer("review.closing", `["2026-03"]`)
+	var closing struct {
+		ClosedMonths json.RawMessage `json:"closedMonths"`
+	}
+	if err := json.Unmarshal(body, &closing); status != http.StatusOK || err != nil {
+		t.Fatalf("review.closing answered %d %s", status, body)
+	}
+	if newestFirst := `[{"month":"2026-02","closedOn":"2026-03-02"},{"month":"2025-12","closedOn":"2026-03-20"}]`; string(closing.ClosedMonths) != newestFirst {
+		t.Errorf("the closing lists %s, want %s", closing.ClosedMonths, newestFirst)
+	}
+}
+
+// aSecondClosedMonth closes 2025-12 beside the third state's January, as the
+// app closes a month.
+func aSecondClosedMonth(t *testing.T, scratch *authoredtest.Scratch, _ *ledgertest.Fixture) {
+	t.Helper()
+	facts := authored.ChangeFacts{Author: authored.AuthorPerson, Method: closeMonthMethod, At: utc(2026, time.January, 6, 15, 0)}
+	err := scratch.Database.Change(t.Context(), facts, func(recorder *authored.Recorder) error {
+		return recorder.CloseMonth(t.Context(), "2025-12", "2026-01-06")
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

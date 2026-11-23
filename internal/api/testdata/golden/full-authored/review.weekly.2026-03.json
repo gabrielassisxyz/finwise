@@ -72,6 +72,21 @@
           "confidence": null,
           "justification": null
         }
+      },
+      {
+        "transactionId": "tx-stale",
+        "day": "2026-01-05",
+        "name": "Amigo Exemplo",
+        "rawDescription": "PIX RECEBIDO AMIGO EXEMPLO",
+        "amount": 50.00,
+        "accountLabel": "C6 · Conta C6",
+        "person": true,
+        "pending": {
+          "reason": "PIX para pessoa sem apelido",
+          "suggestion": null,
+          "confidence": null,
+          "justification": null
+        }
       }
     ],
     "resolved": 1

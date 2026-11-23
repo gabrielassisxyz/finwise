@@ -137,7 +137,7 @@ var notJournaledTables = map[string]string{
 }
 
 // productionChecks are the checks every undo of the app runs.
-var productionChecks = []RestoreCheck{noStrayLineReferences}
+var productionChecks = []RestoreCheck{noStrayLineReferences, closedMonthsKeepTheirBudget}
 
 // AppTables is a copy of the app's own journaled tables, for a registry that
 // adds tables of its own to them.

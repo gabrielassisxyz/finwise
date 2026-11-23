@@ -1,0 +1,72 @@
+{
+  "answer": {
+    "changeId": "2"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "closed_months",
+      "key": [
+        "2026-02"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "month": "2026-02",
+        "closed_on": "2026-03-20"
+      }
+    },
+    {
+      "seq": 2,
+      "table": "budget_versions",
+      "key": [
+        "2026-02"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-02"
+      }
+    },
+    {
+      "seq": 3,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-02",
+        2,
+        "Mercado"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-02",
+        "group_key": "var",
+        "position": 0,
+        "line_id": 2,
+        "name": "Mercado",
+        "cents": 40000,
+        "flag": null
+      }
+    },
+    {
+      "seq": 4,
+      "table": "budget_version_lines",
+      "key": [
+        "2026-02",
+        3,
+        "Delivery"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "from_month": "2026-02",
+        "group_key": "var",
+        "position": 1,
+        "line_id": 3,
+        "name": "Delivery",
+        "cents": 20000,
+        "flag": null
+      }
+    }
+  ]
+}

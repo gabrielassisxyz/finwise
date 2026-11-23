@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"slices"
 
 	"github.com/gabrielassisxyz/finwise/internal/brday"
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
@@ -29,9 +30,9 @@ func registerShell(registry *Registry) {
 	registry.Register("shell.overview", readShellOverview)
 }
 
-// readShellOverview answers what the ledger knows of the frame and how many
-// transactions wait for review. Nobody has closed a month yet, so that list is
-// the fresh install's.
+// readShellOverview answers what the ledger knows of the frame, how many
+// transactions wait for review and the months closed, oldest first, as the
+// sidebar lists them.
 func readShellOverview(ctx context.Context, _ []json.RawMessage, views Views) (any, error) {
 	accounts, err := views.Ledger.Accounts(ctx)
 	if err != nil {
@@ -49,6 +50,12 @@ func readShellOverview(ctx context.Context, _ []json.RawMessage, views Views) (a
 	if err != nil {
 		return nil, err
 	}
+	closed, err := views.Authored.ClosedMonths(ctx)
+	if err != nil {
+		return nil, err
+	}
+	closedOldestFirst := closedMonthsWire(closed)
+	slices.Reverse(closedOldestFirst)
 	now := nowOf(ctx)
 	current := string(brday.MonthOf(now))
 	return shellOverview{
@@ -57,7 +64,7 @@ func readShellOverview(ctx context.Context, _ []json.RawMessage, views Views) (a
 		Sync:         syncStatusOf(state, now, itemBankLabels(accounts, bankLabels(accounts))),
 		FirstMonth:   firstMonthOf(rows, current),
 		LastMonth:    current,
-		ClosedMonths: []closedMonth{},
+		ClosedMonths: closedOldestFirst,
 	}, nil
 }
 
