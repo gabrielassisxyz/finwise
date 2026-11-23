@@ -13,6 +13,7 @@ import (
 	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
 	"github.com/gabrielassisxyz/finwise/internal/classrules"
+	"github.com/gabrielassisxyz/finwise/internal/ledger/ledgertest"
 )
 
 // reviewsToAccept leaves three rows of the full ledger waiting for review: the
@@ -441,4 +442,101 @@ func TestTheAcceptReachesTheNicknameAndTheDefaultLineThroughThePanelsStoreFuncti
 	if slices.Contains(accept, "storeDefaultLine") {
 		t.Error("the accept looks its line up again by name in the current month")
 	}
+}
+
+// A bank can report a pending row beside the posted row that replaced it, both
+// mapped to one key as the index maps a row that continues another. The
+// collector hides a pending row whose posted row has its day, amount and
+// description, so here the purchase of 15 March is posted on the 17th, and
+// another purchase waits between the two days.
+const (
+	cafePending = "tx-cafe-pending"
+	cafePosted  = "tx-cafe-posted"
+	cafeBetween = "tx-between"
+)
+
+// newTwiceListedLedger holds the purchase listed under both its ids, or under
+// the posted one alone when withPending is false, and the purchase between.
+func newTwiceListedLedger(t *testing.T, withPending bool) *ledgertest.Fixture {
+	t.Helper()
+	f := ledgertest.New(t)
+	f.AddAccount(ledgertest.Account{ID: reviewCard, ItemID: "item-review", Type: "CREDIT", Subtype: "CREDIT_CARD",
+		Name: "Gold Visa", Currency: "BRL", Balance: 400, Credit: map[string]any{"creditLimit": 3000, "availableCreditLimit": 2600}})
+	card := func(id string, at time.Time, description, status string) {
+		f.AddTransaction(ledgertest.Transaction{ID: id, AccountID: reviewCard, Date: at, Description: description, Amount: 23.5,
+			Currency: "BRL", Type: "DEBIT", Status: status,
+			Raw: map[string]any{"operationType": "PAGAMENTO", "creditCardMetadata": map[string]any{"cardNumber": "5555666677774321"}}})
+	}
+	if withPending {
+		card(cafePending, utc(2026, time.March, 15, 15, 0), "CAFETERIA EXEMPLO", "PENDING")
+	}
+	card(cafeBetween, utc(2026, time.March, 16, 15, 0), "PADARIA EXEMPLO", "")
+	card(cafePosted, utc(2026, time.March, 17, 15, 0), "CAFETERIA EXEMPLO", "")
+	return f
+}
+
+// The posted row stands for the key: it is dated later, so the list gives it
+// first, and the person is asked about the purchase once, under that id.
+func TestATransactionListedUnderTwoIdsOfOneKeyWaitsInTheQueueOnce(t *testing.T) {
+	fixture := newTwiceListedLedger(t, true)
+	scratch := authoredtest.Open(t, fixtureClock)
+	savedReviewBudget(t, scratch)
+	rulesLeave(t, scratch, fixture.Path,
+		waitingReview{cafeBetween, string(classrules.ReasonNewEstablishment), "", nil},
+		waitingReview{cafePending, string(classrules.ReasonNewEstablishment), "", nil})
+	facts := authored.ChangeFacts{Author: authored.AuthorRule, Method: "ingest.run", At: utc(2026, time.March, 17, 18, 0)}
+	err := scratch.Database.Change(t.Context(), facts, func(recorder *authored.Recorder) error {
+		view := recorder.View()
+		defer view.Close()
+		keys, err := view.TransactionKeys(t.Context(), []string{cafePending})
+		if err != nil {
+			return err
+		}
+		_, err = recorder.IndexTransaction(t.Context(), authored.SeenTransaction{ProviderID: cafePosted, AccountID: reviewCard,
+			Day: "2026-03-17", Cents: -2350, EstablishmentKey: "text:CAFETERIA EXEMPLO", Replaces: keys[cafePending]})
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := newReviewEnv(t, fixture.Path, scratch, fixtureNow)
+	listed := env.listedIn("2026-03")
+	_, pending := listed[cafePending]
+	_, posted := listed[cafePosted]
+	if keys := keysOf(t, scratch, cafePending, cafePosted); !pending || !posted || len(keys) != 2 || keys[cafePending] != keys[cafePosted] {
+		t.Fatalf("listed pending %v and posted %v under keys %v: not one key listed under two ids, so the test would prove nothing", pending, posted, keys)
+	}
+
+	queue := env.queueOf("2026-03")
+	if !slices.Equal(queue.ids(), []string{cafePosted, cafeBetween}) {
+		t.Errorf("the queue holds %v, want the purchase once under its posted id, then the one between", queue.ids())
+	}
+	oneID := newReviewEnv(t, newTwiceListedLedger(t, false).Path, scratch, fixtureNow).queueOf("2026-03")
+	if len(queue.Items) != len(oneID.Items) {
+		t.Errorf("the queue holds %d items, and %d over a ledger listing the purchase under one id", len(queue.Items), len(oneID.Items))
+	}
+
+	env.accepted(cafePosted, pendingAnswer{Line: "Mercado"})
+	if got := env.queueOf("2026-03").ids(); !slices.Equal(got, []string{cafeBetween}) {
+		t.Errorf("after the accept the queue holds %v, want the purchase between alone", got)
+	}
+	before := scratch.Journal(t)
+	response := env.accept(cafePending, pendingAnswer{Line: "Mercado"})
+	if response.Code != http.StatusOK || response.Body.String() != "null" {
+		t.Errorf("the accept under the other id answered %d %s, want 200 null", response.Code, response.Body.String())
+	}
+	if after := scratch.Journal(t); after != before {
+		t.Errorf("the accept under the other id changed the journal:\n%s", differences(before, after))
+	}
+}
+
+func keysOf(t *testing.T, scratch *authoredtest.Scratch, ids ...string) map[string]authored.TxKey {
+	t.Helper()
+	view := scratch.Database.View()
+	defer view.Close()
+	keys, err := view.TransactionKeys(t.Context(), ids)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return keys
 }
