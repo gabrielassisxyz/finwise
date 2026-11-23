@@ -36,6 +36,42 @@ func withLineAdded(document authored.Document) authored.Document {
 	return document
 }
 
+// mercadoFlagged is the document with Mercado carrying a flag and nothing else
+// changed.
+func mercadoFlagged(document authored.Document) authored.Document {
+	return eachMercado(document, func(line *authored.DocumentLine) { line.Flag = "Não garantida" })
+}
+
+// mercadoUnderANewID is the document with Mercado sent as a new line of the same
+// name and amount in the same place, which the save gives an id of its own.
+func mercadoUnderANewID(document authored.Document) authored.Document {
+	return eachMercado(document, func(line *authored.DocumentLine) { line.ID = nil })
+}
+
+func eachMercado(document authored.Document, change func(*authored.DocumentLine)) authored.Document {
+	for i := range document {
+		for j := range document[i].Lines {
+			if document[i].Lines[j].Name == "Mercado" {
+				change(&document[i].Lines[j])
+			}
+		}
+	}
+	return document
+}
+
+// differOnlyIn says whether two budgets' lines differ, and are equal once blank
+// has cleared the one field a case changes.
+func differOnlyIn(a, b []authored.BudgetLine, blank func(*authored.BudgetLine)) bool {
+	cleared := func(lines []authored.BudgetLine) []authored.BudgetLine {
+		out := slices.Clone(lines)
+		for i := range out {
+			blank(&out[i])
+		}
+		return out
+	}
+	return !slices.Equal(a, b) && slices.Equal(cleared(a), cleared(b))
+}
+
 func deliveryFirst(document authored.Document) authored.Document {
 	for i := range document {
 		if document[i].Key == "var" {
@@ -78,19 +114,27 @@ func TestAnUndoThatWouldMoveAClosedMonthsBudgetIsRefusedWhateverMoves(t *testing
 		name    string
 		edit    func(authored.Document) authored.Document
 		refused bool
+		// alone, for a case that changes one field, clears that field: what the
+		// save left must differ from January's budget in it and in nothing else.
+		alone func(*authored.BudgetLine)
 	}{
-		{"an amount", authoredtest.WithCents("Mercado", 50_000), true},
-		{"a name", authoredtest.Renamed("Mercado", "Feira"), true},
-		{"the order of two lines", deliveryFirst, true},
-		{"a line added", withLineAdded, true},
-		{"a line removed", authoredtest.Without("Delivery"), true},
-		{"nothing", unchanged, false},
+		{"an amount", authoredtest.WithCents("Mercado", 50_000), true, nil},
+		{"a name", authoredtest.Renamed("Mercado", "Feira"), true, nil},
+		{"the order of two lines", deliveryFirst, true, nil},
+		{"a line added", withLineAdded, true, nil},
+		{"a line removed", authoredtest.Without("Delivery"), true, nil},
+		{"a flag alone", mercadoFlagged, true, func(line *authored.BudgetLine) { line.Flag = "" }},
+		{"an id alone", mercadoUnderANewID, true, func(line *authored.BudgetLine) { line.ID = 0 }},
+		{"nothing", unchanged, false, nil},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			env := newExamplesBudgetEnv(t)
 			save := env.save("2026-02", env.january(c.edit))
 			kept := env.budget("2026-02")
+			if c.alone != nil && !differOnlyIn(kept.Lines, env.budget("2026-01").Lines, c.alone) {
+				t.Fatalf("the save left %+v, which does not differ from January's %+v in that field alone", kept.Lines, env.budget("2026-01").Lines)
+			}
 			env.mustClose("2026-02")
 			if !c.refused {
 				if err := env.undo(save); err != nil {
