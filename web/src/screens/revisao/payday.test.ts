@@ -4,6 +4,7 @@ import { prototypeState } from '@/api/fake/prototype-data';
 import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
 import { useRevisionStore } from '@/stores/revision';
+import { holdFirstCall } from '@/test/holdCall';
 import { prototypeOverview } from '@/test/mount';
 import { mountRouted } from '@/test/mountRouted';
 import PaydayTab from './PaydayTab.vue';
@@ -120,5 +121,23 @@ describe('Dia do salário', () => {
     const rows = wrapper.findAll('.row');
     expect(rows.map((row) => plain(row.find('.amount').text()))).toEqual(['R$ 240,00']);
     expect(rows[0]!.element).toBe(second);
+  });
+
+  it('does not let an earlier payday answer replace a later one for the same month', async () => {
+    const { wrapper, api, revision } = await mountPayday();
+    const comprasKey = (await api.review.payday('2026-11')).transfers.find((transfer) => transfer.name === 'Compras')!.key;
+
+    const first = holdFirstCall(api.review, 'payday');
+    revision.bump();
+    await flushPromises();
+
+    await api.review.markTransferDone('2026-11', comprasKey);
+    revision.bump();
+    await flushPromises();
+    expect(rowOf(wrapper, 'Compras').find('.state').text()).toBe('Feita em 28/11 · marcada por você');
+
+    first.release();
+    await flushPromises();
+    expect(rowOf(wrapper, 'Compras').find('.state').text()).toBe('Feita em 28/11 · marcada por você');
   });
 });

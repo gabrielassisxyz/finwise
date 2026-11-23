@@ -20,11 +20,13 @@ const actions = useSubscriptionActions();
 
 const list = ref<SubscriptionList | null>(null);
 
+let latest = 0;
 watch(
   [() => view.grouped, () => revision.current],
   async ([grouped]) => {
+    const request = ++latest;
     const loaded = await api.subscriptions.list({ grouped });
-    if (grouped === view.grouped) list.value = loaded;
+    if (request === latest && grouped === view.grouped) list.value = loaded;
   },
   { immediate: true },
 );

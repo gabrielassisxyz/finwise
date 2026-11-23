@@ -31,10 +31,12 @@ const ready = computed(() => current.value && draft.value && impact.value);
 // A month that is closed has no scenarios, and changing month leaves them.
 const leave = () => router.replace('/budget');
 
+let latestOpen = 0;
 async function open(): Promise<void> {
+  const request = ++latestOpen;
   const selected = month.selected;
   const [budget, kept] = await Promise.all([api.budget.document(selected), api.budget.scenarios()]);
-  if (selected !== month.selected) return;
+  if (request !== latestOpen || selected !== month.selected) return;
   current.value = budget;
   draft.value = copyBudget(budget);
   saved.value = kept;

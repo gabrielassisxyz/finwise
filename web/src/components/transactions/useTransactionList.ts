@@ -110,16 +110,19 @@ export function useTransactionList(month: Ref<YearMonth>, onlyAccount?: Ref<stri
   const arrivedAt = useRoute().query.establishment;
   if (typeof arrivedAt === 'string' && arrivedAt) filters.establishment = arrivedAt;
 
+  let latest = 0;
+
   /** A refetch after a write keeps the rows on screen instead of flashing the skeleton. */
   async function load(mode: { quiet?: boolean } = {}): Promise<void> {
+    const request = ++latest;
     if (!mode.quiet) loading.value = true;
     const requested = { month: month.value, period: filters.period };
     const [list, filterOptions] = await Promise.all([
       api.transactions.list(requested),
       api.transactions.filterOptions(requested.month),
     ]);
-    // A slower answer for a month the user has already left must not land.
-    if (requested.month !== month.value || requested.period !== filters.period) return;
+    // A slower answer for a month, period or revision the list already left must not land.
+    if (request !== latest || requested.month !== month.value || requested.period !== filters.period) return;
     transactions.value = list;
     options.value = filterOptions;
     loading.value = false;

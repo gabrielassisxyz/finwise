@@ -29,11 +29,13 @@ const actions = useClosingActions();
 
 const closing = ref<ClosingView | null>(null);
 
+let latest = 0;
 watch(
   () => [month.selected, revision.current] as const,
   async ([selected]) => {
+    const request = ++latest;
     const loaded = await api.review.closing(selected);
-    if (selected === month.selected) closing.value = loaded;
+    if (request === latest && selected === month.selected) closing.value = loaded;
   },
   { immediate: true },
 );

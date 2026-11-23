@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createFakeApi } from '@/api/fake';
 import type { BudgetDoc, FinwiseApi } from '@/api/types';
 import { useRevisionStore } from '@/stores/revision';
+import { holdFirstCall } from '@/test/holdCall';
 import BudgetScreen from './BudgetScreen.vue';
 import { mountBudgetAt, plain, typeInto } from './budgetTestSupport';
 
@@ -356,5 +357,27 @@ describe('Budget amounts in edit mode', () => {
   it('carries 0 for the line that was given a negative', async () => {
     const { m } = await viewCallsAfterTyping('-50');
     expect((editRow(m, 'Receita', 'Renda extra').findAll('input')[1]!.element as HTMLInputElement).value).toBe('0');
+  });
+});
+
+describe('Open line establishments out-of-order loads', () => {
+  it('does not let an earlier establishments answer replace a later one for the same line', async () => {
+    const m = await mountBudget();
+    await rowOf(m, 'Variáveis', 'Delivery').trigger('click');
+    await flushPromises();
+
+    const first = holdFirstCall(m.api.budget, 'establishments');
+    useRevisionStore().bump();
+    await flushPromises();
+
+    await m.api.transactions.setLine('t2', 'Delivery');
+    useRevisionStore().bump();
+    await flushPromises();
+    const shown = () => groupNamed(m, 'Variáveis').findAll('.establishment').map((e) => plain(e.text()));
+    expect(shown().some((entry) => entry.startsWith('Posto Shell'))).toBe(true);
+
+    first.release();
+    await flushPromises();
+    expect(shown().some((entry) => entry.startsWith('Posto Shell'))).toBe(true);
   });
 });

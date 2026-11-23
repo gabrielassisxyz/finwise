@@ -19,24 +19,28 @@ const linesByMonth = ref<Record<YearMonth, BudgetLineOption[]>>({});
 // The queue is not bound to the month on screen: each item's lines are those of its own transaction's month. What
 // was answered is kept per month until the next revision.
 let kept = { revision: -1, byMonth: new Map<YearMonth, BudgetLineOption[]>() };
-async function menusOf(items: ReviewQueueItem[], at: number): Promise<Record<YearMonth, BudgetLineOption[]>> {
+let latest = 0;
+
+async function menusOf(items: ReviewQueueItem[], at: number, request: number): Promise<Record<YearMonth, BudgetLineOption[]>> {
   if (kept.revision !== at) kept = { revision: at, byMonth: new Map() };
   const { byMonth } = kept;
   const months = [...new Set(items.map((item) => item.day.slice(0, 7)))];
   const missing = months.filter((asked) => !byMonth.has(asked));
   const answers = await Promise.all(missing.map((asked) => api.transactions.filterOptions(asked)));
-  missing.forEach((asked, at) => byMonth.set(asked, answers[at]!.lines));
+  if (request !== latest) return {};
+  missing.forEach((asked, index) => byMonth.set(asked, answers[index]!.lines));
   return Object.fromEntries(months.map((asked) => [asked, byMonth.get(asked)!]));
 }
 
 watch(
   () => [month.selected, revision.current] as const,
   async ([selected, at]) => {
+    const request = ++latest;
     const loaded = await api.review.weekly(selected);
-    if (selected !== month.selected) return;
+    if (request !== latest || selected !== month.selected) return;
     // The queue is drawn once its menus arrived, so "Escolher outra linha" never opens empty.
-    const menus = await menusOf(loaded.queue.items, at);
-    if (selected !== month.selected) return;
+    const menus = await menusOf(loaded.queue.items, at, request);
+    if (request !== latest || selected !== month.selected) return;
     weekly.value = loaded;
     linesByMonth.value = menus;
   },
