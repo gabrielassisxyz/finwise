@@ -508,6 +508,18 @@ func TestWithTheSnapshotMissingDismissingIsUnavailableAndRecordsNothing(t *testi
 	expectError(t, "the review itself", env.call("/api/review/weekly", `["2026-03"]`, env.unlock()), http.StatusServiceUnavailable, "ledger_unavailable")
 }
 
+// With no subscription kept nothing reads the ledger to know what holds, so the
+// refusal has to come from the dismissal asking for a readable snapshot.
+func TestWithNoSubscriptionAndTheSnapshotMissingDismissingIsStillUnavailable(t *testing.T) {
+	empty := authoredtest.Open(t, fixtureClock)
+	env := newTestEnv(t, withLedger(filepath.Join(t.TempDir(), "pluggy-snapshot.db"), noonOf(t, "2026-11-22")), withDatabase(empty.Database))
+	before := empty.Everything(t)
+	expectError(t, "dismissing", env.call("/api/review/dismissWarning", `["nope"]`, env.unlock()), http.StatusServiceUnavailable, "ledger_unavailable")
+	if after := empty.Everything(t); after != before {
+		t.Errorf("a dismissal with the snapshot missing recorded %s", differences(before, after))
+	}
+}
+
 // Nothing proposes a change yet, so there is nothing to approve, refuse,
 // propose or run: each answers null and touches no table, with a snapshot or not.
 func TestTheMethodsNothingProducesYetAnswerNullAndRecordNothing(t *testing.T) {
