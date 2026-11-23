@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { prototypeState } from '@/api/fake/prototype-data';
 import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
+import { useRevisionStore } from '@/stores/revision';
 import { useShellStore } from '@/stores/shell';
+import { holdFirstCall } from '@/test/holdCall';
 import { recordLineMenu } from '@/test/lineMenu';
 import { prototypeOverview } from '@/test/mount';
 import { mountRouted } from '@/test/mountRouted';
@@ -441,5 +443,23 @@ describe('the menus of lines of the settings', () => {
     await flushPromises();
     expect(mounted.overlay.menu!.items.length).toBeGreaterThan(0);
     expect(months).toEqual(['2026-11', '2026-11']);
+  });
+});
+
+describe('Configuração out-of-order loads', () => {
+  it('does not let an earlier settings answer replace a later one', async () => {
+    const { wrapper, api } = await mountConfig();
+    const first = holdFirstCall(api.settings, 'overview');
+    useRevisionStore().bump();
+    await flushPromises();
+
+    await api.settings.setPotBucket('sn', 'Investido');
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(section(wrapper, 'cofrinhos').findAll('.row').at(-1)!.find('.bucket').text()).toBe('Investido ▾');
+
+    first.release();
+    await flushPromises();
+    expect(section(wrapper, 'cofrinhos').findAll('.row').at(-1)!.find('.bucket').text()).toBe('Investido ▾');
   });
 });

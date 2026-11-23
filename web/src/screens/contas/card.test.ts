@@ -2,6 +2,7 @@ import { flushPromises } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { usePanelStore } from '@/stores/panel';
 import { useRevisionStore } from '@/stores/revision';
+import { holdFirstCall } from '@/test/holdCall';
 import { mountRouted } from '@/test/mountRouted';
 import CardScreen from './CardScreen.vue';
 
@@ -113,6 +114,23 @@ describe('Card page', () => {
     const { wrapper, api } = await mountCard();
     await api.settings.setClosing('manual', 20);
     useRevisionStore().bump();
+    await flushPromises();
+    expect(plain(wrapper.find('.title').text())).toBe('Valor a adiantar: R$ 762,35');
+    expect(wrapper.find('.cell').text()).toContain('Fecha em 20/12');
+  });
+
+  it('does not let an earlier card answer replace a later one', async () => {
+    const { wrapper, api } = await mountCard();
+    const first = holdFirstCall(api.card, 'overview');
+    useRevisionStore().bump();
+    await flushPromises();
+
+    await api.settings.setClosing('manual', 20);
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(plain(wrapper.find('.title').text())).toBe('Valor a adiantar: R$ 762,35');
+
+    first.release();
     await flushPromises();
     expect(plain(wrapper.find('.title').text())).toBe('Valor a adiantar: R$ 762,35');
     expect(wrapper.find('.cell').text()).toContain('Fecha em 20/12');

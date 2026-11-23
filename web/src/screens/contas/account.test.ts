@@ -1,7 +1,9 @@
 import { flushPromises } from '@vue/test-utils';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { prototypeState } from '@/api/fake/prototype-data';
 import { useMonthStore } from '@/stores/month';
 import { useShellStore } from '@/stores/shell';
+import { holdFirstCall } from '@/test/holdCall';
 import { prototypeOverview } from '@/test/mount';
 import { mountRouted } from '@/test/mountRouted';
 import AccountScreen from './AccountScreen.vue';
@@ -82,5 +84,30 @@ describe('Account page', () => {
   it('says so when no account has that id, and for the card, which has a page of its own', async () => {
     expect((await mountAccount('nope')).wrapper.text()).toContain('Conta não encontrada.');
     expect((await mountAccount('card')).wrapper.text()).toContain('Conta não encontrada.');
+  });
+});
+
+describe('Account page out-of-order loads', () => {
+  it('does not let an earlier detail answer replace a later one for the same account', async () => {
+    const state = prototypeState();
+    const { wrapper, router, api } = await mountRouted(AccountScreen, routes, '/contas/c6', { state });
+    useShellStore().overview = prototypeOverview();
+    useMonthStore().configure(prototypeOverview());
+    await flushPromises();
+
+    const first = holdFirstCall(api.accounts, 'detail');
+    await router.push('/contas/itau');
+    await flushPromises();
+
+    state.accounts.find((account) => account.id === 'itau')!.balance = 9500;
+    await router.push('/contas/c6');
+    await flushPromises();
+    await router.push('/contas/itau');
+    await flushPromises();
+    expect(plain(wrapper.find('.balance').text())).toBe('R$ 9.500,00');
+
+    first.release();
+    await flushPromises();
+    expect(plain(wrapper.find('.balance').text())).toBe('R$ 9.500,00');
   });
 });

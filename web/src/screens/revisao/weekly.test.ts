@@ -5,6 +5,7 @@ import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
 import { createFakeApi } from '@/api/fake';
 import { useRevisionStore } from '@/stores/revision';
+import { holdFirstCall } from '@/test/holdCall';
 import { lineNamed, recordLineMenu } from '@/test/lineMenu';
 import { prototypeOverview } from '@/test/mount';
 import { mountWithFailures } from '@/test/readOnly';
@@ -323,5 +324,45 @@ describe('Semanal, the lines each review offers', () => {
     const m = await mountRecorded(state);
     expect(m.wrapper.text()).toContain('Tudo revisado.');
     expect(m.months).toEqual([]);
+  });
+});
+
+describe('Semanal, out-of-order loads', () => {
+  it('does not let an earlier weekly answer replace a later one for the same month', async () => {
+    const { wrapper, api } = await mountWeekly();
+    const first = holdFirstCall(api.review, 'weekly');
+    useRevisionStore().bump();
+    await flushPromises();
+
+    await api.review.acceptPending('t5', { line: 'Restaurantes e bares', reason: '', always: false, nickname: '' });
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(nameShown(wrapper)).toBe('Padaria Estrela');
+
+    first.release();
+    await flushPromises();
+    expect(nameShown(wrapper)).toBe('Padaria Estrela');
+  });
+
+  it('does not let the chained line menus of an earlier load land after a newer load', async () => {
+    const api = createFakeApi({ startLocked: false });
+    recordLineMenu(api, { named: true });
+    const mounted = await mountWithFailures(WeeklyTab, routes, '/revisao', { api });
+    const overlay = useOverlayStore(mounted.pinia);
+
+    const firstMenu = holdFirstCall(api.transactions, 'filterOptions');
+    useRevisionStore(mounted.pinia).bump();
+    await mounted.settle();
+
+    await api.review.acceptPending('t5', { line: 'Restaurantes e bares', reason: '', always: false, nickname: '' });
+    useRevisionStore(mounted.pinia).bump();
+    await mounted.settle();
+    expect(nameShown(mounted.wrapper)).toBe('Padaria Estrela');
+
+    firstMenu.release();
+    await mounted.settle();
+    expect(nameShown(mounted.wrapper)).toBe('Padaria Estrela');
+    await click(button(mounted.wrapper, 'Escolher outra linha'));
+    expect(overlay.menu!.items.map((item) => item.label)).toEqual([lineNamed('2026-11', 3)]);
   });
 });

@@ -5,6 +5,7 @@ import { useShellStore } from '@/stores/shell';
 import { createFakeApi } from '@/api/fake';
 import { useMonthStore } from '@/stores/month';
 import { useRevisionStore } from '@/stores/revision';
+import { holdFirstCall } from '@/test/holdCall';
 import { lineNamed, recordLineMenu } from '@/test/lineMenu';
 import { prototypeOverview } from '@/test/mount';
 import { mountWithFailures } from '@/test/readOnly';
@@ -217,5 +218,23 @@ describe('Assinatura, a subscription with no budget line', () => {
     overlay.menu!.items.find((item) => item.label === 'Lazer')!.onPick!();
     await flushPromises();
     expect(plain(wrapper.find('.line-button').text())).toBe('Lazer ▾');
+  });
+});
+
+describe('Assinatura detail out-of-order loads', () => {
+  it('does not let an earlier detail answer replace a later one for the same subscription', async () => {
+    const { wrapper, api } = await mountPage('sp');
+    const first = holdFirstCall(api.subscriptions, 'detail');
+    useRevisionStore().bump();
+    await flushPromises();
+
+    await api.subscriptions.setStatus('sp', 'Cancelar');
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(plain(wrapper.find('.pill').text())).toBe('Cancelar▾');
+
+    first.release();
+    await flushPromises();
+    expect(plain(wrapper.find('.pill').text())).toBe('Cancelar▾');
   });
 });

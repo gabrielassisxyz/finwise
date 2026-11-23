@@ -1,8 +1,10 @@
 import { flushPromises } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { useOverlayStore } from '@/stores/overlay';
+import { useRevisionStore } from '@/stores/revision';
 import { prototypeState } from '@/api/fake/prototype-data';
 import type { SubscriptionRow } from '@/api/types';
+import { holdFirstCall } from '@/test/holdCall';
 import { mountRouted } from '@/test/mountRouted';
 import AssinaturasScreen from './AssinaturasScreen.vue';
 import { rowSubtitle } from './subscriptionText';
@@ -318,5 +320,23 @@ describe('rowSubtitle', () => {
 
   it('reads the cycle and the equivalent alone when there is no line', () => {
     expect(rowSubtitle(row(null)).replace(/\u00a0/g, ' ')).toBe('Trimestral · R$ 20,00 por mês');
+  });
+});
+
+describe('Assinaturas list out-of-order loads', () => {
+  it('does not let an earlier list answer replace a later one for the same grouping', async () => {
+    const { wrapper, api } = await mountList();
+    const first = holdFirstCall(api.subscriptions, 'list');
+    useRevisionStore().bump();
+    await flushPromises();
+
+    await api.subscriptions.setStatus('sp', 'Cancelar');
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(plain(rowOf(wrapper, 'Spotify').find('.pill').text())).toBe('Cancelar▾');
+
+    first.release();
+    await flushPromises();
+    expect(plain(rowOf(wrapper, 'Spotify').find('.pill').text())).toBe('Cancelar▾');
   });
 });
