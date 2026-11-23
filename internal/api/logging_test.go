@@ -69,3 +69,46 @@ func TestTheLogLineCarriesVerbRouteStatusDurationAndKind(t *testing.T) {
 		}
 	}
 }
+
+func TestTheLogNamesTheAgentAsCallerForARequestItsTokenOpenedAndHoldsNoToken(t *testing.T) {
+	token, hash := newTokenAndHash(t)
+	wrong, _ := newTokenAndHash(t)
+	env := newTestEnv(t, withAgentToken(hash), withEveryReadAnswered(map[string]int{}))
+	cookie := env.unlock()
+	env.logs.Reset()
+
+	env.callWith("/api/shell/overview", `[]`, bearer(token), nil)
+	env.callWith("/api/transactions/setNote", `["a","b"]`, bearer(token), nil)
+	env.callWith("/api/session/status", `[]`, bearer(token), nil)
+	env.callWith("/api/shell/overview", `[]`, bearer(wrong), nil)
+	env.callWith("/api/shell/overview", `[]`, bearer(wrong), cookie)
+	env.call("/api/shell/overview", `[]`, cookie)
+	env.call("/api/shell/overview", `[]`, nil)
+
+	lines := strings.Split(strings.TrimSpace(env.logs.String()), "\n")
+	if len(lines) != 7 {
+		t.Fatalf("%d log lines for 7 requests", len(lines))
+	}
+	wantAgent := []bool{true, true, true, false, false, false, false}
+	for index, line := range lines {
+		if got := strings.Contains(line, "caller=agent"); got != wantAgent[index] {
+			t.Errorf("line %d has caller=agent %v, want %v: %s", index, got, wantAgent[index], line)
+		}
+		if strings.Contains(line, "caller=") && !strings.Contains(line, "caller=agent") {
+			t.Errorf("line %d names another caller: %s", index, line)
+		}
+	}
+	for _, want := range []string{"status=200", "route=/api/shell/overview"} {
+		if !strings.Contains(lines[0], want) {
+			t.Errorf("the agent's read line lacks %q: %s", want, lines[0])
+		}
+	}
+	if !strings.Contains(lines[1], "status=403") || !strings.Contains(lines[1], "error_kind=read_only") {
+		t.Errorf("the agent's refused write line is not a 403 read_only: %s", lines[1])
+	}
+	for _, secret := range []string{token, wrong, cookie.Value, "sha256$"} {
+		if strings.Contains(env.logs.String(), secret) {
+			t.Error("the log holds a token, a cookie or a hash")
+		}
+	}
+}
