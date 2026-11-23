@@ -5,7 +5,7 @@
   "steps": [
     {
       "id": "pending",
-      "state": "done",
+      "state": "pending",
       "markable": false
     },
     {
@@ -44,57 +44,139 @@
       "markable": false
     }
   ],
-  "pendingCount": 0,
+  "pendingCount": 1,
   "plannedActual": [
     {
       "name": "Receita",
-      "planned": 0.00,
+      "planned": 11500.00,
       "actual": 0.00,
-      "difference": 0.00,
+      "difference": -11500.00,
       "contributions": false,
-      "lines": []
+      "lines": [
+        {
+          "name": "Salário",
+          "planned": 10000.00,
+          "actual": 0.00,
+          "difference": -10000.00
+        },
+        {
+          "name": "Renda extra",
+          "planned": 1500.00,
+          "actual": 0.00,
+          "difference": -1500.00
+        }
+      ]
     },
     {
       "name": "Fixos e essenciais",
-      "planned": 0.00,
-      "actual": 0.00,
-      "difference": 0.00,
+      "planned": 2900.00,
+      "actual": 40.00,
+      "difference": 2860.00,
       "contributions": false,
-      "lines": []
+      "lines": [
+        {
+          "name": "Contas da casa",
+          "planned": 2000.00,
+          "actual": 0.00,
+          "difference": 2000.00
+        },
+        {
+          "name": "Saúde",
+          "planned": 900.00,
+          "actual": 40.00,
+          "difference": 860.00
+        }
+      ]
     },
     {
       "name": "Variáveis",
-      "planned": 0.00,
+      "planned": 600.00,
       "actual": 0.00,
-      "difference": 0.00,
+      "difference": 600.00,
       "contributions": false,
-      "lines": []
+      "lines": [
+        {
+          "name": "Feira",
+          "planned": 400.00,
+          "actual": 0.00,
+          "difference": 400.00
+        },
+        {
+          "name": "Delivery",
+          "planned": 200.00,
+          "actual": 0.00,
+          "difference": 200.00
+        }
+      ]
     },
     {
       "name": "Provisões",
-      "planned": 0.00,
-      "actual": 0.00,
+      "planned": 150.00,
+      "actual": 150.00,
       "difference": 0.00,
       "contributions": true,
-      "lines": []
+      "lines": [
+        {
+          "name": "Remédios",
+          "planned": 150.00,
+          "actual": 150.00,
+          "difference": 0.00
+        }
+      ]
     },
     {
       "name": "Reservas de desejo",
-      "planned": 0.00,
+      "planned": 600.00,
       "actual": 0.00,
-      "difference": 0.00,
+      "difference": 600.00,
       "contributions": true,
-      "lines": []
+      "lines": [
+        {
+          "name": "Viagens",
+          "planned": 600.00,
+          "actual": 0.00,
+          "difference": 600.00
+        }
+      ]
     }
   ],
-  "leftover": 0.00,
-  "contributions": [],
+  "leftover": 600.00,
+  "contributions": [
+    {
+      "name": "Caixinha da casa",
+      "amount": 150.00,
+      "state": "done"
+    },
+    {
+      "name": "LCI Exemplo",
+      "amount": 600.00,
+      "state": "not-found"
+    },
+    {
+      "name": "Investimento",
+      "amount": 7250.00,
+      "state": "done"
+    }
+  ],
   "cardBill": {
     "amount": 0.00,
     "cardLabel": "Platinum Visa · final 1234",
     "purchases": []
   },
-  "subscriptionsToReview": [],
+  "subscriptionsToReview": [
+    {
+      "id": "4",
+      "name": "MERCADO EXEMPLO",
+      "amount": 207.00,
+      "cycle": "Mensal",
+      "reviewOn": "2026-03-01"
+    }
+  ],
   "report": [],
-  "closedMonths": []
+  "closedMonths": [
+    {
+      "month": "2026-01",
+      "closedOn": "2026-02-03"
+    }
+  ]
 }

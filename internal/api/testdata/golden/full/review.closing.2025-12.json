@@ -89,11 +89,7 @@
   ],
   "leftover": 0.00,
   "contributions": [],
-  "cardBill": {
-    "amount": 0.00,
-    "cardLabel": "Platinum Visa · final 1234",
-    "purchases": []
-  },
+  "cardBill": null,
   "subscriptionsToReview": [],
   "report": [],
   "closedMonths": []

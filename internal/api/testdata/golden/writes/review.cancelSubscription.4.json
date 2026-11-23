@@ -1,0 +1,28 @@
+{
+  "answer": {
+    "changeId": "6",
+    "name": "MERCADO EXEMPLO"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "subscriptions",
+      "key": [
+        4
+      ],
+      "column": "status",
+      "before": "Analisar",
+      "after": "Cancelar"
+    },
+    {
+      "seq": 2,
+      "table": "subscriptions",
+      "key": [
+        4
+      ],
+      "column": "status_day",
+      "before": "2026-03-09",
+      "after": "2026-03-20"
+    }
+  ]
+}
