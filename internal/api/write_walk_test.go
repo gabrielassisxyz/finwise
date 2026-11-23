@@ -199,12 +199,17 @@ func TestWithoutADatabaseEveryWriteAndEvaluationIsRefusedBeforeItsBodyIsRead(t *
 	}
 }
 
+// Every write of the manifest has a handler, so the close's own is taken out of
+// the server's registry to show what a write without one answers.
 func TestWithADatabaseAWriteWithNoHandlerIsRefusedBeforeItsBodyIsRead(t *testing.T) {
 	scratch := authoredtest.Open(t, newFakeClock().Now)
-	env := newTestEnv(t, withDatabase(scratch.Database), func(config *Config) { config.Reads = NewReadRegistry() })
+	env := newTestEnv(t, withDatabase(scratch.Database), func(config *Config) {
+		config.Reads = NewReadRegistry()
+		delete(config.Reads.writes, closeMonthMethod)
+	})
 	cookie := env.unlock()
 	before := scratch.State(t)
-	for _, name := range writesWithoutHandler {
+	for _, name := range append(slices.Clone(writesWithoutHandler), closeMonthMethod) {
 		domain, method := splitMethod(t, name)
 		route := "/api/" + domain + "/" + method
 		for _, body := range postBodies {
