@@ -47,7 +47,7 @@ type establishmentLineResult struct {
 // name its month lacks is refused whatever the transaction holds. The panel
 // asks why only when the line corrected was the model's or settled a review.
 func setLine(ctx context.Context, args []json.RawMessage, writes Writes) (any, error) {
-	id, name, err := twoTextArguments(args)
+	id, name, err := idAndText(args)
 	if err != nil {
 		return nil, err
 	}
@@ -454,18 +454,6 @@ func distinct(ids []string) []string {
 		}
 	}
 	return kept
-}
-
-func twoTextArguments(args []json.RawMessage) (string, string, error) {
-	if len(args) != 2 {
-		return "", "", &badArgumentsError{}
-	}
-	first, err := textArgument(args[0])
-	if err != nil {
-		return "", "", err
-	}
-	second, err := textArgument(args[1])
-	return first, second, err
 }
 
 func idsAndText(args []json.RawMessage) ([]string, string, error) {
