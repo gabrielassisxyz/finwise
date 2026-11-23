@@ -163,4 +163,6 @@ var allStatements = map[string]string{
 	"statementDismissedWarningAll":    statementDismissedWarningAll,
 	"statementDismissedWarningInsert": statementDismissedWarningInsert,
 	"statementDismissedWarningDelete": statementDismissedWarningDelete,
+	"statementPendingTxKeys":          statementPendingTxKeys,
+	"statementTransactionsSettledBy":  statementTransactionsSettledBy,
 }
