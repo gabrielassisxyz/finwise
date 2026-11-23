@@ -9,7 +9,8 @@ const LABELS: Record<ContributionState, string> = { done: 'Feito', 'on-target': 
 
 <template>
   <div class="list">
-    <div v-for="item in contributions" :key="item.name" class="row">
+    <!-- Two transfers can share a name, so a row is known by its place in the list. -->
+    <div v-for="(item, index) in contributions" :key="index" class="row">
       <span>{{ item.name }}</span>
       <span class="figures">
         <span>{{ brl(item.amount) }}</span>

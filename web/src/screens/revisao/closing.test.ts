@@ -4,6 +4,7 @@ import { prototypeState } from '@/api/fake/prototype-data';
 import { useMonthStore } from '@/stores/month';
 import { useOverlayStore } from '@/stores/overlay';
 import { useReviewViewStore } from '@/stores/review-view';
+import { useRevisionStore } from '@/stores/revision';
 import { prototypeOverview } from '@/test/mount';
 import { mountRouted } from '@/test/mountRouted';
 import ClosingTab from './ClosingTab.vue';
@@ -169,6 +170,25 @@ describe('Fechamento, what each step shows', () => {
       'Investimento=Não encontrado',
     ]);
     expect(wrapper.findAll('.state.missing')).toHaveLength(3);
+  });
+
+  it('draws two transfers of one name as two rows, each with its own state, also once the list is reordered', async () => {
+    const state = prototypeState();
+    state.plannedContributions = [
+      { key: 'pot:reserva-casa', name: 'Reserva', amount: 240, state: 'done', doneOn: '2026-11-05' },
+      { key: 'pot:reserva-viagem', name: 'Reserva', amount: 60, state: 'pending', doneOn: null },
+      { key: 'line:viagens', name: 'Viagens', amount: 600, state: 'pending', doneOn: null },
+    ];
+    const { wrapper } = await mountClosing(state);
+    await open(wrapper, 'Aportes');
+    const rows = () => stepOf(wrapper, 'Aportes').findAll('.list .row').map((row) => `${row.find('span').text()}=${row.find('.state').text()}`);
+    expect(rows()).toEqual(['Reserva=Feito', 'Reserva=Não encontrado', 'Viagens=Não encontrado']);
+
+    const [house, trip, travels] = state.plannedContributions;
+    state.plannedContributions = [travels!, trip!, house!];
+    useRevisionStore().bump();
+    await flushPromises();
+    expect(rows()).toEqual(['Viagens=Não encontrado', 'Reserva=Não encontrado', 'Reserva=Feito']);
   });
 
   it('shows the amount to pay ahead, the purchases behind it and a link to the card', async () => {
