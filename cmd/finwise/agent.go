@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net"
@@ -12,20 +13,28 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
+	"github.com/gabrielassisxyz/finwise/internal/api"
 	"github.com/gabrielassisxyz/finwise/internal/contract"
 )
 
 const (
-	agentUsage       = "usage: finwise agent read <method> [<json-arguments>]"
-	agentURLVariable = "FINWISE_URL"
-	defaultAgentURL  = "http://127.0.0.1:8080"
+	agentUsage          = "usage: finwise agent read <method> [<json-arguments>] | propose --reason <text> [--name <name>] <method> <json-arguments> | proposals"
+	agentReadUsage      = "usage: finwise agent read <method> [<json-arguments>]"
+	agentProposeUsage   = "usage: finwise agent propose --reason <text> [--name <name>] <method> <json-arguments>"
+	agentProposalsUsage = "usage: finwise agent proposals"
+	agentURLVariable    = "FINWISE_URL"
+	agentNameVariable   = "FINWISE_AGENT_NAME"
+	defaultAgentURL     = "http://127.0.0.1:8080"
 	// agentTimeout is the server's WriteTimeout: past it the server has given up
 	// on the answer too.
 	agentTimeout = 60 * time.Second
 	// maxAgentAnswerBytes keeps an address that is not the API from being read
 	// into memory without end.
 	maxAgentAnswerBytes = 64 << 20
+	maxAgentNameRunes   = 40
+	maxAgentReasonRunes = 500
 )
 
 // plainErrorKinds are the kinds of a failed call that carry nothing else, the
@@ -41,14 +50,24 @@ type agentCall struct {
 	arguments []byte
 }
 
-// runAgent is the agent's client of the running server. It has one verb, and no
-// way to call anything but a read.
+// runAgent is the agent's client of the running server: reads, submitting a
+// proposal from the closed union, and listing proposals with their outcomes.
 func runAgent(ctx context.Context, args []string, env environment) int {
-	if len(args) == 0 || args[0] != "read" {
+	if len(args) == 0 {
 		fmt.Fprintln(env.stderr, agentUsage)
 		return exitUsage
 	}
-	return runAgentRead(ctx, args[1:], env)
+	switch args[0] {
+	case "read":
+		return runAgentRead(ctx, args[1:], env)
+	case "propose":
+		return runAgentPropose(ctx, args[1:], env)
+	case "proposals":
+		return runAgentProposals(ctx, args[1:], env)
+	default:
+		fmt.Fprintln(env.stderr, agentUsage)
+		return exitUsage
+	}
 }
 
 // runAgentRead calls one read of the contract and prints the server's answer
@@ -58,9 +77,39 @@ func runAgentRead(ctx context.Context, args []string, env environment) int {
 	call, problem := agentCallOf(args)
 	if problem != "" {
 		fmt.Fprintln(env.stderr, problem)
-		fmt.Fprintln(env.stderr, agentUsage)
+		fmt.Fprintln(env.stderr, agentReadUsage)
 		return exitUsage
 	}
+	return sendAgentCall(ctx, env, call)
+}
+
+// runAgentPropose submits a proposal from the closed union of proposable writes.
+func runAgentPropose(ctx context.Context, args []string, env environment) int {
+	call, problem := agentProposalCallOf(args, env)
+	if problem != "" {
+		fmt.Fprintln(env.stderr, problem)
+		fmt.Fprintln(env.stderr, agentProposeUsage)
+		return exitUsage
+	}
+	return sendAgentCall(ctx, env, call)
+}
+
+// runAgentProposals lists every stored proposal and its outcome.
+func runAgentProposals(ctx context.Context, args []string, env environment) int {
+	if len(args) != 0 {
+		fmt.Fprintln(env.stderr, "finwise: agent proposals takes no arguments")
+		fmt.Fprintln(env.stderr, agentProposalsUsage)
+		return exitUsage
+	}
+	method, ok := manifestMethod("review.proposals")
+	if !ok {
+		fmt.Fprintln(env.stderr, "finwise: the contract cannot be read")
+		return exitFailure
+	}
+	return sendAgentCall(ctx, env, agentCall{method: method, arguments: []byte("[]")})
+}
+
+func sendAgentCall(ctx context.Context, env environment, call agentCall) int {
 	token := env.getenv(agentTokenVariable)
 	if token == "" {
 		fmt.Fprintf(env.stderr, "finwise: %s is not set\n", agentTokenVariable)
@@ -81,6 +130,18 @@ func runAgentRead(ctx context.Context, args []string, env environment) int {
 		return exitFailure
 	}
 	return reportAnswer(env, call.method, status, answer)
+}
+
+func manifestMethod(qualified string) (contract.Method, bool) {
+	methods, err := contract.Load()
+	if err != nil {
+		return contract.Method{}, false
+	}
+	found := slices.IndexFunc(methods, func(method contract.Method) bool { return method.Qualified() == qualified })
+	if found < 0 {
+		return contract.Method{}, false
+	}
+	return methods[found], true
 }
 
 // agentCallOf checks the method against the embedded manifest, so that nothing
@@ -108,6 +169,52 @@ func agentCallOf(args []string) (agentCall, string) {
 		return agentCall{}, "finwise: the arguments are not a JSON array"
 	}
 	return agentCall{method: methods[found], arguments: arguments}, ""
+}
+
+// agentProposalCallOf parses `agent propose` flags and positional arguments,
+// validating the method against the closed list of proposable writes before
+// sending anything to the server.
+func agentProposalCallOf(args []string, env environment) (agentCall, string) {
+	flags := flag.NewFlagSet("agent propose", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	reasonFlag := flags.String("reason", "", "")
+	nameFlag := flags.String("name", "", "")
+	if err := flags.Parse(args); err != nil {
+		return agentCall{}, "finwise: agent propose takes --reason, optionally --name, a method and its arguments"
+	}
+	rest := flags.Args()
+	if len(rest) != 2 {
+		return agentCall{}, "finwise: agent propose takes a method and its JSON arguments"
+	}
+	reason := strings.TrimSpace(*reasonFlag)
+	if n := utf8.RuneCountInString(reason); n < 1 || n > maxAgentReasonRunes {
+		return agentCall{}, "finwise: --reason is required and may be at most 500 characters"
+	}
+	proposer := strings.TrimSpace(firstNonEmpty(*nameFlag, env.getenv(agentNameVariable)))
+	if n := utf8.RuneCountInString(proposer); n < 1 || n > maxAgentNameRunes {
+		return agentCall{}, fmt.Sprintf("finwise: --name (or %s) is required and may be at most 40 characters", agentNameVariable)
+	}
+	allowed := api.ProposableMethods()
+	if !slices.Contains(allowed, rest[0]) {
+		return agentCall{}, "finwise: that method cannot be proposed; allowed: " + strings.Join(allowed, ", ")
+	}
+	var parsed []json.RawMessage
+	if json.Unmarshal([]byte(rest[1]), &parsed) != nil || parsed == nil {
+		return agentCall{}, "finwise: the arguments are not a JSON array"
+	}
+	submitMethod, ok := manifestMethod("review.submitProposal")
+	if !ok {
+		return agentCall{}, "finwise: the contract cannot be read"
+	}
+	payload, err := json.Marshal([]any{map[string]any{
+		"change":   map[string]any{"method": rest[0], "arguments": parsed},
+		"reason":   reason,
+		"proposer": proposer,
+	}})
+	if err != nil {
+		return agentCall{}, "finwise: the proposal could not be encoded"
+	}
+	return agentCall{method: submitMethod, arguments: payload}, ""
 }
 
 // isHeaderSafe is whether the value can be a header's: visible ASCII only, which

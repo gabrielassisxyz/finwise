@@ -184,6 +184,18 @@ func (server agentServer) read(args ...string) outcome {
 	return runCommand(context.Background(), append([]string{"agent", "read"}, args...), "", server.variables(server.token), nil)
 }
 
+func (server agentServer) propose(extraVars map[string]string, args ...string) outcome {
+	vars := server.variables(server.token)
+	for k, v := range extraVars {
+		vars[k] = v
+	}
+	return runCommand(context.Background(), append([]string{"agent", "propose"}, args...), "", vars, nil)
+}
+
+func (server agentServer) proposals() outcome {
+	return runCommand(context.Background(), []string{"agent", "proposals"}, "", server.variables(server.token), nil)
+}
+
 func TestAgentReadPrintsTheServersAnswerAndNothingElse(t *testing.T) {
 	server := startAgentServer(t)
 
@@ -416,6 +428,111 @@ func TestNothingTheClientOrTheServerWritesHoldsTheTokenOrAValueOfTheLedger(t *te
 	for _, secret := range []string{server.token, "sha256$", another} {
 		if strings.Contains(log.stdout+log.stderr, secret) {
 			t.Errorf("the server's output holds %q", secret)
+		}
+	}
+}
+
+func TestAgentProposalEndToEndApproveUndoAndRefuse(t *testing.T) {
+	server := startAgentServer(t)
+	cookie, _ := server.unlockBody(t, testPIN)
+
+	// 1. Agent proposes adding a tag.
+	sub1 := server.propose(nil, "--reason", "Compra na semana da viagem", "--name", "revisor-cli", "transactions.addTag", `["`+firstPurchase+`","#viagem"]`)
+	if sub1.code != 0 || sub1.stderr != "" {
+		t.Fatalf("propose addTag exited %d stderr %q stdout %q", sub1.code, sub1.stderr, sub1.stdout)
+	}
+	var submitted1 struct {
+		ProposalID string `json:"proposalId"`
+		Title      string `json:"title"`
+	}
+	if err := json.Unmarshal([]byte(sub1.stdout), &submitted1); err != nil || submitted1.ProposalID == "" {
+		t.Fatalf("unexpected submit stdout %q: %v", sub1.stdout, err)
+	}
+
+	// 2. Session sees the proposal in review.weekly with its proposer.
+	weekly := server.postAs(t, cookie, "/api/review/weekly", `["2026-11"]`)
+	if !strings.Contains(weekly, `"proposer":"revisor-cli"`) || !strings.Contains(weekly, submitted1.Title) {
+		t.Errorf("review.weekly did not list proposal: %s", weekly)
+	}
+
+	// 3. Agent token cannot approve it.
+	if status, answer := server.postWithHeader(t, server.token, "/api/review/approve", `["`+submitted1.ProposalID+`"]`, nil); status != http.StatusForbidden || answer != `{"error":{"kind":"read_only"}}` {
+		t.Errorf("approve with token: %d %s, want 403 read_only", status, answer)
+	}
+
+	// 4. Session approves it, records change under model, adds history note.
+	approvedBody := server.postAs(t, cookie, "/api/review/approve", `["`+submitted1.ProposalID+`"]`)
+	var approved struct {
+		ChangeID string `json:"changeId"`
+		Title    string `json:"title"`
+	}
+	if err := json.Unmarshal([]byte(approvedBody), &approved); err != nil || approved.ChangeID == "" {
+		t.Fatalf("approve answered %s: %v", approvedBody, err)
+	}
+	detail := server.postAs(t, cookie, "/api/transactions/detail", `["`+firstPurchase+`"]`)
+	if !strings.Contains(detail, "Proposto por revisor-cli · você aprovou") {
+		t.Errorf("detail missing approval history note: %s", detail)
+	}
+
+	// 5. Agent reads proposals and sees approved with changeId and undone: false.
+	list1 := server.proposals()
+	if list1.code != 0 || list1.stderr != "" {
+		t.Fatalf("proposals exited %d stderr %q", list1.code, list1.stderr)
+	}
+	if !strings.Contains(list1.stdout, `"outcome":"approved"`) || !strings.Contains(list1.stdout, `"changeId":"`+approved.ChangeID+`"`) || !strings.Contains(list1.stdout, `"undone":false`) {
+		t.Errorf("proposals after approve = %s", list1.stdout)
+	}
+
+	// 6. Session undoes the approved change -> proposals now reports undone: true.
+	if undo := server.postAs(t, cookie, "/api/changes/undo", `["`+approved.ChangeID+`"]`); undo != "null" {
+		t.Fatalf("undo answered %s, want null", undo)
+	}
+	list2 := server.proposals()
+	if list2.code != 0 || !strings.Contains(list2.stdout, `"undone":true`) {
+		t.Errorf("proposals after undo = %s", list2.stdout)
+	}
+
+	// 7. Agent proposes a note using FINWISE_AGENT_NAME, session refuses with a reason, agent reads reason back.
+	sub2 := server.propose(map[string]string{agentNameVariable: "agente-env"}, "--reason", "Lembrete útil", "transactions.setNote", `["`+firstPurchase+`","Nota sugerida"]`)
+	if sub2.code != 0 || sub2.stderr != "" {
+		t.Fatalf("propose setNote exited %d stderr %q", sub2.code, sub2.stderr)
+	}
+	var submitted2 struct {
+		ProposalID string `json:"proposalId"`
+		Title      string `json:"title"`
+	}
+	if err := json.Unmarshal([]byte(sub2.stdout), &submitted2); err != nil || submitted2.ProposalID == "" {
+		t.Fatalf("unexpected second submit stdout %q", sub2.stdout)
+	}
+	refusedBody := server.postAs(t, cookie, "/api/review/refuse", `["`+submitted2.ProposalID+`","Não precisa dessa nota"]`)
+	var refused struct {
+		Title string `json:"title"`
+	}
+	if err := json.Unmarshal([]byte(refusedBody), &refused); err != nil || refused.Title != submitted2.Title {
+		t.Errorf("refuse answered %s, want title %q", refusedBody, submitted2.Title)
+	}
+	list3 := server.proposals()
+	if list3.code != 0 || !strings.Contains(list3.stdout, `"outcome":"refused"`) || !strings.Contains(list3.stdout, `"refusal":"Não precisa dessa nota"`) || !strings.Contains(list3.stdout, `"proposer":"agente-env"`) {
+		t.Errorf("proposals after refuse = %s", list3.stdout)
+	}
+
+	// 8. A refused submission reports only fixed contract words on stderr, leaking nothing.
+	missing := server.propose(nil, "--reason", "Teste", "--name", "revisor", "transactions.addTag", `["no-such-tx","#x"]`)
+	if missing.code != exitFailure || missing.stdout != "" || missing.stderr != "finwise: review.submitProposal answered refused (not_found)\n" {
+		t.Errorf("refused propose: exit %d stdout %q stderr %q", missing.code, missing.stdout, missing.stderr)
+	}
+	for _, run := range []outcome{sub1, list1, list2, sub2, list3, missing} {
+		for _, value := range append([]string{server.token}, leakedValues...) {
+			if strings.Contains(strings.ToLower(run.stderr), strings.ToLower(value)) {
+				t.Errorf("stderr leaked %q: %q", value, run.stderr)
+			}
+		}
+	}
+
+	log := server.stopGracefully(t)
+	for _, secret := range []string{server.token, "sha256$", ledgerSentinel} {
+		if strings.Contains(log.stdout+log.stderr, secret) {
+			t.Errorf("server output leaked %q", secret)
 		}
 	}
 }
