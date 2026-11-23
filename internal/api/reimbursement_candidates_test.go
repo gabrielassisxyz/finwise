@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -563,7 +564,9 @@ func TestALinkedCreditIsJudgedByTheWholeLedgerNotByTheMonthAsked(t *testing.T) {
 
 // Which listed credits of an answer are reimbursements, and how many times the
 // whole ledger is read to decide it: once when a stored purchase names a
-// credit of the answer, wherever that purchase is, and never otherwise.
+// credit of the answer, wherever that purchase is, and never otherwise. A
+// reading that fails fails the answer: a credit taken for an ordinary one
+// while its purchase elsewhere still has its amount taken off counts twice.
 func TestACreditIsAReimbursementWhileTheWholeLedgerListsThePurchaseThatNamesIt(t *testing.T) {
 	listed, unlisted := reimbursementLedger(t), reimbursementLedger(t, txDinner)
 	linked := newReimbursementEnv(t, listed)
@@ -571,6 +574,7 @@ func TestACreditIsAReimbursementWhileTheWholeLedgerListsThePurchaseThatNamesIt(t
 	linked.linkThroughTheStore(txLunch, txPixOff, 2_000)
 	unnamed := newReimbursementEnv(t, listed)
 	unnamed.putOnLine(txPixAna, "Salário")
+	unreadable := errors.New("the whole ledger could not be read")
 	cases := []struct {
 		label    string
 		env      *countEnv
@@ -579,11 +583,13 @@ func TestACreditIsAReimbursementWhileTheWholeLedgerListsThePurchaseThatNamesIt(t
 		credit   string
 		want     bool
 		readings int
+		failure  error
 	}{
-		{"the purchase listed in the answer", linked, listed, "2026-03", txPixAna, true, 1},
-		{"the purchase listed in a month the answer does not cover", linked, listed, "2026-02", txPixOff, true, 1},
-		{"the purchase not listed", linked, unlisted, "2026-03", txPixAna, false, 1},
-		{"no stored purchase names a credit of the answer", unnamed, listed, "2026-03", txPixAna, false, 0},
+		{"the purchase listed in the answer", linked, listed, "2026-03", txPixAna, true, 1, nil},
+		{"the purchase listed in a month the answer does not cover", linked, listed, "2026-02", txPixOff, true, 1, nil},
+		{"the purchase not listed", linked, unlisted, "2026-03", txPixAna, false, 1, nil},
+		{"no stored purchase names a credit of the answer", unnamed, listed, "2026-03", txPixAna, false, 0, nil},
+		{"the reading fails while a stored purchase names a credit of the answer", linked, listed, "2026-02", txPixOff, false, 1, unreadable},
 	}
 	for _, c := range cases {
 		ctx := t.Context()
@@ -603,10 +609,19 @@ func TestACreditIsAReimbursementWhileTheWholeLedgerListsThePurchaseThatNamesIt(t
 		readings := 0
 		counted := func() (wholeListing, error) {
 			readings++
+			if c.failure != nil {
+				return wholeListing{}, c.failure
+			}
 			return readWholeListing(ctx, views)
 		}
 		reimbursing, err := linkedCreditsOf(ctx, views.Authored, disposed.listed, keys, counted)
 		views.Authored.Close()
+		if c.failure != nil {
+			if !errors.Is(err, c.failure) || reimbursing != nil || readings != c.readings {
+				t.Errorf("%s: answered %v and %v after %d readings, want the reading's error and no map", c.label, reimbursing, err, readings)
+			}
+			continue
+		}
 		if err != nil {
 			t.Fatal(err)
 		}
