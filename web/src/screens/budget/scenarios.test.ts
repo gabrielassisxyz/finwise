@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createFakeApi } from '@/api/fake';
 import type { BudgetDoc, FinwiseApi } from '@/api/types';
 import { useRevisionStore } from '@/stores/revision';
+import { holdFirstCall } from '@/test/holdCall';
 import { mountBudgetAt, plain, typeInto } from './budgetTestSupport';
 import ScenariosScreen from './ScenariosScreen.vue';
 
@@ -195,5 +196,30 @@ describe('Scenario amounts', () => {
   it('sends a positive amount as typed', async () => {
     const sent = await amountsAfterTyping('150');
     expect(sent.at(-1)).toContain(150);
+  });
+});
+
+describe('Scenarios open out-of-order loads', () => {
+  it('does not let an earlier open answer replace a later one for the same month', async () => {
+    const api = createFakeApi();
+    const first = holdFirstCall(api.budget, 'document');
+    const m = await mountBudgetAt('/budget/cenarios', ScenariosScreen, { api });
+
+    const doc = await api.budget.document('2026-11');
+    doc[0]!.lines[1]!.amount = 2500;
+    await api.budget.save('2026-11', doc);
+    await api.budget.saveScenario('Mais tarde', doc);
+
+    m.month.selected = '';
+    await flushPromises();
+    m.month.selected = '2026-11';
+    await flushPromises();
+    expect((field(m, 'Renda extra').element as HTMLInputElement).value).toBe('2500');
+    expect(m.wrapper.findAll('.chip').map((chip) => chip.text())).toEqual(['Mais tarde']);
+
+    first.release();
+    await flushPromises();
+    expect((field(m, 'Renda extra').element as HTMLInputElement).value).toBe('2500');
+    expect(m.wrapper.findAll('.chip').map((chip) => chip.text())).toEqual(['Mais tarde']);
   });
 });
