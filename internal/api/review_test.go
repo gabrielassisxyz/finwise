@@ -157,6 +157,7 @@ var reviewsOfTheExamples = []waitingReview{
 // transaction's own month.
 func rulesLeave(t *testing.T, scratch *authoredtest.Scratch, path string, reviews ...waitingReview) {
 	t.Helper()
+	recordRunTakenIn(t, viewOf(t, path), scratch.Database)
 	facts := authored.ChangeFacts{Author: authored.AuthorRule, Method: "ingest.run", At: utc(2026, time.March, 1, 9, 0)}
 	err := scratch.Database.Change(t.Context(), facts, func(recorder *authored.Recorder) error {
 		writes := writesOver(recorder, viewOf(t, path))
@@ -204,6 +205,7 @@ func settledOn(t *testing.T, scratch *authoredtest.Scratch, path string, day brd
 		t.Fatal(err)
 	}
 	var step authored.StepID
+	recordRunTakenIn(t, viewOf(t, path), scratch.Database)
 	facts := authored.ChangeFacts{Author: authored.AuthorPerson, Method: method, At: at.Add(15 * time.Hour)}
 	err = scratch.Database.Change(t.Context(), facts, func(recorder *authored.Recorder) error {
 		writes := writesOver(recorder, viewOf(t, path))

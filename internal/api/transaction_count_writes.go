@@ -157,7 +157,7 @@ func excludeMany(ctx context.Context, args []json.RawMessage, writes Writes) (an
 		return nil, err
 	}
 	for _, row := range rows {
-		key, err := indexListed(ctx, writes.Recorder, row.listed)
+		key, err := indexListed(ctx, writes.Ledger, writes.Recorder, row.listed)
 		if err != nil {
 			return nil, err
 		}
