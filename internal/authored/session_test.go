@@ -2,6 +2,7 @@ package authored_test
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -15,8 +16,8 @@ const (
 func TestTheSessionMigrationIsRecorded(t *testing.T) {
 	path := databasePath(t)
 	openAndClose(t, path, creationInstant, nil)
-	if got := namesOf(t, path); !equalStrings(got, []string{"0001_journal", "0002_budget", "0003_transactions", "0004_settings", "0005_pots", "0006_subscriptions", "0008_session"}) {
-		t.Errorf("recorded = %v, want 0001_journal, 0002_budget, 0003_transactions, 0004_settings, 0005_pots, 0006_subscriptions and 0008_session", got)
+	if got := namesOf(t, path); !equalStrings(got, slices.Sorted(slices.Values([]string{"0001_journal", "0002_budget", "0003_transactions", "0004_settings", "0005_pots", "0006_subscriptions", "0008_session", "0007_review"}))) {
+		t.Errorf("recorded = %v, want 0001_journal, 0002_budget, 0003_transactions, 0004_settings, 0005_pots, 0006_subscriptions, 0007_review and 0008_session", got)
 	}
 }
 
