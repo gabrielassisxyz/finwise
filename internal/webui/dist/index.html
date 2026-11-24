@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>finwise</title>
+  </head>
+  <body>
+    <h1>A interface não foi construída</h1>
+    <p>
+      Este programa foi compilado sem a interface do finwise, então só a API responde.
+      Para incluí-la, construa a interface, copie o resultado para
+      <code>internal/webui/dist</code> e compile o programa de novo:
+    </p>
+    <pre>npm --prefix web ci
+npm --prefix web run build
+cp -R web/dist/. internal/webui/dist/
+go build -o work/finwise ./cmd/finwise</pre>
+    <p>A imagem do contêiner faz isso sozinha.</p>
+  </body>
+</html>
