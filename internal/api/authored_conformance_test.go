@@ -115,6 +115,8 @@ var authoredReadCases = []authoredReadCase{
 	authoredRead("savingsPots.detail", `["investment:inv-it-1"]`),
 	authoredRead("savingsPots.detail", `["investment:inv-nu-1"]`),
 	authoredReadOver("review.weekly", `["2026-02"]`, queueWithModelSuggestions),
+	authoredReadOver("review.proposals", `[]`, proposalsOverTheThirdState),
+	authoredReadOver("review.weekly", `["2026-04"]`, waitingProposalsOverTheThirdState),
 	// The settings of a server that has a model: the calibration it counts from
 	// the answers kept for that model, and when the model last ran.
 	authoredReadWithModel("settings.overview", `[]`, calibrationModel, answeredSuggestionsOverTheThirdState),

@@ -1386,16 +1386,26 @@
         "items": [
           {
             "type": "string"
+          },
+          {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         ],
         "minItems": 1,
-        "maxItems": 1,
+        "maxItems": 2,
         "additionalItems": false
       },
       "result": {
         "anyOf": [
           {
-            "$ref": "#/definitions/ChangeResult"
+            "$ref": "#/definitions/RefusedProposal"
           },
           {
             "type": "null"
@@ -1428,6 +1438,49 @@
             "type": "null"
           }
         ]
+      }
+    },
+    {
+      "domain": "review",
+      "name": "submitProposal",
+      "route": "/api/review/submitProposal",
+      "class": "write",
+      "arguments": {
+        "type": "array",
+        "items": [
+          {
+            "$ref": "#/definitions/ProposalDraft"
+          }
+        ],
+        "minItems": 1,
+        "maxItems": 1,
+        "additionalItems": false
+      },
+      "result": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/SubmittedProposal"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    {
+      "domain": "review",
+      "name": "proposals",
+      "route": "/api/review/proposals",
+      "class": "read",
+      "arguments": {
+        "type": "array",
+        "maxItems": 0
+      },
+      "result": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/ProposalRecord"
+        }
       }
     },
     {
@@ -2039,12 +2092,20 @@
         },
         "reason": {
           "type": "string"
+        },
+        "proposer": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The name the proposer gave when submitting; null for proposals without one."
         }
       },
       "required": [
         "id",
         "title",
-        "reason"
+        "reason",
+        "proposer"
       ],
       "additionalProperties": false,
       "description": "A change the model proposed that waits for a yes or a no."
@@ -4199,6 +4260,623 @@
       ],
       "additionalProperties": false
     },
+    "ProposalDraft": {
+      "type": "object",
+      "properties": {
+        "change": {
+          "$ref": "#/definitions/ProposedChange"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "proposer": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "change",
+        "reason",
+        "proposer"
+      ],
+      "additionalProperties": false
+    },
+    "ProposalOutcome": {
+      "type": "string",
+      "enum": [
+        "waiting",
+        "approved",
+        "refused",
+        "stale"
+      ]
+    },
+    "ProposalRecord": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "change": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProposedChange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null for a seeded prototype proposal whose effect is outside ProposedChange."
+        },
+        "reason": {
+          "type": "string"
+        },
+        "proposer": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "submittedAt": {
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/definitions/ProposalOutcome"
+        },
+        "answeredAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "refusal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "staleReason": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RefusalReason"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "changeId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "undone": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "change",
+        "reason",
+        "proposer",
+        "submittedAt",
+        "outcome",
+        "answeredAt",
+        "refusal",
+        "staleReason",
+        "changeId",
+        "undone"
+      ],
+      "additionalProperties": false
+    },
+    "ProposedChange": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "transactions.addTag"
+            },
+            "arguments": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "transactions.removeTag"
+            },
+            "arguments": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "transactions.addTagToMany"
+            },
+            "arguments": {
+              "type": "array",
+              "minItems": 2,
+              "items": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "transactions.addFixedTag"
+            },
+            "arguments": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "transactions.removeFixedTag"
+            },
+            "arguments": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "transactions.setNote"
+            },
+            "arguments": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "transactions.setDefaultLine"
+            },
+            "arguments": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "transactions.setExcluded"
+            },
+            "arguments": {
+              "type": "array",
+              "minItems": 2,
+              "items": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean",
+                  "const": false
+                }
+              ],
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "transactions.setExclusionReason"
+            },
+            "arguments": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "transactions.excludeMany"
+            },
+            "arguments": {
+              "type": "array",
+              "minItems": 2,
+              "items": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "transactions.setSplit"
+            },
+            "arguments": {
+              "type": "array",
+              "minItems": 2,
+              "items": [
+                {
+                  "type": "string"
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/SplitPart"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              ],
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "transactions.setReimbursable"
+            },
+            "arguments": {
+              "type": "array",
+              "minItems": 2,
+              "items": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean"
+                }
+              ],
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "transactions.setExpectedReimbursement"
+            },
+            "arguments": {
+              "type": "array",
+              "minItems": 2,
+              "items": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              ],
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "transactions.linkReimbursement"
+            },
+            "arguments": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "transactions.unlinkReimbursement"
+            },
+            "arguments": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "maxItems": 1
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "subscriptions.create"
+            },
+            "arguments": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "maxItems": 1
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "subscriptions.setStatus"
+            },
+            "arguments": {
+              "type": "array",
+              "minItems": 2,
+              "items": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/SubscriptionStatus"
+                }
+              ],
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "subscriptions.setLine"
+            },
+            "arguments": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "subscriptions.setReviewDate"
+            },
+            "arguments": {
+              "type": "array",
+              "minItems": 2,
+              "items": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/IsoDay"
+                }
+              ],
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "const": "subscriptions.setNote"
+            },
+            "arguments": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "description": "Closed union of writes that may be proposed for approval."
+    },
     "RecurringPurchase": {
       "type": "object",
       "properties": {
@@ -4257,7 +4935,8 @@
         "unknown_line",
         "invalid_budget",
         "unstable_pot",
-        "split_with_reimbursement"
+        "split_with_reimbursement",
+        "proposal_stale"
       ]
     },
     "RefusedErrorBody": {
@@ -4274,6 +4953,18 @@
       "required": [
         "kind",
         "reason"
+      ],
+      "additionalProperties": false
+    },
+    "RefusedProposal": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "title"
       ],
       "additionalProperties": false
     },
@@ -5033,6 +5724,22 @@
       "required": [
         "line",
         "amount"
+      ],
+      "additionalProperties": false
+    },
+    "SubmittedProposal": {
+      "type": "object",
+      "properties": {
+        "proposalId": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "proposalId",
+        "title"
       ],
       "additionalProperties": false
     },

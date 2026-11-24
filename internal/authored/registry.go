@@ -152,6 +152,7 @@ var notJournaledTables = map[string]string{
 	"tx_ids":            "what the database has observed of the ledger's transactions, not a decision",
 	"lines":             "a budget line's id, once minted, exists for good",
 	"pin":               "changing the PIN is not a recorded change and has no undo",
+	"proposals":         "a request and its answer; what an approval applies is journaled as a change of its own",
 	"model_suggestions": "what a model said about a transaction, which the person answers by a change of their own",
 }
 

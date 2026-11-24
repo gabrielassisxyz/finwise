@@ -1,4 +1,4 @@
-import type { ClosingStepId, ReportSection, SubscriptionStatus, WarningActionId, YearMonth } from '../types';
+import type { ClosingStepId, ProposalOutcome, RefusalReason, ReportSection, SubscriptionStatus, WarningActionId, YearMonth } from '../types';
 
 // What the review screens keep besides the transactions, the budget and the
 // subscriptions they act on.
@@ -15,6 +15,14 @@ export interface FakeProposal {
   title: string;
   reason: string;
   effect: ProposalEffect;
+  /** The proposer's name; absent or null for proposals not submitted by an agent. */
+  proposer?: string | null;
+  submittedAt?: string;
+  outcome?: ProposalOutcome;
+  answeredAt?: string | null;
+  refusal?: string | null;
+  staleReason?: RefusalReason | null;
+  changeId?: string | null;
 }
 
 export type WarningKind = 'price' | 'new-recurring' | 'overlap' | 'renewal' | 'charged-after-cancel';

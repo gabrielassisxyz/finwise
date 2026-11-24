@@ -175,7 +175,7 @@ func expectedGoldenFiles(t *testing.T) map[string]bool {
 		add(c.directory(), c.method, c.arguments)
 	}
 	for _, c := range writeCases {
-		if c.expects == expectsRecorded {
+		if c.expects == expectsRecorded || c.expects == expectsProposal {
 			add("writes", c.method, c.arguments)
 		}
 	}

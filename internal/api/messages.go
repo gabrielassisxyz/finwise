@@ -209,3 +209,108 @@ const (
 // unnamedPot is what a payday transfer into a pot the bank gives no name is
 // called, as the interface calls such a pot.
 const unnamedPot = "Sem nome"
+
+// The titles the server writes for each proposable change, and the history note
+// recorded when the person approves one.
+
+const proposalSplitPartNoLine = "sem linha"
+
+func proposalApprovedNote(proposer string) string {
+	return "Proposto por " + proposer + " · você aprovou"
+}
+
+func proposalAddTagTitle(tag, tx string) string {
+	return "Adicionar " + tag + " a " + tx
+}
+
+func proposalRemoveTagTitle(tag, tx string) string {
+	return "Tirar " + tag + " de " + tx
+}
+
+func proposalAddTagToManyTitle(tag string, count int) string {
+	return fmt.Sprintf("Adicionar %s a %d transações", tag, count)
+}
+
+func proposalAddFixedTagTitle(tag, establishment string) string {
+	return "Adicionar " + tag + " a todas as compras em " + establishment
+}
+
+func proposalRemoveFixedTagTitle(tag, establishment string) string {
+	return "Tirar " + tag + " de todas as compras em " + establishment
+}
+
+func proposalSetNoteTitle(target, note string) string {
+	return "Anotar em " + target + `: "` + note + `"`
+}
+
+func proposalClearNoteTitle(target string) string {
+	return "Apagar a nota de " + target
+}
+
+func proposalSetDefaultLineTitle(establishment, line string) string {
+	return "Pôr as próximas compras em " + establishment + " em " + line
+}
+
+func proposalRecountTitle(tx string) string {
+	return "Voltar a contar " + tx
+}
+
+func proposalSetExclusionReasonTitle(tx, reason string) string {
+	return `Mudar o motivo de "não conta" de ` + tx + ` para "` + reason + `"`
+}
+
+func proposalExcludeOneTitle(tx string) string {
+	return `Marcar como "não conta": ` + tx
+}
+
+func proposalExcludeManyTitle(count int) string {
+	return fmt.Sprintf(`Marcar %d transações como "não conta"`, count)
+}
+
+func proposalSetSplitTitle(tx, partsText string) string {
+	return "Dividir " + tx + ": " + partsText
+}
+
+func proposalClearSplitTitle(tx string) string {
+	return "Desfazer a divisão de " + tx
+}
+
+func proposalMarkReimbursableTitle(tx string) string {
+	return "Marcar " + tx + " como reembolsável"
+}
+
+func proposalUnmarkReimbursableTitle(tx string) string {
+	return "Desmarcar o reembolso de " + tx
+}
+
+func proposalSetExpectedReimbursementTitle(amountText, tx string) string {
+	return "Esperar " + amountText + " de reembolso por " + tx
+}
+
+func proposalClearExpectedReimbursementTitle(tx string) string {
+	return "Tirar o reembolso esperado de " + tx
+}
+
+func proposalLinkReimbursementTitle(creditName, creditAmountText, tx string) string {
+	return "Ligar o PIX de " + creditName + " " + creditAmountText + " a " + tx
+}
+
+func proposalUnlinkReimbursementTitle(tx string) string {
+	return "Desligar o PIX de " + tx
+}
+
+func proposalCreateSubscriptionTitle(tx string) string {
+	return "Criar assinatura de " + tx
+}
+
+func proposalSetSubscriptionStatusTitle(subscription, status string) string {
+	return "Mudar status de " + subscription + " para " + status
+}
+
+func proposalSetSubscriptionLineTitle(subscription, line string) string {
+	return "Pôr a assinatura " + subscription + " em " + line
+}
+
+func proposalSetSubscriptionReviewDateTitle(subscription, dayBR string) string {
+	return "Revisar " + subscription + " em " + dayBR
+}

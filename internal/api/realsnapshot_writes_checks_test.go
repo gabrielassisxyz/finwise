@@ -136,9 +136,9 @@ func ingestProblems(o ingestObservation) []string {
 
 // stepTally is what the steps of the series did. failures are fixed sentences.
 type stepTally struct {
-	recorded, extensions, nulls, evaluations int
-	skipped                                  map[string]int
-	failures                                 []string
+	recorded, extensions, nulls, evaluations, proposals int
+	skipped                                             map[string]int
+	failures                                            []string
 }
 
 func (tally stepTally) skippedCount() int {
@@ -153,14 +153,26 @@ func (tally stepTally) skippedCount() int {
 // status, the kind and reason of a refusal from their closed lists, and what
 // the journal and the file did around it. The body itself is never kept.
 type stepObservation struct {
-	status       int
-	kind, reason string
-	null         bool
-	changeID     string
-	origin       string
-	changesAdded int
-	fileChanged  bool
-	conforms     bool
+	status           int
+	kind, reason     string
+	null             bool
+	changeID         string
+	proposalID       string
+	origin           string
+	changesAdded     int
+	fileChanged      bool
+	canonicalChanged bool
+	conforms         bool
+}
+
+func proposalIDIn(body []byte) string {
+	var answer struct {
+		ProposalID string `json:"proposalId"`
+	}
+	if err := json.Unmarshal(body, &answer); err != nil {
+		return ""
+	}
+	return answer.ProposalID
 }
 
 func stepObservationOf(method string, response *httptest.ResponseRecorder) stepObservation {
@@ -172,6 +184,7 @@ func stepObservationOf(method string, response *httptest.ResponseRecorder) stepO
 	}
 	o.null = strings.TrimSpace(string(body)) == "null"
 	o.changeID, _ = changeIDIn(body)
+	o.proposalID = proposalIDIn(body)
 	o.conforms = conformanceProblem(method, body) == ""
 	return o
 }
@@ -216,6 +229,10 @@ func stepProblem(number int, step seriesStep, o stepObservation) string {
 	case stepEvaluation:
 		if !o.conforms || o.fileChanged {
 			return fmt.Sprintf("%s conforms: %t, and changed a table of the file: %t (the answer is withheld)", label, o.conforms, o.fileChanged)
+		}
+	case stepProposal:
+		if o.null || !o.conforms || o.changesAdded != 0 || o.canonicalChanged {
+			return fmt.Sprintf("%s conforms: %t, null: %t, added %d changes, changed journaled tables: %t", label, o.conforms, o.null, o.changesAdded, o.canonicalChanged)
 		}
 	}
 	return ""
@@ -482,7 +499,7 @@ func seriesCoverageProblems(handled []string, modes map[string]expectation, step
 		stepped[step.method] = append(stepped[step.method], step.mode)
 	}
 	wanted := map[expectation]stepMode{
-		expectsRecorded: stepRecorded, expectsExtension: stepExtension, expectsNothing: stepNull, expectsEvaluation: stepEvaluation,
+		expectsRecorded: stepRecorded, expectsExtension: stepExtension, expectsNothing: stepNull, expectsEvaluation: stepEvaluation, expectsProposal: stepProposal,
 	}
 	var problems []string
 	for _, name := range handled {
@@ -525,9 +542,10 @@ func recordedMethodsOfTheSeries() []string {
 	return names
 }
 
-// recordedWritesOfTheContract is how many writes record a change: the 55 writes
-// but the undo, the PIN and the six that answer only null.
-const recordedWritesOfTheContract = 47
+// recordedWritesOfTheContract is how many writes record a change: the 56 writes
+// but the undo, the PIN, the two proposal-table writes and the four that answer
+// only null.
+const recordedWritesOfTheContract = 48
 
 func TestEveryRecordedWriteHasAStepInTheSeries(t *testing.T) {
 	handled, modes := seriesCoverageInputs(t)
@@ -555,7 +573,8 @@ func TestTheSeriesCoverageFailsForAMissingStepAndForAListedMethodWithAHandler(t 
 	broken := map[string][]seriesStep{
 		"a recorded write with no step": without(closeMonthMethod),
 		"the extension with no step":    without(extensionMethod),
-		"a write answering only null":   without("review.approve"),
+		"a write answering only null":   without("review.propose"),
+		"a proposal write with no step": without("review.refuse"),
 		"the evaluation with no step":   without("budget.evaluateScenario"),
 		"a step of a method nobody has": append(slices.Clone(seriesSteps), seriesStep{method: "a.write", mode: stepRecorded}),
 	}

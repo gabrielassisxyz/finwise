@@ -175,6 +175,7 @@ describe('the changes waiting for approval', () => {
       id: 'teto',
       title: 'Subir o teto de Delivery de R$ 200 para R$ 250',
       reason: 'estourou três meses seguidos',
+      proposer: null,
     });
   });
 
@@ -235,11 +236,36 @@ describe('the changes waiting for approval', () => {
     expect((await api.review.weekly(MONTH)).approvals.map((approval) => approval.id)).toContain('teto');
   });
 
-  it('refuses without changing anything but the list', async () => {
+  it('refuses without changing anything but the list, keeping an optional reason', async () => {
     const api = createFakeApi();
-    await api.review.refuse('revista');
+    const refused = await api.review.refuse('revista', '  vou manter por enquanto  ');
+    expect(refused).toEqual({ title: 'Mudar status de Revista digital para Cancelar' });
     expect((await api.subscriptions.detail('rv'))?.status).toBe('Analisar');
     expect((await api.review.weekly(MONTH)).approvals.map((approval) => approval.id)).toEqual(['teto', 'estorno']);
+    const record = (await api.review.proposals()).find((proposal) => proposal.id === 'revista');
+    expect(record).toMatchObject({ outcome: 'refused', refusal: 'vou manter por enquanto', changeId: null, staleReason: null });
+  });
+
+  it('rejects a seeded approval whose effect already holds with proposal_stale and closes it as stale', async () => {
+    const api = createFakeApi();
+    await api.subscriptions.setStatus('rv', 'Cancelar');
+    await expect(api.review.approve('revista')).rejects.toMatchObject({ kind: 'refused', reason: 'proposal_stale' });
+    expect((await api.review.weekly(MONTH)).approvals.map((approval) => approval.id)).not.toContain('revista');
+    const record = (await api.review.proposals()).find((proposal) => proposal.id === 'revista');
+    expect(record).toMatchObject({ outcome: 'stale', staleReason: 'proposal_stale', changeId: null });
+  });
+
+  it('answers null from submitProposal and lists seeded proposals newest first', async () => {
+    const api = createFakeApi();
+    expect(
+      await api.review.submitProposal({
+        change: { method: 'transactions.addTag', arguments: ['t2', '#viagem'] },
+        reason: 'viagem',
+        proposer: 'assistente',
+      }),
+    ).toBeNull();
+    const list = await api.review.proposals();
+    expect(list.map((proposal) => proposal.id)).toEqual(['lazer', 'revista', 'estorno', 'teto']);
   });
 
   it('knows nothing of an id that is not waiting', async () => {

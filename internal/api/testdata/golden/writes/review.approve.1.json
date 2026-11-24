@@ -1,0 +1,40 @@
+{
+  "answer": {
+    "changeId": "2",
+    "title": "Adicionar #viagem a LIVRARIA EXEMPLO R$ 129,00"
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_tags",
+      "key": [
+        11,
+        "#viagem"
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "tx_key": 11,
+        "tag": "#viagem",
+        "position": 0
+      }
+    },
+    {
+      "seq": 2,
+      "table": "history_steps",
+      "key": [
+        4
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "id": 4,
+        "tx_key": 11,
+        "change_id": 2,
+        "kind": "note",
+        "text": "Proposto por agente-revisor · você aprovou",
+        "day": "2026-03-20"
+      }
+    }
+  ]
+}

@@ -166,6 +166,7 @@
   | `invalid_budget` | saving a budget with a line that has no name, a name used twice or the fees line's, an id that does not exist or repeats, or a group that is unknown or repeated | O budget tem linha sem nome ou repetida. |
   | `unstable_pot` | a write to a pot the bank does not identify stably (its id begins `slot:`) | O banco não identifica esse cofrinho de forma estável. |
   | `split_with_reimbursement` | splitting a purchase that has a linked reimbursement, or linking one to a split purchase | Uma compra dividida não pode ter reembolso ligado. |
+  | `proposal_stale` | approving a proposal whose underlying change has no effect left or overlaps a later change still in force | Isso mudou depois da proposta. Nada foi alterado. |
 
   The other sentences of the interface: a reason it does not know, "Não foi possível concluir."; a write
   answered `internal`, `bad_request` or `unknown_method`, "Não foi possível salvar."; a write whose answer
@@ -279,12 +280,13 @@
     value; one that parses logs `an agent token opens the reads` once. Revoking the token is changing or
     unsetting the variable and restarting: nothing else holds it.
   - A request that carries an `Authorization` header is judged by it alone and never by the cookie: a
-    `Bearer` token that matches opens the reads, and anything else (another scheme, a wrong token, a
-    second header, a server with no hash) is answered `locked`, whatever cookie comes with it. A request
-    without the header is judged by the cookie as before. What the token opens is the manifest's `read`
-    class and nothing else (`agentMayCall`, `internal/api/agent_token.go`): every `write`, every
-    `evaluate` and every `session` method, `session.status` included, is answered 403 `read_only` before
-    its body is read, and an agent's request is never served by the code that serves a write.
+    `Bearer` token that matches opens the reads and `review.submitProposal`, and anything else (another
+    scheme, a wrong token, a second header, a server with no hash) is answered `locked`, whatever cookie
+    comes with it. A request without the header is judged by the cookie as before. What the token opens
+    is the manifest's `read` class plus `review.submitProposal` (`agentMayCall`,
+    `internal/api/agent_token.go`): every other `write` (`review.approve` and `review.refuse` included),
+    every `evaluate` and every `session` method, `session.status` included, is answered 403 `read_only`
+    before its body is read.
   - The request log's line for a request the token opened carries `caller=agent`, a refused one included,
     and no other line carries a caller. It never holds the token.
   - `finwise agent read <method> [<json-arguments>]` calls one read on the server named by `FINWISE_URL`
@@ -302,6 +304,22 @@
   - Known limit: the token guards the API, not the database file. A process of the user that owns
     `finwise.db` and the snapshot can open them directly. Tests make their tokens at run time, so the
     secret scan has nothing to find.
+  - **Agent proposals:** an external agent can propose a change from the closed 20-member `ProposedChange`
+    union (`api.ProposableMethods()`, pinned to `internal/contract/contract.json`) via
+    `review.submitProposal` or `finwise agent propose --reason <text> [--name <name>] <method>
+    <json-arguments>` (`FINWISE_AGENT_NAME` fallback, `--name` wins), and list proposals with their
+    outcomes via `review.proposals` or `finwise agent proposals`. Proposals live in the `proposals` table
+    of `finwise.db` outside the journal because a pending or refused proposal is not authored financial
+    state and has no undo. Submitting dry-runs the proposed method's registered write handler and rolls
+    back before inserting a waiting row with an app-authored Portuguese title and the journal high-water
+    mark (`based_on`). Approving (`review.approve`) executes the same handler once under author `model`
+    inside a write-locked change, verifies the proposal still waits, recorded at least one effect and
+    does not overlap any later change still in force since `based_on` (reusing `overlaps`), adds
+    `Proposto por <proposer> · você aprovou` to each named transaction's history, and closes any refused
+    approval as `stale` while leaving the journal untouched. Refusing (`review.refuse`) closes the
+    proposal with an optional reason (up to 500 characters) without touching the journal. `agent propose`
+    and `agent proposals` share the token, address, TLS, no-redirect, timeout and fixed-stderr rules of
+    `agent read`.
 
 ## Design
 - The design arrives as an HTML prototype. It is a reference, never code to copy: `design/README.md`

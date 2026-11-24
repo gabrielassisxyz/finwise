@@ -6,6 +6,8 @@ import type {
   ClosingStepId,
   PlannedActualGroup,
   PlannedActualLine,
+  ProposalRecord,
+  ProposedChange,
   ReportSection,
   ReviewQueueItem,
   ReviewWarning,
@@ -58,7 +60,36 @@ export function reviewQueue(state: FakeState): ReviewQueueItem[] {
 export function awaitingApprovals(state: FakeState): ApprovalRequest[] {
   return state.review.awaiting.flatMap((id) => {
     const proposal = state.review.proposals.find((candidate) => candidate.id === id);
-    return proposal ? [{ id, title: proposal.title, reason: proposal.reason }] : [];
+    return proposal ? [{ id, title: proposal.title, reason: proposal.reason, proposer: proposal.proposer ?? null }] : [];
+  });
+}
+
+function proposedChangeOf(effect: FakeState['review']['proposals'][number]['effect']): ProposedChange | null {
+  if (effect.kind === 'exclude') return { method: 'transactions.setExclusionReason', arguments: [effect.transactionId, effect.reason] };
+  if (effect.kind === 'status') return { method: 'subscriptions.setStatus', arguments: [effect.subscriptionId, effect.status] };
+  return null;
+}
+
+/** Every proposal in the stand-in, newest first. */
+export function proposalRecords(state: FakeState): ProposalRecord[] {
+  const defaultSubmittedAt = `${state.shell.today}T05:00:00.000Z`;
+  return [...state.review.proposals].reverse().map((proposal) => {
+    const waiting = state.review.awaiting.includes(proposal.id);
+    const outcome = proposal.outcome ?? (waiting ? 'waiting' : 'waiting');
+    return {
+      id: proposal.id,
+      title: proposal.title,
+      change: proposedChangeOf(proposal.effect),
+      reason: proposal.reason,
+      proposer: proposal.proposer ?? null,
+      submittedAt: proposal.submittedAt ?? defaultSubmittedAt,
+      outcome,
+      answeredAt: proposal.answeredAt ?? null,
+      refusal: proposal.refusal ?? null,
+      staleReason: proposal.staleReason ?? null,
+      changeId: proposal.changeId ?? null,
+      undone: false,
+    };
   });
 }
 

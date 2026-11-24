@@ -1,0 +1,24 @@
+{
+  "answer": {
+    "proposalId": "1",
+    "title": "Adicionar #viagem a LIVRARIA EXEMPLO R$ 129,00"
+  },
+  "proposals": [
+    {
+      "ID": 1,
+      "SubmittedAt": "2026-03-20T15:00:00.000Z",
+      "Proposer": "agente-revisor",
+      "Method": "transactions.addTag",
+      "Arguments": "[\"tx-instalment\",\"#viagem\"]",
+      "Reason": "Etiqueta da viagem",
+      "Title": "Adicionar #viagem a LIVRARIA EXEMPLO R$ 129,00",
+      "BasedOn": 1,
+      "Outcome": "waiting",
+      "AnsweredAt": null,
+      "Refusal": null,
+      "StaleReason": null,
+      "ChangeID": null,
+      "Undone": false
+    }
+  ]
+}

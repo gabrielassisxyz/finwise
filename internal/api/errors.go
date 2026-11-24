@@ -50,6 +50,7 @@ const (
 	reasonInvalidBudget          refusalReason = "invalid_budget"
 	reasonUnstablePot            refusalReason = "unstable_pot"
 	reasonSplitWithReimbursement refusalReason = "split_with_reimbursement"
+	reasonProposalStale          refusalReason = "proposal_stale"
 )
 
 // refusalReasons is the closed list, in the contract's order.
@@ -63,6 +64,7 @@ var refusalReasons = []refusalReason{
 	reasonInvalidBudget,
 	reasonUnstablePot,
 	reasonSplitWithReimbursement,
+	reasonProposalStale,
 }
 
 // errorEnvelope is a closed union: every kind but refused carries nothing else,

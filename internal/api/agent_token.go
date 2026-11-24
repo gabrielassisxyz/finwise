@@ -66,11 +66,16 @@ func (hash AgentTokenHash) Verify(presented string) bool {
 	return subtle.ConstantTimeCompare(sum[:], hash.digest[:]) == 1
 }
 
+// submitProposalMethod is the one write method the agent's token opens: it
+// validates and stores a proposal for the person to approve or refuse, never
+// changing authored financial state directly.
+const submitProposalMethod = "review.submitProposal"
+
 // agentMayCall is the one statement of what the agent's token opens: the
-// manifest's reads. A method of any other class, an evaluation and the session
-// methods included, is out of its reach, whatever its name.
+// manifest's reads and review.submitProposal. Every other method, evaluations,
+// approvals, refusals and the session methods included, is out of its reach.
 func agentMayCall(method contract.Method) bool {
-	return method.Class == contract.ClassRead
+	return method.Class == contract.ClassRead || method.Qualified() == submitProposalMethod
 }
 
 // carriesAuthorization is whether the request names itself with the header at
@@ -117,6 +122,10 @@ func (found *router) serveAgent(w http.ResponseWriter, r *http.Request, method c
 	noteAgentCaller(r.Context())
 	if !agentMayCall(method) {
 		writeError(w, r, kindReadOnly)
+		return
+	}
+	if method.Qualified() == submitProposalMethod {
+		found.serveChange(w, r, method)
 		return
 	}
 	arguments, body, ok := readArguments(w, r, method)

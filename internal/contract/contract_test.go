@@ -31,7 +31,7 @@ func TestLoadReadsEveryMethodOfTheManifest(t *testing.T) {
 	for _, method := range methods {
 		counts[method.Class]++
 	}
-	want := map[Class]int{ClassSession: 3, ClassRead: 23, ClassEvaluate: 1, ClassWrite: 55}
+	want := map[Class]int{ClassSession: 3, ClassRead: 24, ClassEvaluate: 1, ClassWrite: 56}
 	for class, n := range want {
 		if counts[class] != n {
 			t.Errorf("class %s: %d methods, want %d", class, counts[class], n)
@@ -126,7 +126,7 @@ func TestRefusalReasonsAreTheContractsInItsOrder(t *testing.T) {
 	}
 	want := []string{
 		"month_closed", "future_month", "pending_reviews", "stale_change", "not_found",
-		"unknown_line", "invalid_budget", "unstable_pot", "split_with_reimbursement",
+		"unknown_line", "invalid_budget", "unstable_pot", "split_with_reimbursement", "proposal_stale",
 	}
 	if !slices.Equal(manifest.RefusalReasons, want) {
 		t.Errorf("reasons %q, want %q", manifest.RefusalReasons, want)
@@ -157,8 +157,8 @@ func TestEveryArgumentSchemaCompilesOnItsOwn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if len(methods) != 82 {
-		t.Fatalf("%d methods, want 82", len(methods))
+	if len(methods) != 84 {
+		t.Fatalf("%d methods, want 84", len(methods))
 	}
 	for _, method := range methods {
 		if len(method.ArgumentsSchema) == 0 {

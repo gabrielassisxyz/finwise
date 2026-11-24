@@ -103,7 +103,10 @@ func TestTheMonthsInvariantsHoldAfterEveryRecordedWriteCase(t *testing.T) {
 			c.state(t, scratch)
 		}
 		for _, call := range c.before {
-			changeIDOfAnswer(t, writes.post(call.method, call.arguments))
+			resp := writes.post(call.method, call.arguments)
+			if resp.Code != http.StatusOK {
+				t.Fatalf("before %s %s answered %d %s", call.method, call.arguments, resp.Code, resp.Body.String())
+			}
 		}
 		changeIDOfAnswer(t, writes.post(c.method, c.arguments))
 		for _, problem := range monthInvariants(t, &readEnv{testEnv: writes.testEnv, cookie: writes.cookie}, scratch, full.Path) {

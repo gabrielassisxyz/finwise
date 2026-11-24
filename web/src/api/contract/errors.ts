@@ -26,6 +26,7 @@ export const REFUSAL_REASONS = [
   'invalid_budget',
   'unstable_pot',
   'split_with_reimbursement',
+  'proposal_stale',
 ] as const;
 
 export type RefusalReason = (typeof REFUSAL_REASONS)[number];

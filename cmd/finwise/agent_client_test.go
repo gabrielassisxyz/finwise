@@ -2,12 +2,16 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/gabrielassisxyz/finwise/internal/api"
 )
 
 // answeringWith is a server that says what it is told for any request and
@@ -134,5 +138,121 @@ func TestTheClientGivesUpOnAServerThatDoesNotAnswer(t *testing.T) {
 	}
 	if agentTimeout != 60*time.Second {
 		t.Errorf("the client gives up after %v, the server's WriteTimeout is a minute", agentTimeout)
+	}
+}
+
+func TestAgentProposeSendsSubmitProposalWithDraftNameFallbackAndToken(t *testing.T) {
+	stub := newAnswering(t, http.StatusOK, `{"proposalId":"1","title":"Adicionar #viagem a Loja R$ 10,00"}`, nil)
+	token, _ := agentCredentials(t)
+
+	// --name wins over FINWISE_AGENT_NAME.
+	vars := map[string]string{agentURLVariable: stub.URL, agentTokenVariable: token, agentNameVariable: "from-env"}
+	res1 := runCommand(context.Background(), []string{
+		"agent", "propose", "--reason", "Compra na viagem", "--name", "from-flag", "transactions.addTag", `["tx-1","#viagem"]`,
+	}, "", vars, nil)
+	if res1.code != 0 || res1.stderr != "" || !strings.Contains(res1.stdout, `"proposalId":"1"`) {
+		t.Fatalf("propose with --name: exit %d stdout %q stderr %q", res1.code, res1.stdout, res1.stderr)
+	}
+
+	// Omitting --name falls back to FINWISE_AGENT_NAME.
+	res2 := runCommand(context.Background(), []string{
+		"agent", "propose", "--reason", "Compra na viagem", "transactions.addTag", `["tx-1","#viagem"]`,
+	}, "", vars, nil)
+	if res2.code != 0 || res2.stderr != "" {
+		t.Fatalf("propose with env name: exit %d stderr %q", res2.code, res2.stderr)
+	}
+
+	stub.mutex.Lock()
+	defer stub.mutex.Unlock()
+	if len(stub.requests) != 2 {
+		t.Fatalf("saw %d requests, want 2", len(stub.requests))
+	}
+	wantProposers := []string{"from-flag", "from-env"}
+	for i, req := range stub.requests {
+		if req.Method != http.MethodPost || req.URL.Path != "/api/review/submitProposal" {
+			t.Errorf("request %d: %s %s", i, req.Method, req.URL.Path)
+		}
+		if req.Header.Get("Authorization") != "Bearer "+token || req.Header.Get("Cookie") != "" {
+			t.Errorf("request %d: unexpected auth/cookie headers", i)
+		}
+		var payload []struct {
+			Change struct {
+				Method    string            `json:"method"`
+				Arguments []json.RawMessage `json:"arguments"`
+			} `json:"change"`
+			Reason   string `json:"reason"`
+			Proposer string `json:"proposer"`
+		}
+		if err := json.Unmarshal([]byte(stub.bodies[i]), &payload); err != nil || len(payload) != 1 {
+			t.Fatalf("request %d body %s: %v", i, stub.bodies[i], err)
+		}
+		if payload[0].Change.Method != "transactions.addTag" || payload[0].Reason != "Compra na viagem" || payload[0].Proposer != wantProposers[i] {
+			t.Errorf("request %d payload = %+v, want proposer %q", i, payload[0], wantProposers[i])
+		}
+	}
+}
+
+func TestAgentProposeExitsWithUsageForBadFlagsMethodOrArgumentsAndSendsNothing(t *testing.T) {
+	stub := newAnswering(t, http.StatusOK, `null`, nil)
+	token, _ := agentCredentials(t)
+	vars := map[string]string{agentURLVariable: stub.URL, agentTokenVariable: token}
+	const callerReason = "Motivo que nao deve aparecer"
+	const callerProposer = "agente-do-chamador"
+
+	cases := map[string][]string{
+		"missing reason":        {"agent", "propose", "--name", callerProposer, "transactions.addTag", `["tx-1","#x"]`},
+		"blank reason":          {"agent", "propose", "--reason", "  ", "--name", callerProposer, "transactions.addTag", `["tx-1","#x"]`},
+		"reason over 500":       {"agent", "propose", "--reason", strings.Repeat("a", 501), "--name", callerProposer, "transactions.addTag", `["tx-1","#x"]`},
+		"missing name":          {"agent", "propose", "--reason", callerReason, "transactions.addTag", `["tx-1","#x"]`},
+		"name over 40":          {"agent", "propose", "--reason", callerReason, "--name", strings.Repeat("b", 41), "transactions.addTag", `["tx-1","#x"]`},
+		"unknown flag":          {"agent", "propose", "--bogus", "x", "--reason", callerReason, "--name", callerProposer, "transactions.addTag", `["tx-1","#x"]`},
+		"missing arguments":     {"agent", "propose", "--reason", callerReason, "--name", callerProposer, "transactions.addTag"},
+		"too many arguments":    {"agent", "propose", "--reason", callerReason, "--name", callerProposer, "transactions.addTag", `[]`, `[]`},
+		"non-proposable method": {"agent", "propose", "--reason", callerReason, "--name", callerProposer, "budget.save", `["2026-03",[]]`},
+		"arguments not array":   {"agent", "propose", "--reason", callerReason, "--name", callerProposer, "transactions.addTag", `{}`},
+		"arguments null":        {"agent", "propose", "--reason", callerReason, "--name", callerProposer, "transactions.addTag", `null`},
+	}
+	for label, args := range cases {
+		res := runCommand(context.Background(), args, "", vars, nil)
+		if res.code != exitUsage || res.stdout != "" || !strings.Contains(res.stderr, agentProposeUsage) {
+			t.Errorf("%s: exit %d stdout %q stderr %q", label, res.code, res.stdout, res.stderr)
+		}
+		if strings.Contains(res.stderr, callerReason) || strings.Contains(res.stderr, callerProposer) {
+			t.Errorf("%s: stderr leaked caller input: %q", label, res.stderr)
+		}
+		if label == "non-proposable method" {
+			for _, member := range api.ProposableMethods() {
+				if !strings.Contains(res.stderr, member) {
+					t.Errorf("non-proposable method error did not list %s: %q", member, res.stderr)
+				}
+			}
+		}
+	}
+	if stub.seen() != 0 {
+		t.Errorf("%d requests were sent for invalid propose calls", stub.seen())
+	}
+}
+
+func TestAgentProposalsCallsReviewProposalsAndRejectsExtraArguments(t *testing.T) {
+	stub := newAnswering(t, http.StatusOK, `[]`, nil)
+	token, _ := agentCredentials(t)
+	vars := map[string]string{agentURLVariable: stub.URL, agentTokenVariable: token}
+
+	bad := runCommand(context.Background(), []string{"agent", "proposals", "extra"}, "", vars, nil)
+	if bad.code != exitUsage || bad.stdout != "" || !strings.Contains(bad.stderr, agentProposalsUsage) {
+		t.Errorf("extra arg: exit %d stdout %q stderr %q", bad.code, bad.stdout, bad.stderr)
+	}
+	if stub.seen() != 0 {
+		t.Errorf("extra arg sent %d requests", stub.seen())
+	}
+
+	ok := runCommand(context.Background(), []string{"agent", "proposals"}, "", vars, nil)
+	if ok.code != 0 || ok.stdout != "[]\n" || ok.stderr != "" {
+		t.Fatalf("proposals: exit %d stdout %q stderr %q", ok.code, ok.stdout, ok.stderr)
+	}
+	stub.mutex.Lock()
+	defer stub.mutex.Unlock()
+	if len(stub.requests) != 1 || stub.requests[0].URL.Path != "/api/review/proposals" || stub.bodies[0] != "[]" {
+		t.Errorf("unexpected request: %+v body %q", stub.requests, stub.bodies)
 	}
 }

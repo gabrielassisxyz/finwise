@@ -23,11 +23,11 @@ type reviewQueue struct {
 }
 
 type weeklyReview struct {
-	Limit     weeklyLimit     `json:"limit"`
-	Week      any             `json:"week"`
-	Queue     reviewQueue     `json:"queue"`
-	Approvals []any           `json:"approvals"`
-	Warnings  []reviewWarning `json:"warnings"`
+	Limit     weeklyLimit       `json:"limit"`
+	Week      any               `json:"week"`
+	Queue     reviewQueue       `json:"queue"`
+	Approvals []approvalRequest `json:"approvals"`
+	Warnings  []reviewWarning   `json:"warnings"`
 }
 
 func registerReview(registry *Registry) {
@@ -53,6 +53,10 @@ func readWeeklyReview(ctx context.Context, args []json.RawMessage, views Views) 
 	if err != nil {
 		return nil, err
 	}
+	approvals, err := waitingApprovals(ctx, views.Authored)
+	if err != nil {
+		return nil, err
+	}
 	warnings, err := shownWarnings(ctx, views)
 	if err != nil {
 		return nil, err
@@ -61,7 +65,7 @@ func readWeeklyReview(ctx context.Context, args []json.RawMessage, views Views) 
 		Limit:     limit.weeklyLimitWire(),
 		Week:      limit.currentWeekWire(),
 		Queue:     queue,
-		Approvals: []any{},
+		Approvals: approvals,
 		Warnings:  warnings,
 	}, nil
 }

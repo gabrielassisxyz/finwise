@@ -19,7 +19,7 @@ const (
 	exitUsage   = 2
 )
 
-const usage = "usage: finwise serve | hash-pin | backup | ingest | suggest | agent-token | agent read <method> [<json-arguments>]"
+const usage = "usage: finwise serve | hash-pin | backup | ingest | suggest | agent-token | agent read <method> [<json-arguments>] | agent propose --reason <text> [--name <name>] <method> <json-arguments> | agent proposals"
 
 // environment is everything the commands take from the process, so a test can
 // run them without touching the real standard streams or variables.

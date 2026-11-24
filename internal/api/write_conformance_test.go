@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/authored/authoredtest"
 	"github.com/gabrielassisxyz/finwise/internal/contract"
 )
@@ -34,20 +35,28 @@ const (
 	// earlier change.
 	expectsExtension
 	// expectsRefusal: 409 refused with a named reason and no table of the file
-	// changed.
+	// changed (except review.approve, which closes the proposal as stale while
+	// leaving the journal and every journaled table untouched).
 	expectsRefusal
+	// expectsProposal: the answer conforms and is not null, the proposals table
+	// changes, and neither the journal nor any journaled table changes.
+	expectsProposal
 	// exemptFromTheHarness is the mode of a method that has tests of its own.
 	exemptFromTheHarness
 )
 
 func (e expectation) String() string {
-	return [...]string{"", "a recorded change", "nothing to do", "an evaluation", "an extension", "a refusal", "exempt"}[e]
+	return [...]string{"", "a recorded change", "nothing to do", "an evaluation", "an extension", "a refusal", "a proposal update", "exempt"}[e]
 }
 
 // exemptMethods are the only two methods outside the harness, named so that a
 // third cannot hide beside them: the undo is the harness's own instrument, and
 // the PIN is the session service's.
 var exemptMethods = []string{"changes.undo", "session.changePin"}
+
+// proposalMethods are the writes that touch only the proposals table, which is
+// outside the journal and has no undo.
+var proposalMethods = []string{"review.submitProposal", "review.refuse"}
 
 // extensionMethod is the one method whose mode is an extension: "all purchases
 // here" appends its effects to the change that set the line.
@@ -112,6 +121,7 @@ type writeObservation struct {
 
 	canonicalBeforeOrigin string
 	canonicalBefore       string
+	canonicalAfter        string
 	canonicalAfterUndo    string
 	journalBefore         string
 	journalAfter          string
@@ -122,6 +132,7 @@ type writeObservation struct {
 
 	changeID      string
 	effects       []authoredtest.Effect
+	proposals     []authored.Proposal
 	originID      string
 	originEffects [2]int
 
@@ -268,15 +279,49 @@ func evaluationProblems(method string, o writeObservation) []string {
 	return append(answerProblems(method, o), collect(unchangedProblem("the file", o.everythingBefore, o.everythingAfter))...)
 }
 
+// proposalProblems checks a proposal-table write: it conforms, is not null,
+// writes to the proposals table, and leaves the journal and every journaled
+// table untouched.
+func proposalProblems(method string, o writeObservation) []string {
+	if problems := answerProblems(method, o); problems != nil {
+		return problems
+	}
+	var problems []string
+	if strings.TrimSpace(string(o.body)) == "null" {
+		problems = append(problems, "answered null, want a proposal result")
+	}
+	if o.changesAfter != o.changesBefore {
+		problems = append(problems, fmt.Sprintf("a proposal write left %d changes in the journal", o.changesAfter-o.changesBefore))
+	}
+	if o.everythingAfter == o.everythingBefore {
+		problems = append(problems, "the proposal write changed no table of the file")
+	}
+	return append(problems, collect(
+		unchangedProblem("the journal", o.journalBefore, o.journalAfter),
+		unchangedProblem("the journaled tables", o.canonicalBefore, o.canonicalAfter),
+	)...)
+}
+
 // refusalProblems checks a refusal: 409, the named reason, the manifest's error
-// envelope, and no table of the file changed.
-func refusalProblems(reason refusalReason, o writeObservation) []string {
+// envelope, and no table of the file changed. review.approve is the one method
+// whose refusal closes its proposal as stale while leaving the journal and
+// every journaled table untouched.
+func refusalProblems(method string, reason refusalReason, o writeObservation) []string {
 	var problems []string
 	want := `{"error":{"kind":"refused","reason":"` + string(reason) + `"}}`
 	if o.status != http.StatusConflict || string(o.body) != want {
 		problems = append(problems, fmt.Sprintf("answered %d %s, want 409 %s", o.status, o.body, want))
 	}
 	problems = append(problems, collect(errorEnvelopeProblem(o.body))...)
+	if method == "review.approve" {
+		if o.changesAfter != o.changesBefore {
+			problems = append(problems, fmt.Sprintf("a refused approval left %d changes in the journal", o.changesAfter-o.changesBefore))
+		}
+		return append(problems, collect(
+			unchangedProblem("the journal", o.journalBefore, o.journalAfter),
+			unchangedProblem("the journaled tables", o.canonicalBefore, o.canonicalAfter),
+		)...)
+	}
 	return append(problems, collect(unchangedProblem("the file", o.everythingBefore, o.everythingAfter))...)
 }
 
@@ -291,8 +336,10 @@ func problemsOf(c writeCase, o writeObservation) []string {
 		return evaluationProblems(c.method, o)
 	case expectsExtension:
 		return extensionProblems(c.method, o)
+	case expectsProposal:
+		return proposalProblems(c.method, o)
 	case expectsRefusal:
-		return refusalProblems(c.reason, o)
+		return refusalProblems(c.method, c.reason, o)
 	}
 	return []string{"the case expects " + c.expects.String()}
 }
@@ -355,13 +402,29 @@ func writeGoldenFileName(c writeCase) (string, error) {
 	return filepath.Join("testdata", "golden", "writes", name), nil
 }
 
-// sharedFileProblems names the recorded cases that would write one file: two
-// calls of a method whose arguments slug alike.
+type proposalStateDocument struct {
+	Answer    json.RawMessage     `json:"answer"`
+	Proposals []authored.Proposal `json:"proposals"`
+}
+
+func proposalDocument(answer []byte, proposals []authored.Proposal) ([]byte, error) {
+	if proposals == nil {
+		proposals = []authored.Proposal{}
+	}
+	encoded, err := json.MarshalIndent(proposalStateDocument{Answer: answer, Proposals: proposals}, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(encoded, '\n'), nil
+}
+
+// sharedFileProblems names the recorded or proposal cases that would write one
+// file: two calls of a method whose arguments slug alike.
 func sharedFileProblems(cases []writeCase) []string {
 	owner := map[string]writeCase{}
 	var problems []string
 	for _, c := range cases {
-		if c.expects != expectsRecorded {
+		if c.expects != expectsRecorded && c.expects != expectsProposal {
 			continue
 		}
 		name, err := goldenName(c.method, c.arguments)
@@ -394,6 +457,8 @@ func modesOfManifest(methods []contract.Method) (modes map[string]expectation, n
 			modes[name] = expectsEvaluation
 		case slices.Contains(answerOnlyNull, name):
 			modes[name] = expectsNothing
+		case slices.Contains(proposalMethods, name):
+			modes[name] = expectsProposal
 		case name == extensionMethod:
 			modes[name] = expectsExtension
 		default:

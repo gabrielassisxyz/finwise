@@ -1,3 +1,4 @@
+import { ApiFailure } from '../http/failure';
 import type { ReviewApi } from '../types';
 import { assertOpen, budgetFor, saveFrom } from './budget-versions';
 import type { ChangeLog } from './changes';
@@ -7,7 +8,7 @@ import { createHistoryRecorder } from './history';
 import type { FakeState, FakeTransaction } from './model';
 import { createPayday } from './payday';
 import type { ProposalEffect } from './review-model';
-import { awaitingApprovals, isMonthClosed, reviewQueue, visibleWarnings } from './review-rules';
+import { awaitingApprovals, isMonthClosed, proposalRecords, reviewQueue, visibleWarnings } from './review-rules';
 import { createFakeSubscriptions } from './subscriptions';
 import { suggestedPurchase } from './subscription-rules';
 import { nameOf } from './transaction-detail';
@@ -26,6 +27,25 @@ export function createFakeReview(state: FakeState, original: FakeTransaction[], 
     let month = state.currentMonth;
     while (isMonthClosed(state, month)) month = shiftMonth(month, 1);
     return month;
+  }
+
+  function effectAlreadyHolds(effect: ProposalEffect): boolean {
+    if (effect.kind === 'cap') {
+      const line = budgetFor(state, firstOpenMonth())
+        .flatMap((group) => group.lines)
+        .find((candidate) => candidate.name === effect.line);
+      return !line || line.amount === effect.amount;
+    }
+    if (effect.kind === 'status') {
+      const subscription = state.subscriptions.find((candidate) => candidate.id === effect.subscriptionId);
+      return !subscription || subscription.status === effect.status;
+    }
+    const transaction = findTransaction(effect.transactionId);
+    return !transaction || transaction.excludedReason === effect.reason;
+  }
+
+  function answeredInstant(): string {
+    return `${state.shell.today}T12:00:00.000Z`;
   }
 
   function applyEffect(effect: ProposalEffect): void {
@@ -103,17 +123,37 @@ export function createFakeReview(state: FakeState, original: FakeTransaction[], 
     async approve(id) {
       const proposal = state.review.proposals.find((candidate) => candidate.id === id);
       if (!proposal || !state.review.awaiting.includes(id)) return null;
+      if (effectAlreadyHolds(proposal.effect)) {
+        state.review.awaiting = state.review.awaiting.filter((awaiting) => awaiting !== id);
+        proposal.outcome = 'stale';
+        proposal.answeredAt = answeredInstant();
+        proposal.staleReason = 'proposal_stale';
+        proposal.refusal = null;
+        proposal.changeId = null;
+        throw new ApiFailure('refused', { methodClass: 'write', reason: 'proposal_stale' });
+      }
       const changeId = log.beginWithBudget();
       applyEffect(proposal.effect);
       state.review.awaiting = state.review.awaiting.filter((awaiting) => awaiting !== id);
+      proposal.outcome = 'approved';
+      proposal.answeredAt = answeredInstant();
+      proposal.changeId = changeId;
+      proposal.refusal = null;
+      proposal.staleReason = null;
       return { changeId, title: proposal.title };
     },
 
-    async refuse(id) {
-      if (!state.review.awaiting.includes(id)) return null;
-      const changeId = log.begin();
+    async refuse(id, reason = '') {
+      const proposal = state.review.proposals.find((candidate) => candidate.id === id);
+      if (!proposal || !state.review.awaiting.includes(id)) return null;
       state.review.awaiting = state.review.awaiting.filter((awaiting) => awaiting !== id);
-      return { changeId };
+      const trimmed = (reason ?? '').trim();
+      proposal.outcome = 'refused';
+      proposal.answeredAt = answeredInstant();
+      proposal.refusal = trimmed || null;
+      proposal.staleReason = null;
+      proposal.changeId = null;
+      return { title: proposal.title };
     },
 
     async propose(id) {
@@ -122,6 +162,14 @@ export function createFakeReview(state: FakeState, original: FakeTransaction[], 
       const changeId = log.begin();
       state.review.awaiting = [...state.review.awaiting, id];
       return { changeId };
+    },
+
+    async submitProposal() {
+      return null;
+    },
+
+    async proposals() {
+      return proposalRecords(state);
     },
 
     async dismissWarning(id) {
