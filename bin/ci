@@ -29,6 +29,14 @@ if need gitleaks "https://github.com/gitleaks/gitleaks#installing"; then
   gitleaks dir . --no-banner --redact || { echo "  FAILED: gitleaks"; fail=1; }
 fi
 
+# The pull request's check scans every commit, so a value one commit adds and a later one
+# removes still fails it. Only what HEAD reaches is read: a stale remote-tracking branch or
+# the backup a history rewrite leaves is not part of the work and must not fail the gate.
+echo "==> secret scan (gitleaks, history reachable from HEAD)"
+if need gitleaks "https://github.com/gitleaks/gitleaks#installing"; then
+  gitleaks git --no-banner --redact --log-opts=HEAD || { echo "  FAILED: gitleaks history"; fail=1; }
+fi
+
 echo "==> shell scripts lint clean (shellcheck)"
 if need shellcheck "https://www.shellcheck.net"; then
   shellcheck bin/ci || { echo "  FAILED: shellcheck"; fail=1; }
