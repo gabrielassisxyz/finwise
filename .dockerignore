@@ -1,0 +1,21 @@
+# What the image build is given. The interface and the program are built inside
+# it, so anything built on this machine stays out: a stale file among the new
+# ones would be served.
+.git
+.github
+.beads
+.claude
+.bv
+work
+design
+node_modules
+web/node_modules
+web/dist
+internal/webui/dist
+
+# A database holds a person's finances; none may reach an image layer.
+*.db
+*.db-*
+*.db.before-*
+.env
+.env.*

@@ -25,3 +25,9 @@ work/
 
 # bv (beads viewer) local config and caches
 .bv/
+
+# The interface built into the program. The image build and the documented local
+# command copy it here; only the placeholder that lets the program build without
+# it is versioned.
+/internal/webui/dist/*
+!/internal/webui/dist/index.html

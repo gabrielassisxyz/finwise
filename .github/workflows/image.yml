@@ -1,0 +1,95 @@
+name: image
+
+on:
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - go.mod
+      - go.sum
+      - cmd/**
+      - internal/**
+      - web/**
+      - .github/workflows/image.yml
+  push:
+    tags:
+      - v*
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Name the image
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            repo_lower="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+            echo "IMAGE=ghcr.io/${repo_lower}:${GITHUB_REF_NAME#v}" >> "${GITHUB_ENV}"
+          else
+            echo "IMAGE=finwise:test" >> "${GITHUB_ENV}"
+          fi
+      - name: Build the image
+        run: |
+          docker build \
+            --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            -t "${IMAGE}" .
+      - name: Log in to GHCR
+        if: github.ref_type == 'tag'
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "${GHCR_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+      - name: Refuse a tag that already exists
+        if: github.ref_type == 'tag'
+        run: |
+          set -euo pipefail
+          if docker manifest inspect "${IMAGE}" >/dev/null 2>&1; then
+            echo "${IMAGE} already exists, refusing" >&2
+            exit 1
+          fi
+      - name: Smoke test the image
+        run: |
+          set -euo pipefail
+          code=0
+          docker run --rm --network none "${IMAGE}" --help >smoke.out 2>smoke.err || code=$?
+          test "${code}" -eq 2
+          grep -q '^usage: finwise serve' smoke.err
+          test "$(docker run --rm --network none --entrypoint id "${IMAGE}" -u)" = 1000
+          docker run --rm --network none --entrypoint sh "${IMAGE}" -c 'test -x /usr/local/bin/finwise'
+          docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.source" }}' "${IMAGE}" | grep -q "${GITHUB_REPOSITORY}"
+          hash="$(printf '%s\n' 123456 | docker run --rm -i --network none "${IMAGE}" hash-pin)"
+          docker run -d --name finwise-smoke --read-only --tmpfs /tmp -p 127.0.0.1:8080:8080 \
+            -e FINWISE_LISTEN=0.0.0.0:8080 \
+            -e FINWISE_LEDGER=/ledger/pluggy-snapshot.db \
+            -e FINWISE_PIN_HASH="${hash}" \
+            "${IMAGE}"
+          for _ in $(seq 1 30); do
+            curl -fsS -o /dev/null http://127.0.0.1:8080/healthz && break
+            sleep 1
+          done
+          curl -fsS -o /dev/null http://127.0.0.1:8080/healthz
+          curl -fsS http://127.0.0.1:8080/ >index.out
+          if grep -q 'não foi construída' index.out; then
+            echo "the image serves the placeholder, not the built interface" >&2
+            exit 1
+          fi
+          grep -q '<div id="app">' index.out
+          curl -fsS http://127.0.0.1:8080/revisao | cmp - index.out
+          asset="$(grep -o '/assets/[^"]*\.js' index.out | head -n 1)"
+          test -n "${asset}"
+          curl -fsS -D headers.out -o /dev/null "http://127.0.0.1:8080${asset}"
+          grep -qi '^cache-control: public, max-age=31536000, immutable' headers.out
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/assets/missing.js)" = 404
+          curl -fsS -X POST -H 'Content-Type: application/json' -d '[]' http://127.0.0.1:8080/api/session/status | grep -q '"locked"'
+      - name: Show the program's log
+        if: failure()
+        run: docker logs finwise-smoke || true
+      - name: Push the version tag
+        if: github.ref_type == 'tag'
+        run: docker push "${IMAGE}"
