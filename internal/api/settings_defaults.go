@@ -12,3 +12,8 @@ const (
 	calibrationBandCount = 5
 	calibrationTop       = 100
 )
+
+// calibrationMinAnswered is how many answered suggestions of the configured
+// model a band needs before it shows a rate: fewer would let the person trust a
+// band on the strength of a handful of answers.
+const calibrationMinAnswered = 20

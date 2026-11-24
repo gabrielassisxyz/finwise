@@ -246,6 +246,29 @@
     of a request or reply is logged. `internal/suggest` is in `floatFreePackages` and `hostClockFree`;
     its opt-in `internal/suggest/realsnapshot_test.go` builds requests over `FINWISE_LEDGER_SNAPSHOT`
     without sending them and logs counts only.
+  - Calibration: `settings.overview` answers, for each of the five bands of confidence (50–59 up to
+    90–100, `calibrationFirstBand` and its neighbours in `internal/api/settings_defaults.go`), the percent
+    of the configured model's answered suggestions that the person corrected. It reads
+    `model_suggestions` through one registered statement (`(*View).ModelAnswerCounts`) and never the
+    journal's author `model`, under which an agent's approved proposals are also journaled and which are
+    not the model's classifications. A suggestion counts in the band that holds its confidence when its
+    `model` equals the configured name exactly (`api.Config.ModelName`, passed from
+    `FINWISE_MODEL_NAME`, reaching a read as `Views.ModelName`), it has an `answer`, and the change in
+    `answer_change_id` is not undone: the table is outside the journal, so an undo leaves the row and the
+    change says whether the answer stands. One whose confidence is under 50 counts in no band, and a
+    change of model starts every band from zero. `correctionPercent` is corrected × 100 / answered
+    rounded half up in integers, and null below 20 answered (`calibrationMinAnswered`) and with no model
+    configured. `suggestedThreshold` stays null: it only means something beside a switch that would let
+    the model apply a line by itself, and there is none.
+  - The model on the settings: `categorization.model` is null with no model configured, and otherwise
+    the configured name and `lastRun`, from the `last_model_run` key of `meta`: null before the first run
+    that made a request, otherwise the day and time in Brazil time and `worked`. The screen writes under
+    the chart `Última consulta ao modelo <name>: 23/11 às 03:12.`, `A última consulta ao modelo <name>, em
+    23/11 às 03:12, falhou. As pendências seguem sem sugestão.` or `O modelo <name> ainda não foi
+    consultado.`, and nothing with no model; the name is shown there and nowhere else. The stand-in
+    configures no model (`FakeSettings.model` is left out of its dataset), so no measured state moves; a
+    screen test gives it one. The golden files of that configuration are in
+    `internal/api/testdata/golden/full-authored-model/`.
 - **An agent's door:** an agent reads the app through a token of its own and can change nothing.
   - `finwise agent-token` prints two lines and nothing else, `FINWISE_AGENT_TOKEN=<token>` and
     `FINWISE_AGENT_TOKEN_HASH=sha256$<digest>`: the first goes into the agent's environment, the second

@@ -1,0 +1,207 @@
+{
+  "pots": [
+    {
+      "id": "investment:inv-it-1",
+      "name": "LCI Exemplo",
+      "bank": "Itaú",
+      "cdiPercent": 95.00,
+      "bucket": "Reservado",
+      "linkedLines": [
+        "Viagens"
+      ]
+    },
+    {
+      "id": "reserve:acc-pots/pot-1",
+      "name": "Caixinha da casa",
+      "bank": "Mercado Pago",
+      "cdiPercent": 110.00,
+      "bucket": "Disponível",
+      "linkedLines": [
+        "Remédios"
+      ]
+    },
+    {
+      "id": "investment:inv-nu-1",
+      "name": "CDB Exemplo",
+      "bank": "Nubank",
+      "cdiPercent": 115.00,
+      "bucket": "Investido",
+      "linkedLines": []
+    },
+    {
+      "id": "reserve:acc-nu/pot-nu-1",
+      "name": "Reserva",
+      "bank": "Nubank",
+      "cdiPercent": 100.00,
+      "bucket": "Reservado",
+      "linkedLines": []
+    },
+    {
+      "id": "slot:acc-nu/1",
+      "name": "Sem identidade",
+      "bank": "Nubank",
+      "cdiPercent": 100.00,
+      "bucket": "Reservado",
+      "linkedLines": []
+    }
+  ],
+  "establishments": [
+    {
+      "key": "text:PADARIA EXEMPLO",
+      "rawText": "PADARIA EXEMPLO",
+      "nickname": "Padaria do Bairro",
+      "defaultLine": null,
+      "fixedTags": [
+        "#lanche",
+        "#Trabalho"
+      ]
+    },
+    {
+      "key": "text:HOTELSVC EXEMPLO",
+      "rawText": "HOTELSVC EXEMPLO",
+      "nickname": null,
+      "defaultLine": null,
+      "fixedTags": []
+    },
+    {
+      "key": "text:ESTORNO LIVRARIA EXEMPLO",
+      "rawText": "ESTORNO LIVRARIA EXEMPLO",
+      "nickname": null,
+      "defaultLine": null,
+      "fixedTags": []
+    },
+    {
+      "key": "text:CLOUDSVC SUBSCRIPTION",
+      "rawText": "CLOUDSVC SUBSCRIPTION",
+      "nickname": null,
+      "defaultLine": null,
+      "fixedTags": []
+    },
+    {
+      "key": "doc:55566677000188",
+      "rawText": "ALVORADA TELECOM S.A.",
+      "nickname": null,
+      "defaultLine": "Contas da casa",
+      "fixedTags": []
+    },
+    {
+      "key": "text:LIVRARIA EXEMPLO",
+      "rawText": "LIVRARIA EXEMPLO 1/3",
+      "nickname": null,
+      "defaultLine": null,
+      "fixedTags": []
+    },
+    {
+      "key": "doc:12345678000199",
+      "rawText": "EMPRESA EXEMPLO",
+      "nickname": null,
+      "defaultLine": null,
+      "fixedTags": []
+    },
+    {
+      "key": "text:TAR PACOTE SERVICOS",
+      "rawText": "TAR PACOTE SERVICOS",
+      "nickname": null,
+      "defaultLine": null,
+      "fixedTags": []
+    },
+    {
+      "key": "doc:22233344000155",
+      "rawText": "CAFETERIA EXEMPLO",
+      "nickname": null,
+      "defaultLine": null,
+      "fixedTags": []
+    },
+    {
+      "key": "text:MERCADO EXEMPLO",
+      "rawText": "MERCADO EXEMPLO",
+      "nickname": null,
+      "defaultLine": "Feira",
+      "fixedTags": []
+    }
+  ],
+  "people": [
+    {
+      "key": "doc:11122233344",
+      "fullName": "Maria Exemplo",
+      "nickname": null
+    },
+    {
+      "key": "doc:44455566677",
+      "fullName": "Amigo Exemplo",
+      "nickname": null
+    }
+  ],
+  "cardTitle": "Platinum Visa · final 1234",
+  "cardLabel": "Azulão",
+  "categorization": {
+    "threshold": 70,
+    "minExamples": 12,
+    "calibration": [
+      {
+        "from": 50,
+        "to": 59,
+        "correctionPercent": null
+      },
+      {
+        "from": 60,
+        "to": 69,
+        "correctionPercent": 3
+      },
+      {
+        "from": 70,
+        "to": 79,
+        "correctionPercent": null
+      },
+      {
+        "from": 80,
+        "to": 89,
+        "correctionPercent": 20
+      },
+      {
+        "from": 90,
+        "to": 100,
+        "correctionPercent": null
+      }
+    ],
+    "suggestedThreshold": null,
+    "model": {
+      "name": "modelo-teste",
+      "lastRun": {
+        "day": "2026-03-20",
+        "time": "03:12",
+        "worked": true
+      }
+    }
+  },
+  "closing": {
+    "mode": "manual",
+    "bankDay": 28,
+    "manualDay": 10
+  },
+  "data": {
+    "connections": [
+      {
+        "bank": "Itaú",
+        "status": "ok"
+      },
+      {
+        "bank": "Nubank",
+        "status": "ok"
+      },
+      {
+        "bank": "Mercado Pago",
+        "status": "ok"
+      },
+      {
+        "bank": "C6",
+        "status": "ok"
+      }
+    ],
+    "lastSync": {
+      "day": "2026-03-15",
+      "time": "00:00"
+    },
+    "lastBackup": null
+  }
+}

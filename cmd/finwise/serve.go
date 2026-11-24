@@ -252,6 +252,7 @@ func apiConfig(settings serveSettings, database *authored.Database, env environm
 		SessionIdle:    settings.sessionIdle,
 		InsecureCookie: settings.insecureCookie,
 		Logger:         logger,
+		ModelName:      settings.model.name,
 	}
 	if database != nil {
 		ingests := serverIngestsOf(settings, database, env, logger)

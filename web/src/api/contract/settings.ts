@@ -32,8 +32,16 @@ export interface SettingsPerson {
 export interface CalibrationBand {
   from: number;
   to: number;
-  /** Null for a band no classification has fallen in. */
+  /** Null while fewer than 20 answered suggestions of the configured model fell in the band. */
   correctionPercent: number | null;
+}
+
+/** The language model the server is configured with, and when it was last asked. */
+export interface ConfiguredModel {
+  /** The name the server was given, which the calibration counts the suggestions of. */
+  name: string;
+  /** Null before the first run that made a request; `worked` is false when a request of the run failed. */
+  lastRun: (Moment & { worked: boolean }) | null;
 }
 
 export interface CategorizationSettings {
@@ -42,6 +50,8 @@ export interface CategorizationSettings {
   calibration: CalibrationBand[];
   /** Null while no band has classifications to judge it by. */
   suggestedThreshold: number | null;
+  /** Null when no model is configured. */
+  model: ConfiguredModel | null;
 }
 
 export interface Connection {

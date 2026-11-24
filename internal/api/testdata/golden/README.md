@@ -1,8 +1,8 @@
 # Golden files
 
-There are four directories. Three hold the exact answer of one read method, as the HTTP layer
+There are five directories. Four hold the exact answer of one read method, as the HTTP layer
 sends it (pretty-printed, keys in the order the server writes them), over the invented fixture
-ledgers built in `internal/api/fixtures_test.go`; the fourth holds what a recorded write changed.
+ledgers built in `internal/api/fixtures_test.go`; the fifth holds what a recorded write changed.
 
 - `full/` holds every shape the transaction rules know, and what the card, the pots and the net worth
   read: two banks' pots (one reporting yield gross and one net, one of them closed and one without an
@@ -12,6 +12,9 @@ ledgers built in `internal/api/fixtures_test.go`; the fourth holds what a record
   invented authored state (`inventedAuthoredState`, in `fixtures_test.go`), served by a router that
   has the app's database too. A read that does not consult the app's database answers here what it
   answers in `full/`; the reads that merge what the person authored are cased here.
+- `full-authored-model/` holds the answers of the cases that also have a language model configured, named
+  like the others by the call alone: the call is the same as one of `full-authored/`, and the answer
+  differs by what the model's answered suggestions and its last run make of it.
 - `writes/` holds one file per recorded-change case of `writeCases`
   (`internal/api/write_conformance_test.go`): the answer and the change's effects in the order of the
   journal, each with its table, key, column, before and after as the recorder wrote them. The
@@ -22,7 +25,7 @@ Nothing here comes from a real account, and `-update` refuses to run while
 
 ## Naming
 
-In all four directories the file is named after the call (for `writes/`, the case's method and
+In every directory the file is named after the call (for `writes/`, the case's method and
 arguments) by one rule:
 
 ```

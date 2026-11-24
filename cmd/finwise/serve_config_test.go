@@ -31,3 +31,22 @@ func TestTheAPIGetsTheProcesssClockAndTheAppDatabase(t *testing.T) {
 		t.Error("without --db the API was given a database")
 	}
 }
+
+// The calibration counts the suggestions of the model configured now, so the
+// API is given its name as FINWISE_MODEL_NAME set it, and none without a model.
+func TestTheAPIGetsTheNameOfTheConfiguredModel(t *testing.T) {
+	env := environment{now: time.Now}
+	logger := slog.New(slog.DiscardHandler)
+	settings, err := readModelSettings(func(name string) string {
+		return map[string]string{"FINWISE_MODEL_URL": "http://127.0.0.1:9", "FINWISE_MODEL_NAME": "modelo-teste"}[name]
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := apiConfig(serveSettings{ledgerPath: "unused", model: settings}, nil, env, logger).ModelName; got != "modelo-teste" {
+		t.Errorf("the API was given the model name %q, want modelo-teste", got)
+	}
+	if got := apiConfig(serveSettings{ledgerPath: "unused"}, nil, env, logger).ModelName; got != "" {
+		t.Errorf("with no model configured the API was given the name %q", got)
+	}
+}

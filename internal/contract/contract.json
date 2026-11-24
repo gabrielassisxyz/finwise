@@ -2542,7 +2542,7 @@
             "number",
             "null"
           ],
-          "description": "Null for a band no classification has fallen in."
+          "description": "Null while fewer than 20 answered suggestions of the configured model fell in the band."
         }
       },
       "required": [
@@ -2806,13 +2806,25 @@
             "null"
           ],
           "description": "Null while no band has classifications to judge it by."
+        },
+        "model": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ConfiguredModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null when no model is configured."
         }
       },
       "required": [
         "threshold",
         "minExamples",
         "calibration",
-        "suggestedThreshold"
+        "suggestedThreshold",
+        "model"
       ],
       "additionalProperties": false
     },
@@ -3099,6 +3111,49 @@
         "closedMonths"
       ],
       "additionalProperties": false
+    },
+    "ConfiguredModel": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name the server was given, which the calibration counts the suggestions of."
+        },
+        "lastRun": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "worked": {
+                  "type": "boolean"
+                },
+                "day": {
+                  "$ref": "#/definitions/IsoDay"
+                },
+                "time": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "day",
+                "time",
+                "worked"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null before the first run that made a request; `worked` is false when a request of the run failed."
+        }
+      },
+      "required": [
+        "name",
+        "lastRun"
+      ],
+      "additionalProperties": false,
+      "description": "The language model the server is configured with, and when it was last asked."
     },
     "Connection": {
       "type": "object",

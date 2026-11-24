@@ -35,6 +35,7 @@ function overview(state: FakeState): SettingsOverview {
       minExamples: settings.minExamples,
       calibration: bands,
       suggestedThreshold: suggestedThreshold(bands),
+      model: settings.model ? { name: settings.model.name, lastRun: settings.model.lastRun && { ...settings.model.lastRun } } : null,
     },
     closing: { mode: settings.closingMode, bankDay: state.card?.bankClosingDay ?? null, manualDay: settings.manualClosingDay },
     data: {

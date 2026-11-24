@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { MIN_EXAMPLES_RANGE, THRESHOLD_RANGE } from '@/api/contract/settings';
 import type { CategorizationSettings } from '@/api/types';
 import TitledCard from '@/components/ui/TitledCard.vue';
-import { orUnknown } from '@/lib/format';
+import { orUnknown, shortDay } from '@/lib/format';
 import { restoreOnFailure, saveStored, vStored } from '@/lib/storedField';
 import CalibrationChart from './CalibrationChart.vue';
 import { useSettingsWrites } from './useSettingsWrites';
@@ -33,6 +33,17 @@ function useSuggested(): Promise<void> {
   if (suggested === null) return Promise.resolve();
   return write(() => api.settings.setThreshold(suggested), `Limite alterado para ${suggested}% de confiança.`);
 }
+
+/** The only place the model's name is shown: it tells why the chart started from zero after a change of model. */
+const modelSentence = computed(() => {
+  const model = props.categorization.model;
+  if (model === null) return null;
+  const { lastRun } = model;
+  if (lastRun === null) return `O modelo ${model.name} ainda não foi consultado.`;
+  const when = `${shortDay(lastRun.day)} às ${lastRun.time}`;
+  if (lastRun.worked) return `Última consulta ao modelo ${model.name}: ${when}.`;
+  return `A última consulta ao modelo ${model.name}, em ${when}, falhou. As pendências seguem sem sugestão.`;
+});
 
 function commitMinExamples(event: Event): Promise<void> {
   return saveStored(event, (typed) => write(() => api.settings.setMinExamples(Number(typed))));
@@ -79,6 +90,7 @@ function commitMinExamples(event: Event): Promise<void> {
           <span class="key"><span class="line suggested" />Sugerido: {{ suggestedText }}</span>
           <button v-if="categorization.suggestedThreshold !== null" class="use" @click="useSuggested">Usar o sugerido</button>
         </div>
+        <span v-if="modelSentence !== null" class="explanation model-run">{{ modelSentence }}</span>
       </div>
     </div>
   </TitledCard>

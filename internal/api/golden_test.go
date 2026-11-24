@@ -129,10 +129,11 @@ func compareWithGolden(t *testing.T, path string, answer []byte) {
 	}
 }
 
-// goldenDirectories are the four directories of golden files: the read answers
-// over each of the two invented ledgers, the read answers over the full ledger
-// with an invented authored state, and the effects of the recorded writes.
-var goldenDirectories = []string{"full", "empty", "full-authored", "writes"}
+// goldenDirectories are the directories of golden files: the read answers over
+// each of the two invented ledgers, the read answers over the full ledger with
+// an invented authored state, with and without a configured model, and the
+// effects of the recorded writes.
+var goldenDirectories = []string{"full", "empty", "full-authored", authoredWithModelDirectory, "writes"}
 
 // strayGoldenFiles names every .json file under root that is not in expected
 // (paths of the form <directory>/<name>), whatever its directory is called.
@@ -171,7 +172,7 @@ func expectedGoldenFiles(t *testing.T) map[string]bool {
 		}
 	}
 	for _, c := range authoredReadCases {
-		add("full-authored", c.method, c.arguments)
+		add(c.directory(), c.method, c.arguments)
 	}
 	for _, c := range writeCases {
 		if c.expects == expectsRecorded || c.expects == expectsProposal {
@@ -213,7 +214,7 @@ func TestAStrayGoldenFileIsFoundInEveryDirectoryAndInOneOfAnyOtherName(t *testin
 		t.Fatal(err)
 	}
 	slices.Sort(stray)
-	want := []string{"another/owned.json", "another/stray.json", "empty/stray.json", "full-authored/stray.json", "full/stray.json", "writes/stray.json"}
+	want := []string{"another/owned.json", "another/stray.json", "empty/stray.json", "full-authored-model/stray.json", "full-authored/stray.json", "full/stray.json", "writes/stray.json"}
 	if !slices.Equal(stray, want) {
 		t.Errorf("found %v, want %v", stray, want)
 	}

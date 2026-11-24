@@ -23,6 +23,24 @@ type authoredReadCase struct {
 	// a router of its own: a read whose subject the third state cannot hold
 	// without changing what every other case answers.
 	over func(t *testing.T, scratch *authoredtest.Scratch, full *ledgertest.Fixture)
+	// model is the name of the language model the server of the case has
+	// configured; its answer is kept in the directory of the cases that have
+	// one, since the call alone cannot tell it from the case without.
+	model string
+}
+
+// directory is where the case's golden file is.
+func (c authoredReadCase) directory() string {
+	if c.model != "" {
+		return authoredWithModelDirectory
+	}
+	return "full-authored"
+}
+
+const authoredWithModelDirectory = "full-authored-model"
+
+func authoredReadWithModel(method, arguments, model string, over func(t *testing.T, scratch *authoredtest.Scratch, full *ledgertest.Fixture)) authoredReadCase {
+	return authoredReadCase{method: method, arguments: arguments, over: over, model: model}
 }
 
 func authoredRead(method, arguments string) authoredReadCase {
@@ -99,6 +117,9 @@ var authoredReadCases = []authoredReadCase{
 	authoredReadOver("review.weekly", `["2026-02"]`, queueWithModelSuggestions),
 	authoredReadOver("review.proposals", `[]`, proposalsOverTheThirdState),
 	authoredReadOver("review.weekly", `["2026-04"]`, waitingProposalsOverTheThirdState),
+	// The settings of a server that has a model: the calibration it counts from
+	// the answers kept for that model, and when the model last ran.
+	authoredReadWithModel("settings.overview", `[]`, calibrationModel, answeredSuggestionsOverTheThirdState),
 }
 
 // newAuthoredReadEnv is the third state: both stores, the database holding the
@@ -118,7 +139,8 @@ func authoredEnvOf(t *testing.T, shared *readEnv, c authoredReadCase) *readEnv {
 	}
 	scratch, full := newAuthoredStores(t)
 	c.over(t, scratch, full)
-	return newReadEnvOver(t, full, scratch.Database)
+	env := newTestEnv(t, withLedger(full.Path, fixtureNow), withDatabase(scratch.Database), withModelName(c.model))
+	return &readEnv{testEnv: env, cookie: env.unlock()}
 }
 
 // authoredCasesOver counts the cases answered by a router of their own.
@@ -185,7 +207,7 @@ func TestEveryAuthoredReadCaseAnswersAndMatchesItsGoldenFile(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		compareWithGolden(t, filepath.Join("testdata", "golden", "full-authored", name), prettyJSON(t, body))
+		compareWithGolden(t, filepath.Join("testdata", "golden", c.directory(), name), prettyJSON(t, body))
 	}
 }
 
