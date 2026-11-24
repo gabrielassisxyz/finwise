@@ -120,9 +120,12 @@ func classify(err error) (errorKind, refusalReason) {
 	var refusal *refusalError
 	var stale *authored.StaleChangeError
 	var bad *badArgumentsError
+	var readOnly *readOnlyError
 	switch {
 	case errors.As(err, &refusal):
 		return kindRefused, refusal.reason
+	case errors.As(err, &readOnly):
+		return kindReadOnly, ""
 	case errors.As(err, &stale):
 		return kindRefused, reasonStaleChange
 	case errors.As(err, &bad):
@@ -168,6 +171,13 @@ func (*badArgumentsError) Error() string { return "api: the arguments are not wh
 type refusalError struct{ reason refusalReason }
 
 func (err *refusalError) Error() string { return "api: the request was refused: " + string(err.reason) }
+
+// readOnlyError is a handler answering that what the request would act on is not
+// something the app changes, as a method with no handler is answered. It carries
+// no text: an argument may be a row id.
+type readOnlyError struct{}
+
+func (*readOnlyError) Error() string { return "api: the request is not one the app changes" }
 
 // refuse is how a handler declines a request for a reason of the list.
 func refuse(reason refusalReason) error { return &refusalError{reason: reason} }

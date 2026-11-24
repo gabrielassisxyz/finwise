@@ -106,6 +106,7 @@ export type ProposedChange =
   | { method: 'transactions.removeFixedTag'; arguments: [string, string] }
   | { method: 'transactions.setNote'; arguments: [string, string] }
   | { method: 'transactions.setDefaultLine'; arguments: [string, string] }
+  | { method: 'transactions.setLine'; arguments: [string, string] }
   | { method: 'transactions.setExcluded'; arguments: [string, false] }
   | { method: 'transactions.setExclusionReason'; arguments: [string, string] }
   | { method: 'transactions.excludeMany'; arguments: [string[], string] }

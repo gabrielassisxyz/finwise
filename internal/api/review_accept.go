@@ -41,7 +41,7 @@ func acceptPending(ctx context.Context, args []json.RawMessage, writes Writes) (
 	if err != nil {
 		return nil, err
 	}
-	waiting, found, err := waitingFor(ctx, writes, id)
+	waiting, found, err := waitingFor(ctx, Views{Ledger: writes.Ledger, Authored: writes.Authored}, id)
 	if err != nil || !found {
 		return nil, err
 	}
@@ -53,11 +53,11 @@ func acceptPending(ctx context.Context, args []json.RawMessage, writes Writes) (
 	if err != nil {
 		return nil, err
 	}
-	model, err := storedModelSuggestion(ctx, writes.Authored, waiting.key)
+	inputs, err := storedSuggestionInputs(ctx, writes.Authored, waiting.key)
 	if err != nil {
 		return nil, err
 	}
-	suggested := transactionLinesOf(budget).pendingSuggestion(waiting.state, model)
+	suggested := transactionLinesOf(budget).pendingSuggestion(waiting.state, inputs)
 	kept, err := writes.Authored.Establishments(ctx, []string{waiting.listed.EstablishmentKey})
 	if err != nil {
 		return nil, err
@@ -78,11 +78,11 @@ func acceptPending(ctx context.Context, args []json.RawMessage, writes Writes) (
 }
 
 // waitingFor is the transaction id names, when it waits for review.
-func waitingFor(ctx context.Context, writes Writes, id string) (pendingTransaction, bool, error) {
-	if err := requireReadableLedger(ctx, writes.Ledger); err != nil {
+func waitingFor(ctx context.Context, views Views, id string) (pendingTransaction, bool, error) {
+	if err := requireReadableLedger(ctx, views.Ledger); err != nil {
 		return pendingTransaction{}, false, err
 	}
-	pending, err := pendingTransactions(ctx, Views{Ledger: writes.Ledger, Authored: writes.Authored}, wholeLedger.Last)
+	pending, err := pendingTransactions(ctx, views, wholeLedger.Last)
 	if err != nil {
 		return pendingTransaction{}, false, err
 	}

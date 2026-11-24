@@ -147,6 +147,9 @@ func submitProposalWith(registry *Registry) JournalHandler {
 		if err != nil {
 			return nil, err
 		}
+		if draft.Change.Method == proposedLineMethod {
+			return submitQueueProposal(ctx, draft, journal, ledgerView)
+		}
 		registered, ok := registry.lookup(draft.Change.Method)
 		if !ok || registered.write == nil {
 			return nil, errors.New("api: proposed method has no registered write handler")
@@ -189,6 +192,73 @@ func submitProposalWith(registry *Registry) JournalHandler {
 		}
 		return submittedProposal{ProposalID: id.String(), Title: title}, nil
 	}
+}
+
+// proposedLineMethod is the one proposable method that is no card: a line
+// proposed for a transaction waiting for review is the weekly queue's
+// suggestion for it, and the person answers it there.
+const proposedLineMethod = "transactions.setLine"
+
+// submitQueueProposal stores a line proposed for a transaction waiting for
+// review. Nothing is applied and nothing is recorded: the transaction and the
+// line are checked against what the queue shows, and a proposal is stored only
+// for a transaction that waits. An id the ledger does not list answers null, as
+// the write itself does; one it lists that does not wait is not something this
+// proposal can be made for yet, and answers `read_only`.
+func submitQueueProposal(ctx context.Context, draft proposalDraftWire, journal Journal, ledgerView *ledger.View) (any, error) {
+	id, name, err := idAndText(draft.Change.Arguments)
+	if err != nil {
+		return nil, err
+	}
+	view := journal.View()
+	defer view.Close()
+	waiting, found, err := waitingFor(ctx, Views{Ledger: ledgerView, Authored: view}, id)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, notWaitingAnswer(ctx, ledgerView, id)
+	}
+	line, err := lineNamedInMonth(ctx, view, waiting.listed.Day, name)
+	if err != nil {
+		return nil, err
+	}
+	title, err := wordProposalTitle(ctx, ledgerView, view, draft.Change.Method, draft.Change.Arguments)
+	if err != nil {
+		return nil, err
+	}
+	basedOn, err := view.NewestChangeID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	encodedArgs, err := json.Marshal(draft.Change.Arguments)
+	if err != nil {
+		return nil, err
+	}
+	stored, kept, err := journal.InsertQueueProposal(ctx, authored.ProposalDraft{
+		SubmittedAt: nowOf(ctx),
+		Proposer:    draft.Proposer,
+		Method:      draft.Change.Method,
+		Arguments:   string(encodedArgs),
+		Reason:      draft.Reason,
+		Title:       title,
+		BasedOn:     basedOn,
+	}, waiting.key, line)
+	if err != nil || !kept {
+		return nil, err
+	}
+	return submittedProposal{ProposalID: stored.String(), Title: title}, nil
+}
+
+// notWaitingAnswer is what a proposal for a transaction that does not wait for
+// review is answered: null for one the ledger does not list, `read_only` for
+// one it does.
+func notWaitingAnswer(ctx context.Context, ledgerView *ledger.View, id string) error {
+	_, listed, err := findListed(ctx, ledgerView, id)
+	if err != nil || !listed {
+		return err
+	}
+	return &readOnlyError{}
 }
 
 func decodeProposalDraft(args []json.RawMessage) (proposalDraftWire, error) {
@@ -311,7 +381,7 @@ func loadWaitingProposal(ctx context.Context, journal Journal, id authored.Propo
 	view := journal.View()
 	defer view.Close()
 	proposal, found, err := view.Proposal(ctx, id)
-	if err != nil || !found || proposal.Outcome != authored.ProposalWaiting {
+	if err != nil || !found || proposal.Outcome != authored.ProposalWaiting || proposal.Queue {
 		return authored.Proposal{}, false, err
 	}
 	return proposal, true, nil

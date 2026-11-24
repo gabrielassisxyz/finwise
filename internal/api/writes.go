@@ -57,6 +57,7 @@ type Journal interface {
 	DryRun(ctx context.Context, facts authored.ChangeFacts, write func(*authored.Recorder) error) (int64, authored.ChangeID, error)
 	View() *authored.View
 	InsertProposal(ctx context.Context, draft authored.ProposalDraft) (authored.ProposalID, error)
+	InsertQueueProposal(ctx context.Context, draft authored.ProposalDraft, key authored.TxKey, line authored.LineID) (authored.ProposalID, bool, error)
 	RefuseProposal(ctx context.Context, id authored.ProposalID, reason string, at time.Time) (authored.Proposal, bool, error)
 	MarkProposalStale(ctx context.Context, id authored.ProposalID, reason string, at time.Time) (bool, error)
 }

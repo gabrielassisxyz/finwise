@@ -102,7 +102,7 @@ func confirmLine(ctx context.Context, args []json.RawMessage, writes Writes) (an
 	if err != nil {
 		return nil, err
 	}
-	model, err := storedModelSuggestion(ctx, writes.Authored, target.key)
+	suggestions, err := storedSuggestionInputs(ctx, writes.Authored, target.key)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ func confirmLine(ctx context.Context, args []json.RawMessage, writes Writes) (an
 	if err != nil {
 		return nil, err
 	}
-	line, name, found := confirmableLine(kept.State, model, budget)
+	line, name, found := confirmableLine(kept.State, suggestions, budget)
 	if !found {
 		return nil, nil
 	}
@@ -120,7 +120,7 @@ func confirmLine(ctx context.Context, args []json.RawMessage, writes Writes) (an
 	return changeResultOf(ctx, writes.Recorder)
 }
 
-func confirmableLine(state authored.TransactionState, model *authored.ModelSuggestion, budget authored.Budget) (authored.LineID, string, bool) {
+func confirmableLine(state authored.TransactionState, suggestions suggestionInputs, budget authored.Budget) (authored.LineID, string, bool) {
 	if !budget.HasLines() {
 		return 0, "", false
 	}
@@ -128,7 +128,7 @@ func confirmableLine(state authored.TransactionState, model *authored.ModelSugge
 	if name := lines.nameOf(state.Line); name != nil {
 		return *state.Line, *name, true
 	}
-	if shown := lines.pendingSuggestion(state, model); shown.source != suggestionNone {
+	if shown := lines.pendingSuggestion(state, suggestions); shown.source != suggestionNone {
 		return shown.line, shown.name, true
 	}
 	return 0, "", false

@@ -198,7 +198,7 @@ func detailFrom(row listedRow, rows authoredRows, extras panelExtras) transactio
 	kept, _, _ := rows.keptOf(listed)
 	state := kept.State
 	month := rows.months[monthOfDay(listed.Day)]
-	shown := month.pendingSuggestion(state, rows.modelSuggestionOf(listed))
+	shown := month.pendingSuggestion(state, rows.suggestionsOf(listed))
 	sections := sectionsOf(listed)
 	return transactionDetailWire{
 		transactionWire:         rows.transactionOf(listed, row.source, row.around),
