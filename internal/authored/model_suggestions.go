@@ -78,6 +78,24 @@ UPDATE model_suggestions
 SET answer = ?1, answer_change_id = ?2
 WHERE tx_key = ?3 AND line_id IS NOT NULL`
 
+	// Counts the answered suggestions of one model per band of confidence: bands
+	// of ?3 points from ?2, the last one holding everything above it, none for
+	// a confidence under ?2. The row's answer counts only while the change that
+	// recorded it is not undone: the table is outside the journal, so an undo
+	// leaves the row behind and the change says whether it still stands.
+	statementModelAnswerCounts = `
+SELECT MIN((s.confidence - ?2) / ?3, ?4 - 1) AS band,
+       COUNT(*) AS answered,
+       SUM(s.answer = 'corrected') AS corrected
+FROM model_suggestions AS s
+JOIN changes AS c ON c.id = s.answer_change_id
+WHERE s.model = ?1
+  AND s.answer IS NOT NULL
+  AND s.confidence >= ?2
+  AND c.undone_at IS NULL
+GROUP BY band
+ORDER BY band`
+
 	// Newest transaction per establishment whose line the person set, excluding
 	// 11-digit CPF keys (transfers to a person). Callers also verify against the
 	// ledger's own Person and Movement flags.
@@ -221,4 +239,49 @@ func (view *View) PersonExamples(ctx context.Context) ([]PersonExample, error) {
 		return rows.Err()
 	})
 	return examples, err
+}
+
+// AnswerCounts is what the person answered, in one band of confidence, among the
+// suggestions of one model.
+type AnswerCounts struct {
+	Answered  int64
+	Corrected int64
+}
+
+// ConfidenceBands tiles confidence from First upward in Count bands of Width
+// points; the last band holds every confidence above its own start.
+type ConfidenceBands struct {
+	First, Width, Count int64
+}
+
+// ModelAnswerCounts is, for each band of bands, how many of the suggestions of
+// the model named were answered in the weekly queue and how many of those were
+// corrected. A suggestion counts once its answer stands (the change that
+// recorded it is not undone) and its confidence reaches the first band; one
+// that was never answered counts in none. The journal's author `model` is never
+// consulted: what a proposal of an agent does under that author is not a
+// suggestion of the configured model. The empty view and a name no suggestion
+// carries answer a zero for every band.
+func (view *View) ModelAnswerCounts(ctx context.Context, model string, bands ConfidenceBands) ([]AnswerCounts, error) {
+	counts := make([]AnswerCounts, max(bands.Count, 0))
+	if model == "" || bands.Count < 1 || bands.Width < 1 {
+		return counts, nil
+	}
+	_, err := view.read(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, statementModelAnswerCounts, model, bands.First, bands.Width, bands.Count)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var band int64
+			var counted AnswerCounts
+			if err := rows.Scan(&band, &counted.Answered, &counted.Corrected); err != nil {
+				return err
+			}
+			counts[band] = counted
+		}
+		return rows.Err()
+	})
+	return counts, err
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -390,4 +391,179 @@ func countRows(t *testing.T, pool *sql.DB, table string) int {
 		t.Fatal(err)
 	}
 	return n
+}
+
+// answeredSuggestion is one model suggestion as the calibration sees it.
+type answeredSuggestion struct {
+	model      string
+	confidence int64
+	answer     authored.ModelAnswer
+	undone     bool
+}
+
+var calibrationScale = authored.ConfidenceBands{First: 50, Width: 10, Count: 5}
+
+// seedAnswers stores each suggestion on a transaction of its own and answers it
+// in a change of the person's, undoing the change where the case says so; the
+// line it is answered with is not what the counts look at.
+func seedAnswers(t *testing.T, database *authored.Database, suggestions []answeredSuggestion) {
+	t.Helper()
+	at := time.Date(2026, time.November, 10, 12, 0, 0, 0, time.UTC)
+	authoredtest.SaveBudget(t, database, at, "2026-11", authoredtest.InventedBudget())
+	view := database.View()
+	budget, err := view.BudgetOf(t.Context(), "2026-11")
+	view.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	line := budget.Lines[0].ID
+
+	keys := make([]authored.TxKey, len(suggestions))
+	if err := database.Change(t.Context(), authored.ChangeFacts{Author: authored.AuthorRule, Method: "ingest.run", At: at}, func(recorder *authored.Recorder) error {
+		for index := range suggestions {
+			key, err := recorder.IndexTransaction(t.Context(), authoredtest.Seen("tx-"+strconv.Itoa(index), "2026-11-10", -1000, "text:LOJA"))
+			if err != nil {
+				return err
+			}
+			keys[index] = key
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for index, suggestion := range suggestions {
+		confidence, reason := suggestion.confidence, "Motivo"
+		if err := database.RecordModelSuggestions(t.Context(), suggestion.model, at, []authored.ModelSuggestionInput{
+			{Key: keys[index], Line: &line, Confidence: &confidence, Justification: &reason},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if suggestion.answer == "" {
+			continue
+		}
+		var changeID authored.ChangeID
+		answeredAt := at.Add(time.Duration(index+1) * time.Minute)
+		if err := database.Change(t.Context(), authored.ChangeFacts{Author: authored.AuthorPerson, Method: "review.acceptPending", At: answeredAt}, func(recorder *authored.Recorder) error {
+			if err := recorder.SettleLine(t.Context(), keys[index], line, authored.AuthorPerson); err != nil {
+				return err
+			}
+			if err := recorder.RecordModelAnswer(t.Context(), keys[index], suggestion.answer); err != nil {
+				return err
+			}
+			var err error
+			changeID, err = recorder.ID(t.Context())
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if suggestion.undone {
+			if err := database.Undo(t.Context(), changeID, answeredAt.Add(time.Second)); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+}
+
+func answerCountsOf(t *testing.T, database *authored.Database, model string) []authored.AnswerCounts {
+	t.Helper()
+	view := database.View()
+	defer view.Close()
+	counts, err := view.ModelAnswerCounts(t.Context(), model, calibrationScale)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return counts
+}
+
+func repeated(count int, suggestion answeredSuggestion) []answeredSuggestion {
+	return slices.Repeat([]answeredSuggestion{suggestion}, count)
+}
+
+func TestModelAnswerCountsAreOfOneModelAndOnlyOfAnswersThatStand(t *testing.T) {
+	const mine, other = "modelo-teste", "outro-modelo"
+	accepted, corrected := authored.ModelAnswerAccepted, authored.ModelAnswerCorrected
+	var suggestions []answeredSuggestion
+	suggestions = append(suggestions,
+		// Both ends of each band and of the first and the last.
+		answeredSuggestion{model: mine, confidence: 50, answer: corrected},
+		answeredSuggestion{model: mine, confidence: 59, answer: accepted},
+		answeredSuggestion{model: mine, confidence: 60, answer: accepted},
+		answeredSuggestion{model: mine, confidence: 79, answer: corrected},
+		answeredSuggestion{model: mine, confidence: 80, answer: accepted},
+		answeredSuggestion{model: mine, confidence: 89, answer: corrected},
+		answeredSuggestion{model: mine, confidence: 90, answer: accepted},
+		answeredSuggestion{model: mine, confidence: 100, answer: corrected},
+	)
+	suggestions = append(suggestions, repeated(3, answeredSuggestion{model: mine, confidence: 85, answer: accepted})...)
+	suggestions = append(suggestions,
+		// Under the first band, and answers that do not count: another model's,
+		// an unanswered suggestion, and one whose answer was taken back.
+		answeredSuggestion{model: mine, confidence: 49, answer: corrected},
+		answeredSuggestion{model: mine, confidence: 0, answer: accepted},
+		answeredSuggestion{model: other, confidence: 85, answer: corrected},
+		answeredSuggestion{model: other, confidence: 55, answer: accepted},
+		answeredSuggestion{model: mine, confidence: 85},
+		answeredSuggestion{model: mine, confidence: 85, answer: corrected, undone: true},
+		answeredSuggestion{model: mine, confidence: 55, answer: accepted, undone: true},
+	)
+	database := openDatabase(t, databasePath(t), creationInstant, nil)
+	seedAnswers(t, database, suggestions)
+
+	want := []authored.AnswerCounts{{Answered: 2, Corrected: 1}, {Answered: 1}, {Answered: 1, Corrected: 1}, {Answered: 5, Corrected: 1}, {Answered: 2, Corrected: 1}}
+	if got := answerCountsOf(t, database, mine); !slices.Equal(got, want) {
+		t.Errorf("counts of %s = %+v, want %+v", mine, got, want)
+	}
+	wantOther := []authored.AnswerCounts{{Answered: 1}, {}, {}, {Answered: 1, Corrected: 1}, {}}
+	if got := answerCountsOf(t, database, other); !slices.Equal(got, wantOther) {
+		t.Errorf("counts of %s = %+v, want %+v", other, got, wantOther)
+	}
+	zero := make([]authored.AnswerCounts, 5)
+	for _, name := range []string{"", "nenhum-modelo", "MODELO-TESTE"} {
+		if got := answerCountsOf(t, database, name); !slices.Equal(got, zero) {
+			t.Errorf("counts of %q = %+v, want none", name, got)
+		}
+	}
+}
+
+func TestModelAnswerCountsIgnoreTheJournalsModelAuthor(t *testing.T) {
+	database := openDatabase(t, databasePath(t), creationInstant, nil)
+	seedAnswers(t, database, []answeredSuggestion{{model: "modelo-teste", confidence: 85, answer: authored.ModelAnswerCorrected}})
+	before := answerCountsOf(t, database, "modelo-teste")
+
+	// A transaction the model's author classified and the person then answered,
+	// with no row in model_suggestions: an approved proposal looks like this.
+	at := time.Date(2026, time.November, 11, 12, 0, 0, 0, time.UTC)
+	view := database.View()
+	budget, err := view.BudgetOf(t.Context(), "2026-11")
+	view.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	line := budget.Lines[1].ID
+	var key authored.TxKey
+	if err := database.Change(t.Context(), authored.ChangeFacts{Author: authored.AuthorRule, Method: "ingest.run", At: at}, func(recorder *authored.Recorder) error {
+		var err error
+		key, err = recorder.IndexTransaction(t.Context(), authoredtest.Seen("tx-proposal", "2026-11-10", -1000, "text:LOJA"))
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for index, author := range []authored.Author{authored.AuthorModel, authored.AuthorPerson, authored.AuthorModel} {
+		if err := database.Change(t.Context(), authored.ChangeFacts{Author: author, Method: "test.classify", At: at.Add(time.Duration(index+1) * time.Minute)}, func(recorder *authored.Recorder) error {
+			return recorder.SettleLine(t.Context(), key, line, author)
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := answerCountsOf(t, database, "modelo-teste"); !slices.Equal(got, before) {
+		t.Errorf("counts moved from %+v to %+v with changes by the author model and no suggestion", before, got)
+	}
+}
+
+func TestModelAnswerCountsOfTheEmptyViewAreZero(t *testing.T) {
+	view := authored.EmptyView()
+	counts, err := view.ModelAnswerCounts(t.Context(), "modelo-teste", calibrationScale)
+	if err != nil || !slices.Equal(counts, make([]authored.AnswerCounts, 5)) {
+		t.Errorf("counts = %+v, err = %v", counts, err)
+	}
 }
