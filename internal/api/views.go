@@ -13,6 +13,10 @@ import (
 type Views struct {
 	Ledger   *ledger.View
 	Authored *authored.View
+	// ModelName is the name of the configured language model, empty with none.
+	// A read that answers about the configured model asks for it here, since a
+	// handler is given nothing else of the server's configuration.
+	ModelName string
 }
 
 // openViews touches neither file: each view opens at its first query, so a

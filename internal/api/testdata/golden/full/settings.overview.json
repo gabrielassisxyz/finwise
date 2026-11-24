@@ -157,7 +157,8 @@
         "correctionPercent": null
       }
     ],
-    "suggestedThreshold": null
+    "suggestedThreshold": null,
+    "model": null
   },
   "closing": {
     "mode": "auto",

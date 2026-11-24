@@ -58,6 +58,10 @@ type Config struct {
 	// class `read` and no other. Without it a request that carries the header is
 	// `locked`.
 	VerifyAgentToken func(token string) bool
+	// ModelName is the name of the configured language model
+	// (FINWISE_MODEL_NAME), empty when none is configured. The settings answer
+	// the calibration of that model alone.
+	ModelName string
 }
 
 // router carries what the per-route functions share.
@@ -71,6 +75,7 @@ type router struct {
 	afterBudgetSaved func(ctx context.Context, at time.Time)
 	takeSnapshotIn   func(ctx context.Context, at time.Time) error
 	verifyAgent      func(token string) bool
+	modelName        string
 }
 
 // NewHandler builds the router from the manifest. A write or an evaluation is
@@ -98,6 +103,7 @@ func NewHandler(config Config) (http.Handler, error) {
 		afterBudgetSaved: config.AfterBudgetSaved,
 		takeSnapshotIn:   config.TakeSnapshotIn,
 		verifyAgent:      config.VerifyAgentToken,
+		modelName:        config.ModelName,
 	}
 	mux := http.NewServeMux()
 	known := map[string]bool{"/healthz": true}
@@ -309,6 +315,7 @@ func (found *router) serveRead(w http.ResponseWriter, r *http.Request, method co
 // evaluation, which stores nothing.
 func (found *router) answerRead(w http.ResponseWriter, r *http.Request, handler ReadHandler, arguments []json.RawMessage) {
 	views := openViews(found.reader, found.database)
+	views.ModelName = found.modelName
 	defer views.close()
 	ctx, _ := found.requestContext(r)
 	result, err := handler(ctx, arguments, views)
