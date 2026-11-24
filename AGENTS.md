@@ -83,6 +83,30 @@
   its variable. `--dev-insecure-cookie` is for plain HTTP only: without it the cookie is `__Host-`
   prefixed and `Secure`, which a browser may refuse over HTTP. A missing snapshot does not stop the
   server; reads answer `ledger_unavailable`.
+- **The interface in the program and the image:** `finwise serve` also serves the interface built for real
+  use, embedded at build time (`internal/webui`, a `go:embed` of `internal/webui/dist`). `/api/...` and
+  `/healthz` reach the API handler untouched and every other path the interface (`withInterface` in
+  `cmd/finwise/serve.go`; `TestTheAPIAnswersExactlyAsWithoutTheInterface` compares the two). A file under
+  `/assets/` (Vite's hashed names) is `public, max-age=31536000, immutable` and one that does not exist is a
+  404, never `index.html`; `index.html`, and any other path that names no file (a reload on a screen of the
+  history-mode router), answer `index.html` with `no-store`; every answer carries `nosniff`. Only a
+  placeholder `internal/webui/dist/index.html`, in Portuguese, is versioned and the rest of `dist/` is
+  git-ignored, so `go build`, `go vet` and `go test ./...` work in a tree where the interface was not built.
+  To build it into the program locally:
+
+  ```
+  npm --prefix web ci && npm --prefix web run build
+  cp -R web/dist/. internal/webui/dist/
+  go build -o work/finwise ./cmd/finwise
+  ```
+
+  The copy overwrites the placeholder: restore it with `git checkout -- internal/webui/dist/index.html`
+  before staging anything. The image is built by the `Dockerfile` (the interface with Node 24, the program with
+  go.mod's Go version and `CGO_ENABLED=0`, then Alpine with the program at `/usr/local/bin/finwise`, uid 1000,
+  `ENTRYPOINT ["/usr/local/bin/finwise"]`, `CMD ["serve"]`, `EXPOSE 8080`; `docker build -t finwise:test .`),
+  and `.github/workflows/image.yml` builds and runs it on a pull request that touches the image, then on a
+  `v*` tag publishes `ghcr.io/gabrielassisxyz/finwise:<version without v>`. Inside a container
+  `FINWISE_LISTEN` must be `0.0.0.0:8080`: the default `127.0.0.1:8080` cannot be reached from outside it.
 - **The app's database:** `--db` is the path of `finwise.db`, where everything the person authors is kept
   (budget, lines on transactions, tags, notes, splits, subscriptions, closed months, settings, a changed
   PIN), with the journal that lets a change be undone. It is created when the file is missing or empty
@@ -378,4 +402,5 @@
 |---|---|---|
 | `vue-tsc` 3 loads the JavaScript compiler from the `typescript` package, which TypeScript 7 no longer ships; `typescript` stays on 6 until `vue-tsc` supports the native one | prose | none |
 | `go build` run inside `cmd/finwise` leaves the program beside its source, and a broad `git add` commits it | gate | `bin/ci` fails for a tracked file that begins like a built program; build with `go build -o` into `work/` or a temporary directory |
+| copying the built interface into `internal/webui/dist` overwrites the versioned placeholder `index.html`, and a broad `git add` commits the built one | gate | `go test ./...` fails (`TestTheEmbeddedIndexIsThePlaceholderUnlessTheInterfaceWasBuilt`) where no `assets/` stands beside an index that is not the placeholder, as in a fresh checkout |
 | a key-looking literal in an intermediate commit fails the hosted history scan though a later commit removed it | gate | `bin/ci` scans the history reachable from `HEAD`; on a branch already pushed, rewrite it |
