@@ -41,7 +41,7 @@
   person authors) and `VITE_FINWISE_STATE=empty` as an empty ledger; only the dev server reads it.
   `npm --prefix web run dev:backend` runs the HTTP client and proxies `/api` to `127.0.0.1:8080`.
 - **Test:** `npm --prefix web test`
-- **Gate:** `bin/ci` (secret scan, shellcheck, no built program tracked, tokens current, no raw design value, contract manifest
+- **Gate:** `bin/ci` (secret scan of the working tree and of the history reachable from `HEAD`, shellcheck, no built program tracked, tokens current, no raw design value, contract manifest
   current, types, tests, build, and a bundle check that builds both modes and fails unless the build for
   real use lacks a string only the prototype dataset holds while the prototype build has it). It is the
   exact thing CI runs. Run it before a pull request.
@@ -378,3 +378,4 @@
 |---|---|---|
 | `vue-tsc` 3 loads the JavaScript compiler from the `typescript` package, which TypeScript 7 no longer ships; `typescript` stays on 6 until `vue-tsc` supports the native one | prose | none |
 | `go build` run inside `cmd/finwise` leaves the program beside its source, and a broad `git add` commits it | gate | `bin/ci` fails for a tracked file that begins like a built program; build with `go build -o` into `work/` or a temporary directory |
+| a key-looking literal in an intermediate commit fails the hosted history scan though a later commit removed it | gate | `bin/ci` scans the history reachable from `HEAD`; on a branch already pushed, rewrite it |
