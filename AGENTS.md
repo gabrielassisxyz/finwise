@@ -235,10 +235,11 @@
     be undoable as a person's change, and must survive `SettleLine` so calibration can compare what the
     model suggested against what the person answered. `pendingSuggestion` in
     `internal/api/transactions_authored.go` is the single function deciding what a pending review shows
-    (the model's line when its row has one and the transaction's month names it, otherwise the rule's),
-    used by the queue, list, panel, `transactions.confirmLine` and `review.acceptPending`.
-    `review.acceptPending` writes `answer` (`accepted` or `corrected`) and `answer_change_id` inside the
-    person's change only when the queue showed the model's suggestion. Each run that attempts at least
+    (the line an agent proposed for it, then the model's line when its row has one, then the rule's, each
+    only when the transaction's month names it), used by the queue, list, panel, `transactions.confirmLine`
+    and `review.acceptPending`. `review.acceptPending` writes `answer` (`accepted` or `corrected`) and
+    `answer_change_id` inside the person's change only when the queue showed the model's suggestion, so
+    accepting an agent's line records nothing on the model's row. Each run that attempts at least
     one request records `last_model_run` (`{"at":"<UTC ms>","ok":<bool>}`) in `meta`.
   - Logs and guards: one line per step that made a request (`suggest` with `trigger=ingest|command`,
     `requests`, `asked`, `suggested`, `unusable`), or `suggest failed` with `trigger` and `kind` one of
@@ -304,7 +305,7 @@
   - Known limit: the token guards the API, not the database file. A process of the user that owns
     `finwise.db` and the snapshot can open them directly. Tests make their tokens at run time, so the
     secret scan has nothing to find.
-  - **Agent proposals:** an external agent can propose a change from the closed 20-member `ProposedChange`
+  - **Agent proposals:** an external agent can propose a change from the closed 21-member `ProposedChange`
     union (`api.ProposableMethods()`, pinned to `internal/contract/contract.json`) via
     `review.submitProposal` or `finwise agent propose --reason <text> [--name <name>] <method>
     <json-arguments>` (`FINWISE_AGENT_NAME` fallback, `--name` wins), and list proposals with their
@@ -320,6 +321,22 @@
     proposal with an optional reason (up to 500 characters) without touching the journal. `agent propose`
     and `agent proposals` share the token, address, TLS, no-redirect, timeout and fixed-stderr rules of
     `agent read`.
+  - **A line proposed for a transaction waiting for review:** `transactions.setLine` is the one member of
+    the union that is no card. Submitted for a transaction `pendingTransactions` lists, with a line its
+    month names, it applies and records nothing and is stored as the weekly queue's suggestion for that
+    transaction (`queue_proposals`, `0011_queue_proposals.sql`, kept by line id and out of the journal):
+    `review.weekly`'s approvals leave it out, `review.approve` and `review.refuse` answer null for it, and
+    a new one for the same transaction closes the earlier as stale in the transaction that stores it. An id
+    the ledger does not list answers null, one it lists that does not wait `read_only`, a line the month
+    lacks `unknown_line`. `pendingSuggestion` shows it first, with no confidence and its reason as the
+    justification, until it is closed; the queue then shows the model's suggestion, or the rule's.
+    Accepting it is the person's own change, as accepting the rule's suggestion is. `SettleLine` closes the
+    waiting proposal of its transaction in the transaction of the change that settles the review, whoever
+    settles it (the queue, the panel, a selection, "all purchases here"): approved by that change when the
+    line is the proposed one, refused with no text when the person chose another, stale with no reason when
+    a rule or the model did. `LinkReimbursement` closes the credit's as stale. Undoing the change brings the
+    review back and leaves the proposal closed. A stale proposal of the queue has no `staleReason`, which
+    is why `0011_queue_proposals.sql` rebuilds `proposals` without the check that demanded one.
 
 ## Design
 - The design arrives as an HTML prototype. It is a reference, never code to copy: `design/README.md`
