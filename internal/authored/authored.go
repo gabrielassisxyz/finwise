@@ -26,6 +26,10 @@ type Options struct {
 	// Journal is the registry of journaled tables; nil means the package's
 	// own. A test hands it one naming the scratch tables its migrations add.
 	Journal *Registry
+	// MustExist refuses a missing or empty file instead of creating a new
+	// database, so a command that only reads and updates an existing one never
+	// creates a file at a mistyped path.
+	MustExist bool
 }
 
 // Database is the app's database, open for the life of the process. Unlike the
@@ -59,6 +63,9 @@ func Open(ctx context.Context, path string, options Options) (*Database, error) 
 		return nil, err
 	}
 	if kind == fileNew {
+		if options.MustExist {
+			return nil, &OpenError{Path: path, Failure: FailureMissing}
+		}
 		if err := stamp(ctx, path); err != nil {
 			return nil, err
 		}

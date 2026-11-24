@@ -27,6 +27,7 @@ var hostClockFree = []string{
 	"internal/txrules",
 	"internal/cardrules",
 	"internal/potrules",
+	"internal/suggest",
 }
 
 // hostClockReaders are the functions of package time that read the host's clock.

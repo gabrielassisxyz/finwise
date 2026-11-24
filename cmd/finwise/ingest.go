@@ -49,9 +49,10 @@ func (in ingester) take(ctx context.Context, trigger ingest.Trigger, at time.Tim
 // for a run that went past its first step or failed, none for a start or a
 // tick that found the snapshot's run already taken in.
 type serverIngests struct {
-	in     ingester
-	logger *slog.Logger
-	now    func() time.Time
+	in        ingester
+	logger    *slog.Logger
+	now       func() time.Time
+	suggester *serverSuggester
 }
 
 func (runs serverIngests) once(ctx context.Context, trigger ingest.Trigger, at time.Time) error {
@@ -61,6 +62,7 @@ func (runs serverIngests) once(ctx context.Context, trigger ingest.Trigger, at t
 		runs.logger.Warn("ingest failed", "trigger", triggerName(trigger), "kind", failureKind(err))
 	case !counts.Stopped:
 		logCounts(runs.logger, trigger, counts)
+		runs.suggester.trigger()
 	}
 	return err
 }

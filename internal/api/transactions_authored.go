@@ -59,6 +59,7 @@ func (lines transactionLines) nameOf(id *authored.LineID) *string {
 type authoredRows struct {
 	keys           map[string]authored.TxKey
 	kept           map[authored.TxKey]authored.AuthoredTransaction
+	suggestions    map[authored.TxKey]authored.ModelSuggestion
 	establishments map[string]authored.Establishment
 	linkedCredits  map[authored.TxKey]bool
 	months         map[brday.Month]transactionLines
@@ -78,7 +79,11 @@ func readAuthoredRows(ctx context.Context, views Views, listed []txrules.Transac
 	if rows.keys, err = view.TransactionKeys(ctx, ids); err != nil {
 		return authoredRows{}, err
 	}
-	if rows.kept, err = view.Transactions(ctx, keysInOrder(ids, rows.keys)); err != nil {
+	orderedKeys := keysInOrder(ids, rows.keys)
+	if rows.kept, err = view.Transactions(ctx, orderedKeys); err != nil {
+		return authoredRows{}, err
+	}
+	if rows.suggestions, err = view.ModelSuggestions(ctx, orderedKeys); err != nil {
 		return authoredRows{}, err
 	}
 	whole := sharedWholeListing(ctx, views)
@@ -178,6 +183,30 @@ func (rows authoredRows) keptOf(listed txrules.Transaction) (kept authored.Autho
 	return rows.kept[key], key, true
 }
 
+func (rows authoredRows) modelSuggestionOf(listed txrules.Transaction) *authored.ModelSuggestion {
+	key, indexed := rows.keys[listed.ID]
+	if !indexed {
+		return nil
+	}
+	suggestion, found := rows.suggestions[key]
+	if !found {
+		return nil
+	}
+	return &suggestion
+}
+
+func storedModelSuggestion(ctx context.Context, view *authored.View, key authored.TxKey) (*authored.ModelSuggestion, error) {
+	suggestions, err := view.ModelSuggestions(ctx, []authored.TxKey{key})
+	if err != nil {
+		return nil, err
+	}
+	suggestion, found := suggestions[key]
+	if !found {
+		return nil, nil
+	}
+	return &suggestion, nil
+}
+
 // disposable is a listed transaction as Dispose takes it: the ledger's facts
 // and what the person authored about it.
 func (rows authoredRows) disposable(listed txrules.Transaction) budgetrules.Transaction {
@@ -265,7 +294,7 @@ func (rows authoredRows) transactionOf(listed txrules.Transaction, source ledger
 		confidence := int(*state.Confidence)
 		wire.Confidence = &confidence
 	}
-	wire.Pending = month.pendingOf(state)
+	wire.Pending = month.pendingOf(state, rows.modelSuggestionOf(listed))
 	wire.Tags = tagsOf(kept.Tags, rows.establishments[listed.EstablishmentKey].FixedTags)
 	if state.Refund != nil {
 		wire.Refund = *state.Refund
@@ -288,19 +317,81 @@ func classifierOf(author authored.Author) *string {
 	return &label
 }
 
+// suggestionSource says where a pending review's shown suggestion came from.
+type suggestionSource int
+
+const (
+	suggestionNone suggestionSource = iota
+	suggestionModel
+	suggestionRule
+)
+
+// shownSuggestion is what a pending review currently suggests in the
+// transaction's own month.
+type shownSuggestion struct {
+	source        suggestionSource
+	line          authored.LineID
+	name          string
+	confidence    *int
+	justification *string
+}
+
+// pendingSuggestion is the single place that decides what a pending review
+// suggests and in what order: the configured model's line when its row has one
+// and the transaction's month still names it, otherwise the rule's line kept in
+// tx_state. Every place that shows, confirms or accepts a pending review calls
+// this function so the queue, the list, the panel and the writes never disagree.
+func (lines transactionLines) pendingSuggestion(state authored.TransactionState, model *authored.ModelSuggestion) shownSuggestion {
+	if state.PendingReason == "" {
+		return shownSuggestion{}
+	}
+	if model != nil && model.Line != nil {
+		if name := lines.nameOf(model.Line); name != nil {
+			shown := shownSuggestion{
+				source: suggestionModel,
+				line:   *model.Line,
+				name:   *name,
+			}
+			if model.Confidence != nil {
+				confidence := int(*model.Confidence)
+				shown.confidence = &confidence
+			}
+			if model.Justification != nil {
+				justification := *model.Justification
+				shown.justification = &justification
+			}
+			return shown
+		}
+	}
+	if name := lines.nameOf(state.PendingLine); name != nil {
+		shown := shownSuggestion{
+			source: suggestionRule,
+			line:   *state.PendingLine,
+			name:   *name,
+		}
+		if state.PendingConfidence != nil {
+			confidence := int(*state.PendingConfidence)
+			shown.confidence = &confidence
+		}
+		return shown
+	}
+	return shownSuggestion{}
+}
+
 // pendingOf is the review a transaction waits for, its suggestion named in the
 // transaction's month. A review whose line is not kept, or is not in that
 // month's budget, has no suggestion and so no confidence either: a percentage
 // with nothing to be a percentage of would only mislead.
-func (lines transactionLines) pendingOf(state authored.TransactionState) *pendingReview {
+func (lines transactionLines) pendingOf(state authored.TransactionState, model *authored.ModelSuggestion) *pendingReview {
 	if state.PendingReason == "" {
 		return nil
 	}
 	review := &pendingReview{Reason: state.PendingReason}
-	review.Suggestion = lines.nameOf(state.PendingLine)
-	if review.Suggestion != nil && state.PendingConfidence != nil {
-		confidence := int(*state.PendingConfidence)
-		review.Confidence = &confidence
+	if shown := lines.pendingSuggestion(state, model); shown.source != suggestionNone {
+		name := shown.name
+		review.Suggestion = &name
+		review.Confidence = shown.confidence
+		review.Justification = shown.justification
 	}
 	return review
 }
