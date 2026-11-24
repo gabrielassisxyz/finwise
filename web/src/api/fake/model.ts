@@ -1,4 +1,4 @@
-import type { Bucket, Classifier, ClosingMode, Moment, IsoDay, PendingReview, ShellOverview, TransactionKind, WeekGuide, YearMonth } from '../types';
+import type { Bucket, Classifier, ClosingMode, ConfiguredModel, Moment, IsoDay, PendingReview, ShellOverview, TransactionKind, WeekGuide, YearMonth } from '../types';
 import type { CadenceUnit, SubscriptionCycle, SubscriptionStatus } from '../types';
 import type { FakeReview } from './review-model';
 
@@ -239,6 +239,8 @@ export interface FakeSettings {
   minExamples: number;
   /** Percent of corrections in each band of confidence, from 50-59 up to 90-100. */
   calibration: (number | null)[];
+  /** The language model the server is configured with. The prototype configures none, so it is left out. */
+  model?: ConfiguredModel | null;
   cardLabel: string;
   closingMode: ClosingMode;
   manualClosingDay: number;

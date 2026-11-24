@@ -285,6 +285,52 @@ describe('Categorização section', () => {
   });
 });
 
+describe('the model beside the calibration', () => {
+  const model = 'modelo-teste';
+  type LastRun = NonNullable<NonNullable<ReturnType<typeof prototypeState>['settings']['model']>['lastRun']>;
+
+  async function mountWithModel(lastRun: LastRun | null) {
+    const state = prototypeState();
+    state.settings.model = { name: model, lastRun };
+    return mountConfig('/config/categorizacao', state);
+  }
+
+  const sentence = (wrapper: VueWrapper) => wrapper.find('[data-section="categorizacao"] .model-run');
+
+  it('says when the model was last asked, when that worked', async () => {
+    const { wrapper } = await mountWithModel({ day: '2026-11-23', time: '03:12', worked: true });
+    expect(sentence(wrapper).text()).toBe('Última consulta ao modelo modelo-teste: 23/11 às 03:12.');
+  });
+
+  it('says the last consultation failed and that the pending ones go without a suggestion', async () => {
+    const { wrapper } = await mountWithModel({ day: '2026-11-23', time: '03:12', worked: false });
+    expect(sentence(wrapper).text()).toBe(
+      'A última consulta ao modelo modelo-teste, em 23/11 às 03:12, falhou. As pendências seguem sem sugestão.',
+    );
+  });
+
+  it('says the model has not been asked yet', async () => {
+    const { wrapper } = await mountWithModel(null);
+    expect(sentence(wrapper).text()).toBe('O modelo modelo-teste ainda não foi consultado.');
+  });
+
+  it('puts the sentence under the chart and shows the name nowhere else', async () => {
+    for (const lastRun of [null, { day: '2026-11-23', time: '03:12', worked: true }, { day: '2026-11-23', time: '03:12', worked: false }]) {
+      const { wrapper } = await mountWithModel(lastRun);
+      const chart = wrapper.find('[data-section="categorizacao"] .chart').element;
+      expect(chart.compareDocumentPosition(sentence(wrapper).element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(wrapper.html().split(model)).toHaveLength(2);
+      expect(sentence(wrapper).text()).toContain(model);
+    }
+  });
+
+  it('shows nothing about a model when none is configured', async () => {
+    const { wrapper } = await mountConfig('/config/categorizacao');
+    expect(sentence(wrapper).exists()).toBe(false);
+    expect(wrapper.text()).not.toMatch(/modelo|consulta/i);
+  });
+});
+
 describe('Cartão section', () => {
   it('starts automatic, with no day field', async () => {
     const { wrapper } = await mountConfig();

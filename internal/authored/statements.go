@@ -178,6 +178,7 @@ var allStatements = map[string]string{
 	"statementInsertModelSuggestion": statementInsertModelSuggestion,
 	"statementModelSuggestionsOf":    statementModelSuggestionsOf,
 	"statementRecordModelAnswer":     statementRecordModelAnswer,
+	"statementModelAnswerCounts":     statementModelAnswerCounts,
 	"statementPersonExamples":        statementPersonExamples,
 	"statementLastModelRun":          statementLastModelRun,
 	"statementRecordModelRun":        statementRecordModelRun,

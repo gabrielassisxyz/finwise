@@ -30,11 +30,23 @@ type calibrationBandWire struct {
 	CorrectionPercent *int `json:"correctionPercent"`
 }
 
+type modelRunWire struct {
+	Day    string `json:"day"`
+	Time   string `json:"time"`
+	Worked bool   `json:"worked"`
+}
+
+type modelWire struct {
+	Name    string        `json:"name"`
+	LastRun *modelRunWire `json:"lastRun"`
+}
+
 type categorizationWire struct {
 	Threshold          int                   `json:"threshold"`
 	MinExamples        int                   `json:"minExamples"`
 	Calibration        []calibrationBandWire `json:"calibration"`
 	SuggestedThreshold *int                  `json:"suggestedThreshold"`
+	Model              *modelWire            `json:"model"`
 }
 
 type cardClosingWire struct {
@@ -103,13 +115,17 @@ func readSettingsOverview(ctx context.Context, _ []json.RawMessage, views Views)
 	if err != nil {
 		return nil, err
 	}
+	categorization, err := categorizationOf(ctx, views, chosen)
+	if err != nil {
+		return nil, err
+	}
 	return settingsOverviewWire{
 		Pots:           settingsPotsOf(pots),
 		Establishments: counterparts.establishments,
 		People:         counterparts.people,
 		CardTitle:      cardTitleOf(card),
 		CardLabel:      chosen.cardLabel,
-		Categorization: categorizationOf(chosen.threshold, chosen.minExamples),
+		Categorization: categorization,
 		Closing:        cardClosingWire{Mode: string(chosen.closingMode), BankDay: bankClosingDayOf(card), ManualDay: int(chosen.manualDay)},
 		Data:           dataSettingsOf(state, lastBackup, nowOf(ctx), pots.items),
 	}, nil
@@ -201,18 +217,69 @@ func dayOfMonth(day brday.Day) (int, bool) {
 	return value, value >= 1 && value <= 31
 }
 
-// categorizationOf has no classification behind its calibration, whatever the
-// person set: nothing classifies with a confidence yet, so every band is
-// unjudged and nothing is suggested.
-func categorizationOf(threshold, minExamples int64) categorizationWire {
-	bands := make([]calibrationBandWire, 0, calibrationBandCount)
-	for index := range calibrationBandCount {
+// categorizationOf answers the calibration of the model configured now, and the
+// model with the last time it was asked. The threshold that would be suggested
+// stays unanswered: it only means something beside a switch that lets the model
+// apply a line by itself, and there is none.
+func categorizationOf(ctx context.Context, views Views, chosen chosenSettings) (categorizationWire, error) {
+	counts, err := views.Authored.ModelAnswerCounts(ctx, views.ModelName, authored.ConfidenceBands{
+		First: calibrationFirstBand, Width: calibrationBandWidth, Count: calibrationBandCount,
+	})
+	if err != nil {
+		return categorizationWire{}, err
+	}
+	model, err := modelOf(ctx, views)
+	if err != nil {
+		return categorizationWire{}, err
+	}
+	return categorizationWire{
+		Threshold:   int(chosen.threshold),
+		MinExamples: int(chosen.minExamples),
+		Calibration: calibrationOf(counts),
+		Model:       model,
+	}, nil
+}
+
+// calibrationOf is one band per count: the share the person corrected among
+// the answered suggestions, from calibrationMinAnswered of them on and unjudged
+// before.
+func calibrationOf(counts []authored.AnswerCounts) []calibrationBandWire {
+	bands := make([]calibrationBandWire, 0, len(counts))
+	for index, counted := range counts {
 		from := calibrationFirstBand + index*calibrationBandWidth
 		to := from + calibrationBandWidth - 1
-		if index == calibrationBandCount-1 {
+		if index == len(counts)-1 {
 			to = calibrationTop
 		}
-		bands = append(bands, calibrationBandWire{From: from, To: to})
+		band := calibrationBandWire{From: from, To: to}
+		if counted.Answered >= calibrationMinAnswered {
+			percent := correctionPercentOf(counted)
+			band.CorrectionPercent = &percent
+		}
+		bands = append(bands, band)
 	}
-	return categorizationWire{Threshold: int(threshold), MinExamples: int(minExamples), Calibration: bands}
+	return bands
+}
+
+// correctionPercentOf is corrected over answered, a whole percent with the half
+// rounded up, in integers: a float would move a band across the line the
+// person reads at 2.5.
+func correctionPercentOf(counted authored.AnswerCounts) int {
+	return int((200*counted.Corrected + counted.Answered) / (2 * counted.Answered))
+}
+
+// modelOf is nil with no model configured, and carries the last run that made
+// a request, nil before there was one.
+func modelOf(ctx context.Context, views Views) (*modelWire, error) {
+	if views.ModelName == "" {
+		return nil, nil
+	}
+	model := &modelWire{Name: views.ModelName}
+	run, found, err := views.Authored.LastModelRun(ctx)
+	if err != nil || !found {
+		return model, err
+	}
+	at := momentOf(run.At)
+	model.LastRun = &modelRunWire{Day: at.Day, Time: at.Time, Worked: run.OK}
+	return model, nil
 }

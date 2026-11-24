@@ -75,6 +75,21 @@ describe('calibration', () => {
     expect(categorization).toMatchObject({ threshold: 85, minExamples: 5, suggestedThreshold: 80 });
   });
 
+  it('configures no model, as the prototype does', async () => {
+    const { categorization } = await api().settings.overview();
+    expect(categorization.model).toBeNull();
+  });
+
+  it('answers the model a state is configured with and the last time it was asked, as copies', async () => {
+    const state = prototypeState();
+    state.settings.model = { name: 'modelo-teste', lastRun: { day: '2026-11-23', time: '03:12', worked: false } };
+    const instance = createFakeApi({ state });
+    const { categorization } = await instance.settings.overview();
+    expect(categorization.model).toEqual({ name: 'modelo-teste', lastRun: { day: '2026-11-23', time: '03:12', worked: false } });
+    categorization.model!.lastRun!.worked = true;
+    expect((await instance.settings.overview()).categorization.model!.lastRun!.worked).toBe(false);
+  });
+
   it('suggests the lowest band from which every band was corrected at most one time in ten', () => {
     const suggest = (percents: number[]) => suggestedThreshold(calibrationBands(percents));
     expect(suggest([46, 31, 18, 7, 2])).toBe(80);
