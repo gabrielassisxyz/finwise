@@ -8,12 +8,15 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"path"
+	"strings"
 	"time"
 
 	"github.com/gabrielassisxyz/finwise/internal/api"
 	"github.com/gabrielassisxyz/finwise/internal/authored"
 	"github.com/gabrielassisxyz/finwise/internal/ingest"
 	"github.com/gabrielassisxyz/finwise/internal/ledger"
+	"github.com/gabrielassisxyz/finwise/internal/webui"
 )
 
 const (
@@ -191,7 +194,7 @@ func serve(ctx context.Context, settings serveSettings, env environment) (err er
 		return fmt.Errorf("listen: %w", err)
 	}
 	server := &http.Server{
-		Handler:           handler,
+		Handler:           withInterface(handler, webui.Handler(webui.Built())),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      60 * time.Second,
@@ -217,6 +220,28 @@ func serve(ctx context.Context, settings serveSettings, env environment) (err er
 		env.listening(listener.Addr().String())
 	}
 	return serveUntilDone(ctx, server, listener)
+}
+
+// withInterface hands the API's own paths to its handler as they come, and every
+// other path to the interface. The interface never sees a path the API owns, so
+// a mistyped method is answered by the API's error and not by a page, and the
+// API's session, token and headers are the same as without the interface.
+func withInterface(apiHandler, interfaceHandler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if ownedByAPI(r.URL.Path) {
+			apiHandler.ServeHTTP(w, r)
+			return
+		}
+		interfaceHandler.ServeHTTP(w, r)
+	})
+}
+
+// ownedByAPI judges a path by where it lands once cleaned, as the API's own mux
+// does, so that `/./api/x` and `//api/x` reach the API and its redirect instead
+// of the interface's fallback.
+func ownedByAPI(urlPath string) bool {
+	cleaned := path.Clean("/" + urlPath)
+	return cleaned == "/healthz" || cleaned == "/api" || strings.HasPrefix(cleaned, "/api/")
 }
 
 // storedPINHash is the hash that opens the app: the one the person set in the
