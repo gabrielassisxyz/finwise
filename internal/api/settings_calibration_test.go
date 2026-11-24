@@ -252,11 +252,12 @@ func TestTheNameOfAnotherModelStartsTheChartFromZero(t *testing.T) {
 	}
 }
 
-// What an approved proposal of an agent leaves in the journal: a change by the
-// author model, and the person's change after it, on a transaction the model's
-// suggestion never covered.
+// What the approved proposals of an agent leave in the journal: changes by the
+// author model, on transactions no suggestion of the model covered, each
+// followed by the person's. Thirty of them, so that a count of the journal would
+// clear the threshold of 20 where the model's own suggestions do not.
 func TestTheJournalsModelAuthorIsNotTheModelsSuggestions(t *testing.T) {
-	proposal := func(t *testing.T, scratch *authoredtest.Scratch) {
+	proposals := func(t *testing.T, scratch *authoredtest.Scratch) {
 		answerSuggestions(t, scratch.Database, answered(calibrationModel, 85, 25, 5))
 		view := scratch.Database.View()
 		lines, err := linesOfMonth(t.Context(), view, "2026-03")
@@ -265,47 +266,27 @@ func TestTheJournalsModelAuthorIsNotTheModelsSuggestions(t *testing.T) {
 			t.Fatal(err)
 		}
 		line, _ := lines.idOf("Feira")
-		var key authored.TxKey
-		if err := scratch.Database.Change(t.Context(), authored.ChangeFacts{Author: authored.AuthorRule, Method: "ingest.run", At: fixtureNow}, func(recorder *authored.Recorder) error {
-			var err error
-			key, err = recorder.IndexTransaction(t.Context(), authoredtest.Seen("proposed", "2026-03-10", -1000, "text:LOJA"))
-			return err
-		}); err != nil {
-			t.Fatal(err)
-		}
-		for index, author := range []authored.Author{authored.AuthorModel, authored.AuthorPerson} {
-			if err := scratch.Database.Change(t.Context(), authored.ChangeFacts{Author: author, Method: "test.classify", At: fixtureNow.Add(time.Hour * time.Duration(index+1))}, func(recorder *authored.Recorder) error {
-				return recorder.SettleLine(t.Context(), key, line, author)
+		for index := range 30 {
+			var key authored.TxKey
+			at := fixtureNow.Add(time.Hour * time.Duration(index+1))
+			if err := scratch.Database.Change(t.Context(), authored.ChangeFacts{Author: authored.AuthorRule, Method: "ingest.run", At: at}, func(recorder *authored.Recorder) error {
+				var err error
+				key, err = recorder.IndexTransaction(t.Context(), authoredtest.Seen("proposed-"+strconv.Itoa(index), "2026-03-10", -1000, "text:LOJA"))
+				return err
 			}); err != nil {
 				t.Fatal(err)
 			}
-		}
-	}
-	// Thirty of them, in a band of their own, so that a count of the journal
-	// would clear the threshold of 20 where the suggestions alone do not.
-	many := func(t *testing.T, scratch *authoredtest.Scratch) {
-		proposal(t, scratch)
-		view := scratch.Database.View()
-		lines, _ := linesOfMonth(t.Context(), view, "2026-03")
-		view.Close()
-		line, _ := lines.idOf("Feira")
-		if err := scratch.Database.Change(t.Context(), authored.ChangeFacts{Author: authored.AuthorRule, Method: "ingest.run", At: fixtureNow}, func(recorder *authored.Recorder) error {
-			for index := range 30 {
-				key, err := recorder.IndexTransaction(t.Context(), authoredtest.Seen("proposed-"+strconv.Itoa(index), "2026-03-10", -1000, "text:LOJA"))
-				if err != nil {
-					return err
-				}
-				if err := recorder.SettleLine(t.Context(), key, line, authored.AuthorModel); err != nil {
-					return err
+			for _, author := range []authored.Author{authored.AuthorModel, authored.AuthorPerson} {
+				if err := scratch.Database.Change(t.Context(), authored.ChangeFacts{Author: author, Method: "test.classify", At: at.Add(time.Minute)}, func(recorder *authored.Recorder) error {
+					return recorder.SettleLine(t.Context(), key, line, author)
+				}); err != nil {
+					t.Fatal(err)
 				}
 			}
-			return nil
-		}); err != nil {
-			t.Fatal(err)
 		}
 	}
 	want := percentsOf(t, settingsWith(t, calibrationModel, answering(answered(calibrationModel, 85, 25, 5))))
-	if got := percentsOf(t, settingsWith(t, calibrationModel, many)); got != want {
+	if got := percentsOf(t, settingsWith(t, calibrationModel, proposals)); got != want {
 		t.Errorf("the bands moved from %v to %v with changes by the author model and no suggestion", want, got)
 	}
 }
