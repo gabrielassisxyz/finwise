@@ -63,11 +63,17 @@ type Proposal struct {
 	StaleReason *string
 	ChangeID    *ChangeID
 	Undone      bool
+	// Queue is true for a line proposed for a transaction waiting for review: the
+	// weekly queue shows it and settling the review answers it, so the approvals
+	// card neither lists nor answers it. It is left out of an encoded proposal
+	// when false, so the files that hold the card's proposals stay as they were.
+	Queue bool `json:",omitempty"`
 }
 
 const (
 	proposalSelectColumns = `p.id, p.submitted_at, p.proposer, p.method, p.arguments, p.reason, p.title, p.based_on,
-  p.outcome, p.answered_at, p.refusal, p.stale_reason, p.change_id, coalesce(c.undone_at IS NOT NULL, 0)`
+  p.outcome, p.answered_at, p.refusal, p.stale_reason, p.change_id, coalesce(c.undone_at IS NOT NULL, 0),
+  EXISTS (SELECT 1 FROM queue_proposals AS q WHERE q.proposal_id = p.id)`
 
 	statementNewestChangeID = `SELECT coalesce(max(id), 0) FROM changes`
 
@@ -83,7 +89,7 @@ WHERE p.id = ?`
 	statementWaitingProposals = `
 SELECT ` + proposalSelectColumns + `
 FROM proposals AS p LEFT JOIN changes AS c ON c.id = p.change_id
-WHERE p.outcome = 'waiting'
+WHERE p.outcome = 'waiting' AND NOT EXISTS (SELECT 1 FROM queue_proposals AS q WHERE q.proposal_id = p.id)
 ORDER BY p.id ASC`
 
 	statementAllProposals = `
@@ -163,13 +169,14 @@ func (database *Database) InsertProposal(ctx context.Context, draft ProposalDraf
 
 // RefuseProposal closes a waiting proposal as refused at the given instant with
 // an optional reason (empty stores NULL), recording no change. found is false
-// when no waiting proposal has that id.
+// when no waiting proposal has that id, and for one of the weekly queue's, which
+// only settling the review closes.
 func (database *Database) RefuseProposal(ctx context.Context, id ProposalID, reason string, at time.Time) (Proposal, bool, error) {
 	var proposal Proposal
 	var refused bool
 	err := database.write(ctx, func(tx *sql.Tx) error {
 		found, ok, err := readProposalTx(ctx, tx, id)
-		if err != nil || !ok || found.Outcome != ProposalWaiting {
+		if err != nil || !ok || found.Outcome != ProposalWaiting || found.Queue {
 			return err
 		}
 		var text sql.NullString
@@ -307,8 +314,9 @@ func (view *View) Proposal(ctx context.Context, id ProposalID) (Proposal, bool, 
 	return proposal, found, err
 }
 
-// WaitingProposals is every proposal waiting for an answer, oldest first; empty
-// on the empty view.
+// WaitingProposals is every proposal the approvals card waits on, oldest first;
+// empty on the empty view. A line proposed for a transaction in the weekly queue
+// is not among them.
 func (view *View) WaitingProposals(ctx context.Context) ([]Proposal, error) {
 	return view.readProposals(ctx, func(tx *sql.Tx) (*sql.Rows, error) {
 		return tx.QueryContext(ctx, statementWaitingProposals)
@@ -356,14 +364,14 @@ type proposalScanner interface {
 }
 
 func scanProposal(scanner proposalScanner) (Proposal, error) {
-	var id, basedOn, undone int64
+	var id, basedOn, undone, queue int64
 	var proposal Proposal
 	var outcome string
 	var answeredAt, refusal, staleReason sql.NullString
 	var changeID sql.NullInt64
 	err := scanner.Scan(&id, &proposal.SubmittedAt, &proposal.Proposer, &proposal.Method,
 		&proposal.Arguments, &proposal.Reason, &proposal.Title, &basedOn,
-		&outcome, &answeredAt, &refusal, &staleReason, &changeID, &undone)
+		&outcome, &answeredAt, &refusal, &staleReason, &changeID, &undone, &queue)
 	if err != nil {
 		return Proposal{}, err
 	}
@@ -371,6 +379,7 @@ func scanProposal(scanner proposalScanner) (Proposal, error) {
 	proposal.BasedOn = ChangeID(basedOn)
 	proposal.Outcome = ProposalOutcome(outcome)
 	proposal.Undone = undone != 0
+	proposal.Queue = queue != 0
 	if answeredAt.Valid {
 		value := answeredAt.String
 		proposal.AnsweredAt = &value

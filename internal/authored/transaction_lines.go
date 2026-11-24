@@ -13,15 +13,21 @@ const statementStepsOfChange = `SELECT id, tx_key FROM history_steps WHERE chang
 
 // SettleLine puts the transaction at key on line, by who, and ends the review
 // it waited for: once someone decided, the model's confidence and its
-// suggestion no longer apply. Each column that changes is one effect.
+// suggestion no longer apply, and neither does the line an agent proposed for
+// it, which is closed in this same change however the review was settled. Each
+// column that changes is one effect.
 func (recorder *Recorder) SettleLine(ctx context.Context, key TxKey, line LineID, by Author) error {
 	if !by.valid() {
 		return ErrInvalidAuthor
 	}
-	return recorder.Set(ctx, txStateTable, []Value{Integer(int64(key))}, Row{
+	err := recorder.Set(ctx, txStateTable, []Value{Integer(int64(key))}, Row{
 		"line_id": Integer(int64(line)), "classified_by": Text(string(by)), "confidence": Null,
 		"pending_reason": Null, "pending_line_id": Null, "pending_confidence": Null,
 	})
+	if err != nil {
+		return err
+	}
+	return recorder.closeQueueProposals(ctx, key, line, by)
 }
 
 // SetAskReason opens or closes the panel's question of why the person moved the

@@ -224,7 +224,7 @@ func requireFreshSchema(t *testing.T, path string) {
 	}
 	want := slices.Sorted(slices.Values([]string{"budget_version_lines", "budget_versions", "change_effects", "changes", "closed_months", "establishment_tags", "establishments", "history_step_reasons", "history_steps", "lines", "meta", "model_suggestions", "pin", "pot_lines", "pot_settings", "scenarios", "schema_migrations", "settings", "sqlite_sequence", "subscriptions", "tx_ids", "tx_index", "tx_split_parts", "tx_state", "tx_tags",
 		"closing_steps", "dismissed_warnings", "transfer_marks",
-		"proposals"}))
+		"proposals", "queue_proposals"}))
 	if got := tableNames(t, database); !equalStrings(got, want) {
 		t.Errorf("tables = %v, want %v", got, want)
 	}

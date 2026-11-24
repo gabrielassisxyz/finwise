@@ -45,8 +45,8 @@ func (recorder *Recorder) SetExpectedReimbursement(ctx context.Context, key TxKe
 // LinkReimbursement records that the credit at credit, of cents, paid the
 // purchase at purchase back, replacing the credit it had, and settles the
 // credit's pending review: a credit that pays a purchase back is nobody's
-// income, so no line is left to choose for it. It answers whether the
-// purchase's link changed.
+// income, so no line is left to choose for it, and a line an agent proposed for
+// it is closed as stale. It answers whether the purchase's link changed.
 func (recorder *Recorder) LinkReimbursement(ctx context.Context, purchase, credit TxKey, cents money.Cents) (bool, error) {
 	before := recorder.seq
 	link := Row{"credit_tx_key": Integer(int64(credit)), "credit_cents": Integer(int64(cents))}
@@ -56,6 +56,9 @@ func (recorder *Recorder) LinkReimbursement(ctx context.Context, purchase, credi
 	linked := recorder.seq > before
 	settled := Row{"pending_reason": Null, "pending_line_id": Null, "pending_confidence": Null}
 	if err := recorder.Set(ctx, txStateTable, stateKey(credit), settled); err != nil {
+		return false, err
+	}
+	if err := recorder.staleQueueProposals(ctx, credit); err != nil {
 		return false, err
 	}
 	return linked, nil

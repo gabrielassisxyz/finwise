@@ -154,6 +154,7 @@ var notJournaledTables = map[string]string{
 	"pin":               "changing the PIN is not a recorded change and has no undo",
 	"proposals":         "a request and its answer; what an approval applies is journaled as a change of its own",
 	"model_suggestions": "what a model said about a transaction, which the person answers by a change of their own",
+	"queue_proposals":   "which transaction and line a proposal is for; settling the review closes it, and undoing that change leaves it closed",
 }
 
 // productionChecks are the checks every undo of the app runs.

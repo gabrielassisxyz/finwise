@@ -12,8 +12,10 @@ func TestTheProposalsMigrationIsRecorded(t *testing.T) {
 	path := databasePath(t)
 	openAndClose(t, path, creationInstant, nil)
 	want := embeddedMigrationNames(t)
-	if !slices.Contains(want, "0010_proposals") {
-		t.Fatalf("the embedded set lacks 0010_proposals: %v", want)
+	for _, name := range []string{"0010_proposals", "0011_queue_proposals"} {
+		if !slices.Contains(want, name) {
+			t.Fatalf("the embedded set lacks %s: %v", name, want)
+		}
 	}
 	if got := namesOf(t, path); !equalStrings(got, want) {
 		t.Errorf("recorded = %v, want %v", got, want)
@@ -62,6 +64,12 @@ func TestTheProposalsTableRefusesInconsistentRows(t *testing.T) {
 		},
 		"stale": {
 			`INSERT INTO proposals (submitted_at, proposer, method, arguments, reason, title, based_on, outcome, answered_at, stale_reason) VALUES (?, 'agent', 'transactions.setNote', '["tx","x"]', 'why', 'title', 0, 'stale', ?, 'proposal_stale')`,
+			[]any{ts, ans},
+		},
+		// A proposal the weekly queue closes because something else settled the
+		// review was refused nothing and applied nothing, so it has no reason.
+		"stale with no reason": {
+			`INSERT INTO proposals (submitted_at, proposer, method, arguments, reason, title, based_on, outcome, answered_at) VALUES (?, 'agent', 'transactions.setLine', '["tx","Mercado"]', 'why', 'title', 0, 'stale', ?)`,
 			[]any{ts, ans},
 		},
 	}
@@ -122,9 +130,6 @@ func TestTheProposalsTableRefusesInconsistentRows(t *testing.T) {
 		},
 		"refused with change_id": {
 			`INSERT INTO proposals (submitted_at, proposer, method, arguments, reason, title, based_on, outcome, answered_at, change_id) VALUES (?, 'a', 'm', '[]', 'r', 't', 0, 'refused', ?, ?)`, []any{ts, ans, int64(changeID)},
-		},
-		"stale without stale_reason": {
-			`INSERT INTO proposals (submitted_at, proposer, method, arguments, reason, title, based_on, outcome, answered_at) VALUES (?, 'a', 'm', '[]', 'r', 't', 0, 'stale', ?)`, []any{ts, ans},
 		},
 		"stale with empty stale_reason": {
 			`INSERT INTO proposals (submitted_at, proposer, method, arguments, reason, title, based_on, outcome, answered_at, stale_reason) VALUES (?, 'a', 'm', '[]', 'r', 't', 0, 'stale', ?, '')`, []any{ts, ans},
