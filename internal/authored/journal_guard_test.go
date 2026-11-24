@@ -46,7 +46,7 @@ func TestTheTablesDeliberatelyNotJournaledAreTheNamedOnes(t *testing.T) {
 	}
 	sort.Strings(got)
 	want := []string{"change_effects", "changes", "lines", "meta", "model_suggestions", "pin", "schema_migrations", "tx_ids", "tx_index",
-		"proposals"}
+		"proposals", "queue_proposals"}
 	sort.Strings(want)
 	if strings.Join(got, " ") != strings.Join(want, " ") {
 		t.Errorf("not journaled: %v, want %v", got, want)

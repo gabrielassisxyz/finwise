@@ -188,7 +188,13 @@ var allStatements = map[string]string{
 	"statementModelSuggestionsOf":    statementModelSuggestionsOf,
 	"statementRecordModelAnswer":     statementRecordModelAnswer,
 	"statementModelAnswerCounts":     statementModelAnswerCounts,
-	"statementPersonExamples":        statementPersonExamples,
-	"statementLastModelRun":          statementLastModelRun,
-	"statementRecordModelRun":        statementRecordModelRun,
+
+	"statementTransactionWaitsForReview": statementTransactionWaitsForReview,
+	"statementInsertQueueProposal":       statementInsertQueueProposal,
+	"statementStaleQueueProposalsOf":     statementStaleQueueProposalsOf,
+	"statementWaitingQueueProposalsOf":   statementWaitingQueueProposalsOf,
+	"statementQueueProposalsOf":          statementQueueProposalsOf,
+	"statementPersonExamples":            statementPersonExamples,
+	"statementLastModelRun":              statementLastModelRun,
+	"statementRecordModelRun":            statementRecordModelRun,
 }

@@ -26,4 +26,9 @@ describe('ProposedChange', () => {
   it('has every member assignable to its method parameters', () => {
     expect(ALL_MEMBERS_ASSIGNABLE).toBe(true);
   });
+
+  it('carries the line an agent proposes for a transaction waiting for review', () => {
+    const line: ProposedChange = { method: 'transactions.setLine', arguments: ['tx-1', 'Mercado'] };
+    expect(line.method).toBe('transactions.setLine');
+  });
 });

@@ -1,0 +1,25 @@
+{
+  "answer": {
+    "proposalId": "1",
+    "title": "Pôr Alvorada Telecom S.A. R$ 109,90 em Delivery"
+  },
+  "proposals": [
+    {
+      "ID": 1,
+      "SubmittedAt": "2026-03-20T15:00:00.000Z",
+      "Proposer": "agente-revisor",
+      "Method": "transactions.setLine",
+      "Arguments": "[\"tx-boleto\",\"Delivery\"]",
+      "Reason": "Recibo da entrega no e-mail",
+      "Title": "Pôr Alvorada Telecom S.A. R$ 109,90 em Delivery",
+      "BasedOn": 4,
+      "Outcome": "waiting",
+      "AnsweredAt": null,
+      "Refusal": null,
+      "StaleReason": null,
+      "ChangeID": null,
+      "Undone": false,
+      "Queue": true
+    }
+  ]
+}

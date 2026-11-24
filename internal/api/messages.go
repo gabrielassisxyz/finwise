@@ -247,6 +247,10 @@ func proposalClearNoteTitle(target string) string {
 	return "Apagar a nota de " + target
 }
 
+func proposalSetLineTitle(tx, line string) string {
+	return "Pôr " + tx + " em " + line
+}
+
 func proposalSetDefaultLineTitle(establishment, line string) string {
 	return "Pôr as próximas compras em " + establishment + " em " + line
 }

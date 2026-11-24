@@ -25,6 +25,7 @@ var proposableMethods = []string{
 	"transactions.removeFixedTag",
 	"transactions.setNote",
 	"transactions.setDefaultLine",
+	"transactions.setLine",
 	"transactions.setExcluded",
 	"transactions.setExclusionReason",
 	"transactions.excludeMany",
@@ -163,6 +164,16 @@ func wordProposalTitle(ctx context.Context, snapshot *ledger.View, view *authore
 			return "", err
 		}
 		return proposalSetDefaultLineTitle(name, line), nil
+	case proposedLineMethod:
+		id, line, err := idAndText(args)
+		if err != nil {
+			return "", err
+		}
+		label, err := transactionLabel(ctx, snapshot, view, id)
+		if err != nil {
+			return "", err
+		}
+		return proposalSetLineTitle(label, line), nil
 	case "transactions.setExcluded":
 		id, on, err := idAndFlag(args)
 		if err != nil || on {

@@ -47,3 +47,15 @@ func Proposals(t testing.TB, database *authored.Database) []authored.Proposal {
 	}
 	return proposals
 }
+
+// InsertQueueProposal stores a waiting proposal of line for the transaction at
+// key in the scratch database and answers its id; the test fails when the
+// transaction does not wait for review.
+func InsertQueueProposal(t testing.TB, database *authored.Database, draft authored.ProposalDraft, key authored.TxKey, line authored.LineID) authored.ProposalID {
+	t.Helper()
+	id, stored, err := database.InsertQueueProposal(t.Context(), draft, key, line)
+	if err != nil || !stored {
+		t.Fatalf("authoredtest: insert queue proposal: stored=%v err=%v", stored, err)
+	}
+	return id
+}

@@ -4541,6 +4541,28 @@
           "properties": {
             "method": {
               "type": "string",
+              "const": "transactions.setLine"
+            },
+            "arguments": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "method",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
               "const": "transactions.setExcluded"
             },
             "arguments": {

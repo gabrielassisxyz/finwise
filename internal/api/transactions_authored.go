@@ -60,6 +60,7 @@ type authoredRows struct {
 	keys           map[string]authored.TxKey
 	kept           map[authored.TxKey]authored.AuthoredTransaction
 	suggestions    map[authored.TxKey]authored.ModelSuggestion
+	proposals      map[authored.TxKey]authored.QueueProposal
 	establishments map[string]authored.Establishment
 	linkedCredits  map[authored.TxKey]bool
 	months         map[brday.Month]transactionLines
@@ -84,6 +85,9 @@ func readAuthoredRows(ctx context.Context, views Views, listed []txrules.Transac
 		return authoredRows{}, err
 	}
 	if rows.suggestions, err = view.ModelSuggestions(ctx, orderedKeys); err != nil {
+		return authoredRows{}, err
+	}
+	if rows.proposals, err = view.QueueProposals(ctx, orderedKeys); err != nil {
 		return authoredRows{}, err
 	}
 	whole := sharedWholeListing(ctx, views)
@@ -183,28 +187,42 @@ func (rows authoredRows) keptOf(listed txrules.Transaction) (kept authored.Autho
 	return rows.kept[key], key, true
 }
 
-func (rows authoredRows) modelSuggestionOf(listed txrules.Transaction) *authored.ModelSuggestion {
+// suggestionsOf is everything beyond the transaction's own state that a pending
+// review's suggestion is decided from.
+func (rows authoredRows) suggestionsOf(listed txrules.Transaction) suggestionInputs {
 	key, indexed := rows.keys[listed.ID]
 	if !indexed {
-		return nil
+		return suggestionInputs{}
 	}
-	suggestion, found := rows.suggestions[key]
-	if !found {
-		return nil
+	var inputs suggestionInputs
+	if proposal, found := rows.proposals[key]; found {
+		inputs.proposal = &proposal
 	}
-	return &suggestion
+	if model, found := rows.suggestions[key]; found {
+		inputs.model = &model
+	}
+	return inputs
 }
 
-func storedModelSuggestion(ctx context.Context, view *authored.View, key authored.TxKey) (*authored.ModelSuggestion, error) {
-	suggestions, err := view.ModelSuggestions(ctx, []authored.TxKey{key})
+// storedSuggestionInputs reads for one transaction what readAuthoredRows reads
+// for a whole answer, for a write that needs the suggestion the person was shown.
+func storedSuggestionInputs(ctx context.Context, view *authored.View, key authored.TxKey) (suggestionInputs, error) {
+	proposals, err := view.QueueProposals(ctx, []authored.TxKey{key})
 	if err != nil {
-		return nil, err
+		return suggestionInputs{}, err
 	}
-	suggestion, found := suggestions[key]
-	if !found {
-		return nil, nil
+	models, err := view.ModelSuggestions(ctx, []authored.TxKey{key})
+	if err != nil {
+		return suggestionInputs{}, err
 	}
-	return &suggestion, nil
+	var inputs suggestionInputs
+	if proposal, found := proposals[key]; found {
+		inputs.proposal = &proposal
+	}
+	if model, found := models[key]; found {
+		inputs.model = &model
+	}
+	return inputs, nil
 }
 
 // disposable is a listed transaction as Dispose takes it: the ledger's facts
@@ -294,7 +312,7 @@ func (rows authoredRows) transactionOf(listed txrules.Transaction, source ledger
 		confidence := int(*state.Confidence)
 		wire.Confidence = &confidence
 	}
-	wire.Pending = month.pendingOf(state, rows.modelSuggestionOf(listed))
+	wire.Pending = month.pendingOf(state, rows.suggestionsOf(listed))
 	wire.Tags = tagsOf(kept.Tags, rows.establishments[listed.EstablishmentKey].FixedTags)
 	if state.Refund != nil {
 		wire.Refund = *state.Refund
@@ -322,9 +340,18 @@ type suggestionSource int
 
 const (
 	suggestionNone suggestionSource = iota
+	suggestionAgent
 	suggestionModel
 	suggestionRule
 )
+
+// suggestionInputs are what a pending review's suggestion is decided from
+// besides the transaction's own state: the line an agent proposed for it and
+// what the configured model said about it, each nil when there is none.
+type suggestionInputs struct {
+	proposal *authored.QueueProposal
+	model    *authored.ModelSuggestion
+}
 
 // shownSuggestion is what a pending review currently suggests in the
 // transaction's own month.
@@ -337,15 +364,23 @@ type shownSuggestion struct {
 }
 
 // pendingSuggestion is the single place that decides what a pending review
-// suggests and in what order: the configured model's line when its row has one
-// and the transaction's month still names it, otherwise the rule's line kept in
-// tx_state. Every place that shows, confirms or accepts a pending review calls
-// this function so the queue, the list, the panel and the writes never disagree.
-func (lines transactionLines) pendingSuggestion(state authored.TransactionState, model *authored.ModelSuggestion) shownSuggestion {
+// suggests and in what order: the line an agent proposed, which is newer and
+// deliberate, then the configured model's line, then the rule's line kept in
+// tx_state, each only when the transaction's month still names it. Every place
+// that shows, confirms or accepts a pending review calls this function so the
+// queue, the list, the panel and the writes never disagree. A proposal carries
+// no confidence, and its reason is the justification.
+func (lines transactionLines) pendingSuggestion(state authored.TransactionState, from suggestionInputs) shownSuggestion {
 	if state.PendingReason == "" {
 		return shownSuggestion{}
 	}
-	if model != nil && model.Line != nil {
+	if from.proposal != nil {
+		if name := lines.nameOf(&from.proposal.Line); name != nil {
+			reason := from.proposal.Reason
+			return shownSuggestion{source: suggestionAgent, line: from.proposal.Line, name: *name, justification: &reason}
+		}
+	}
+	if model := from.model; model != nil && model.Line != nil {
 		if name := lines.nameOf(model.Line); name != nil {
 			shown := shownSuggestion{
 				source: suggestionModel,
@@ -382,12 +417,12 @@ func (lines transactionLines) pendingSuggestion(state authored.TransactionState,
 // transaction's month. A review whose line is not kept, or is not in that
 // month's budget, has no suggestion and so no confidence either: a percentage
 // with nothing to be a percentage of would only mislead.
-func (lines transactionLines) pendingOf(state authored.TransactionState, model *authored.ModelSuggestion) *pendingReview {
+func (lines transactionLines) pendingOf(state authored.TransactionState, from suggestionInputs) *pendingReview {
 	if state.PendingReason == "" {
 		return nil
 	}
 	review := &pendingReview{Reason: state.PendingReason}
-	if shown := lines.pendingSuggestion(state, model); shown.source != suggestionNone {
+	if shown := lines.pendingSuggestion(state, from); shown.source != suggestionNone {
 		name := shown.name
 		review.Suggestion = &name
 		review.Confidence = shown.confidence

@@ -230,8 +230,8 @@ func TestProposableMethodsMatchTheManifestProposedChangeUnion(t *testing.T) {
 		}
 	}
 	got := ProposableMethods()
-	if len(got) != 20 {
-		t.Fatalf("ProposableMethods has %d entries, want 20", len(got))
+	if len(got) != 21 {
+		t.Fatalf("ProposableMethods has %d entries, want 21", len(got))
 	}
 	if !slices.Equal(got, fromManifest) {
 		t.Errorf("ProposableMethods = %v, manifest ProposedChange = %v", got, fromManifest)
@@ -268,7 +268,7 @@ func postDraft(t *testing.T, env *writeEnv, method string, args any, reason, pro
 }
 
 func TestEveryProposableMemberSubmitsWithExpectedTitleAndRollsBackDryRun(t *testing.T) {
-	// Prepare a bench with every shape needed for all 20 members.
+	// Prepare a bench with every shape needed for the 20 members that are cards.
 	env, _ := newProposalBench(t)
 	// Ensure baseline states exist for the remove/clear/unlink/recount members.
 	// Note from inventedTransactionAuthorship:
@@ -348,6 +348,11 @@ func TestEveryProposableMemberSubmitsWithExpectedTitleAndRollsBackDryRun(t *test
 	}
 
 	for _, method := range ProposableMethods() {
+		// A line proposed for a transaction waiting for review is no card: the
+		// queue's own tests exercise it.
+		if method == proposedLineMethod {
+			continue
+		}
 		if !covered[method] {
 			t.Errorf("proposable method %s was not exercised", method)
 		}

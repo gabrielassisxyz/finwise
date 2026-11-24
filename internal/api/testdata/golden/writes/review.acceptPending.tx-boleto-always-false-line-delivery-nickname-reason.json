@@ -1,0 +1,75 @@
+{
+  "answer": {
+    "changeId": "5",
+    "name": "Alvorada Telecom S.A."
+  },
+  "effects": [
+    {
+      "seq": 1,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "line_id",
+      "before": null,
+      "after": 6
+    },
+    {
+      "seq": 2,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "classified_by",
+      "before": null,
+      "after": "person"
+    },
+    {
+      "seq": 3,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "pending_reason",
+      "before": "Baixa confiança",
+      "after": null
+    },
+    {
+      "seq": 4,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "pending_line_id",
+      "before": 4,
+      "after": null
+    },
+    {
+      "seq": 5,
+      "table": "tx_state",
+      "key": [
+        1
+      ],
+      "column": "pending_confidence",
+      "before": 64,
+      "after": null
+    },
+    {
+      "seq": 6,
+      "table": "history_steps",
+      "key": [
+        1
+      ],
+      "column": null,
+      "before": null,
+      "after": {
+        "id": 1,
+        "tx_key": 1,
+        "change_id": 5,
+        "kind": "step",
+        "text": "Você aceitou Delivery",
+        "day": "2026-03-20"
+      }
+    }
+  ]
+}
